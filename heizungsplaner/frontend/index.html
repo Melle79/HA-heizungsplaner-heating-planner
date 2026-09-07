@@ -45,6 +45,9 @@
     color:var(--leise); padding:var(--l3) var(--l4); font-size:.9rem; font-weight:500;
     cursor:pointer; white-space:nowrap; font-family:inherit;
   }
+  /* Sicherheitsgurt: In einer Flex-Leiste ist schon manches [hidden] von
+     einer display-Regel überstimmt worden. */
+  nav button[hidden]{display:none}
   nav button:hover{color:var(--text)}
   nav button.an{color:var(--text); border-bottom-color:var(--warm)}
   nav button:focus{outline:none}
@@ -381,6 +384,7 @@
 <nav>
   <button data-blatt="uebersicht" class="an">Übersicht</button>
   <button data-blatt="raeume">Räume</button>
+  <button data-blatt="tank" id="nav-tank" hidden>Öltank</button>
   <button data-blatt="einstellungen">Einstellungen</button>
   <button data-blatt="protokoll">Protokoll</button>
 </nav>
@@ -459,6 +463,14 @@
         <select id="e-schulfrei"></select>
         <div class="notiz">Entscheidet, ob im Zeitplan die Schultag- oder die
           Schulfrei-Punkte gelten.</div></div>
+      <div class="feld"><label>Feiertag</label>
+        <select id="e-feiertag"></select>
+        <div class="notiz">Für die Punkte „Werktag“ und „arbeitsfrei“ – gedacht
+          für alle, die arbeiten statt zur Schule zu gehen. Hier gehört
+          <em>nur</em> der Feiertag hinein: Das Wochenende steht schon in den
+          Wochentag-Haken des Punktes, und Schulferien sind für einen
+          Berufstätigen keine freien Tage. Ohne Angabe bleiben die beiden
+          Punktarten wirkungslos.</div></div>
     </div>
   </div>
 
@@ -502,6 +514,18 @@
 
   <div class="tafel">
     <h2>Anwesenheit und Vorheizen</h2>
+    <div class="abschnitt">
+      <h3>Wer zum Haushalt zählt</h3>
+      <div id="e-haushalt" class="hakenliste kurz"></div>
+      <div class="notiz">Nichts angehakt: alle Personen zählen. Das ist die
+        Vorgabe und für die meisten richtig.
+        <br>Wichtig wird die Auswahl, wenn in Home Assistant mehr Personen
+        stehen als im Haus wohnen – Gäste, alte Konten oder Personen ohne
+        Gerätetracker. Letztere stehen dauerhaft auf „zu Hause“ und hielten
+        damit jeden Raum für besetzt; die Absenkung bei Abwesenheit griffe
+        dann nie mehr.
+        <br>Je Raum lässt sich die Auswahl weiter einengen.</div>
+    </div>
     <div class="abschnitt">
       <h3>Absenkung bei Abwesenheit</h3>
       <label class="haken"><input type="checkbox" id="e-anw-aktiv">
@@ -604,6 +628,49 @@
       Räumen ohne Fensterkontakte. Kontakte trägt man je Raum ein.</div>
   </div>
 
+  <div class="tafel">
+    <h2>Öltank</h2>
+    <label class="haken"><input type="checkbox" id="e-tank-aktiv">
+      <span>Tanküberwachung anzeigen – Restmenge, Verbrauch und Leckagewache</span></label>
+    <div class="notiz">Nur für Anlagen mit Öltank. Ausgeschaltet erscheint der
+      Reiter „Öltank“ gar nicht erst.</div>
+    <div class="raster-felder eng" style="margin-top:var(--l3)">
+      <div class="feld"><label>Tankinhalt (Liter)</label>
+        <input type="number" id="e-tank-inhalt" min="0" max="100000" step="100"></div>
+      <div class="feld"><label>Füllgrenze (%)</label>
+        <input type="number" id="e-tank-grenze" min="50" max="100" step="1">
+        <div class="notiz">Steht auf dem Typenschild, meist 95.</div></div>
+      <div class="feld"><label>Warnschwelle (Liter)</label>
+        <input type="number" id="e-tank-warn" min="0" max="100000" step="50"></div>
+    </div>
+    <div class="abschnitt">
+      <h3>Verbrauch aus der Brennerlaufzeit</h3>
+      <div class="notiz">Optional. Ohne diese Quelle bleibt der Stand stehen,
+        bis jemand eine Lieferung einträgt.</div>
+      <div class="raster-felder" style="margin-top:var(--l3)">
+        <div class="feld"><label>Laufzeitzähler</label>
+          <select id="e-tank-brenner"></select></div>
+        <div class="feld"><label>Düsendurchsatz (Liter/Stunde)</label>
+          <input type="number" id="e-tank-durchsatz" min="0" max="100" step="0.1">
+          <div class="notiz">Aus der Düsengröße; wird mit jeder Lieferung
+            genauer.</div></div>
+      </div>
+    </div>
+    <div class="abschnitt">
+      <h3>Leckagewache</h3>
+      <div class="raster-felder">
+        <div class="feld"><label>Melder im Auffangraum</label>
+          <select id="e-tank-leck"></select>
+          <div class="notiz">Heizöl leitet keinen Strom – ein gewöhnlicher
+            Wassermelder spricht darauf nicht an. Es braucht einen optischen
+            Sensor oder einen Schwimmer.</div></div>
+        <div class="feld"><label>Melden an</label>
+          <div id="e-tank-melden" class="hakenliste"></div>
+          <div class="notiz">Leer: die Meldewege des Wachhunds.</div></div>
+      </div>
+    </div>
+  </div>
+
   <div class="zeile-aktionen">
     <button id="btn-speichern-einst">Einstellungen speichern</button>
     <span class="meldung" id="m-einstellungen"></span>
@@ -611,6 +678,58 @@
 </section>
 
 <!-- ══════════════════════════════════════════════ Protokoll ══ -->
+<!-- ══════════════════════════════════════════════════ Öltank ══ -->
+<section id="tank">
+  <div class="tafel">
+    <h2>Füllstand</h2>
+    <div id="tank-lage" class="notiz">Wird geladen …</div>
+    <div id="tank-balken" style="margin:var(--l3) 0; height:14px; border-radius:7px;
+         background:var(--flaeche); overflow:hidden">
+      <div id="tank-fuellung" style="height:100%; width:0; background:var(--warm);
+           transition:width .4s"></div>
+    </div>
+    <div class="raster-felder eng">
+      <div class="feld"><label>Restmenge</label>
+        <div class="wert-gross" id="tank-rest">–</div></div>
+      <div class="feld"><label>Verbrauch heute</label>
+        <div class="wert-gross" id="tank-heute">–</div></div>
+      <div class="feld"><label>Reichweite</label>
+        <div class="wert-gross" id="tank-reichweite">–</div></div>
+    </div>
+    <div class="notiz" id="tank-quelle"></div>
+  </div>
+
+  <div class="tafel">
+    <h2>Lieferung eintragen</h2>
+    <div class="notiz">Die Menge vom Lieferschein ist geeicht und damit genauer
+      als jede Rechnung – sie zieht den Stand wieder gerade.</div>
+    <div class="raster-felder eng" style="margin-top:var(--l3)">
+      <div class="feld"><label>Datum</label>
+        <input type="date" id="tank-datum"></div>
+      <div class="feld"><label>Menge (Liter)</label>
+        <input type="number" id="tank-liter" min="1" step="1"></div>
+      <div class="feld" style="align-self:end">
+        <button id="btn-tank-lieferung">Verbuchen</button></div>
+    </div>
+    <div class="abschnitt">
+      <h3>Stand von Hand setzen</h3>
+      <div class="notiz">Nach einem Blick auf den Zeiger am Tank.</div>
+      <div class="raster-felder eng" style="margin-top:var(--l3)">
+        <div class="feld"><label>Füllstand (Liter)</label>
+          <input type="number" id="tank-stand" min="0" step="10"></div>
+        <div class="feld" style="align-self:end">
+          <button class="leise" id="btn-tank-stand">Übernehmen</button></div>
+      </div>
+    </div>
+    <span class="meldung" id="m-tank"></span>
+  </div>
+
+  <div class="tafel">
+    <h2>Letzte Lieferungen</h2>
+    <table><tbody id="tank-lieferungen"></tbody></table>
+  </div>
+</section>
+
 <section id="protokoll">
   <div class="tafel">
     <table id="protokolltabelle">
@@ -1276,6 +1395,7 @@ function reiterSetzen(leiste, blattRaum) {
       // stehen, wo man im vorigen Blatt aufgehört hat.
       if (blattRaum.scrollTop) blattRaum.scrollTop = 0;
       if (knopf.dataset.blatt === 'protokoll') protokollLaden();
+      if (knopf.dataset.blatt === 'tank') tankLaden();
     };
   });
 }
@@ -1880,8 +2000,14 @@ function zeitplanZeichnen() {
       </select>
       <select data-feld="gilt">
         <option value="immer"${punkt.gilt === 'immer' ? ' selected' : ''}>immer</option>
+        <optgroup label="Schule">
         <option value="schultag"${punkt.gilt === 'schultag' ? ' selected' : ''}>Schultag</option>
         <option value="schulfrei"${punkt.gilt === 'schulfrei' ? ' selected' : ''}>schulfrei</option>
+        </optgroup>
+        <optgroup label="Arbeit">
+        <option value="werktag"${punkt.gilt === 'werktag' ? ' selected' : ''}>Werktag</option>
+        <option value="arbeitsfrei"${punkt.gilt === 'arbeitsfrei' ? ' selected' : ''}>arbeitsfrei</option>
+        </optgroup>
       </select>
       <span class="tage">${TAGE.map(([kuerzel, name]) =>
         `<button type="button" class="tag${punkt.tage.includes(kuerzel) ? ' an' : ''}"
@@ -2132,6 +2258,19 @@ function einstellungenZeichnen() {
   fuelleAuswahl($('e-aussen'), entitaeten.aussen, e.aussen_entity, 'keine');
   fuelleAuswahl($('e-urlaub'), entitaeten.schalter || [], e.urlaub_entity, 'keiner');
   fuelleAuswahl($('e-schulfrei'), entitaeten.schalter || [], e.schulfrei_entity, 'keiner');
+  fuelleAuswahl($('e-feiertag'), entitaeten.schalter || [], e.feiertag_entity, 'keiner');
+
+  const tk = e.tank || {};
+  $('e-tank-aktiv').checked = !!tk.aktiv;
+  $('e-tank-inhalt').value = tk.inhalt_liter;
+  $('e-tank-grenze').value = tk.max_fuell_prozent;
+  $('e-tank-warn').value = tk.warnschwelle_liter;
+  $('e-tank-durchsatz').value = tk.durchsatz_l_h;
+  fuelleAuswahl($('e-tank-brenner'), entitaeten.zaehler || [], tk.brenner_entity, 'keiner');
+  fuelleAuswahl($('e-tank-leck'), entitaeten.schalter || [], tk.leckage_entity, 'keiner');
+  auswahlFuellen($('e-tank-melden'), entitaeten.meldewege || [],
+                 tk.melden_an || [], {filter:false});
+  tankReiterZeigen(!!tk.aktiv);
 
   $('e-hk-aktiv').checked = e.heizkurve.aktiv;
   $('e-hk-basis').value = e.heizkurve.basis_aussen;
@@ -2141,6 +2280,8 @@ function einstellungenZeichnen() {
   $('e-sommer-grenze').value = e.sommer.grenze;
   $('e-sommer-hyst').value = e.sommer.hysterese;
   $('e-daempfung').value = e.daempfung_stunden;
+  auswahlFuellen($('e-haushalt'), entitaeten.personen || [],
+                 e.haushalt || [], {filter:false});
   $('e-anw-aktiv').checked = e.anwesenheit.aktiv;
   $('e-anw-karenz').value = e.anwesenheit.karenz_min;
   $('e-vor-aktiv').checked = e.vorheizen.aktiv;
@@ -2259,6 +2400,7 @@ $('btn-speichern-einst').onclick = async () => {
     aussen_entity: $('e-aussen').value,
     urlaub_entity: $('e-urlaub').value,
     schulfrei_entity: $('e-schulfrei').value,
+    feiertag_entity: $('e-feiertag').value,
     daempfung_stunden: parseFloat($('e-daempfung').value),
     heizkurve: {
       aktiv: $('e-hk-aktiv').checked,
@@ -2271,6 +2413,7 @@ $('btn-speichern-einst').onclick = async () => {
       grenze: parseFloat($('e-sommer-grenze').value),
       hysterese: parseFloat($('e-sommer-hyst').value),
     },
+    haushalt: gewaehlt($('e-haushalt')),
     anwesenheit: {
       aktiv: $('e-anw-aktiv').checked,
       karenz_min: parseInt($('e-anw-karenz').value, 10),
@@ -2293,6 +2436,16 @@ $('btn-speichern-einst').onclick = async () => {
       batterie_prozent: parseInt($('e-wh-batterie').value, 10),
       melden_an: gewaehlt($('e-wh-melden')),
     },
+    tank: {
+      aktiv: $('e-tank-aktiv').checked,
+      inhalt_liter: parseFloat($('e-tank-inhalt').value),
+      max_fuell_prozent: parseInt($('e-tank-grenze').value, 10),
+      warnschwelle_liter: parseFloat($('e-tank-warn').value),
+      durchsatz_l_h: parseFloat($('e-tank-durchsatz').value),
+      brenner_entity: $('e-tank-brenner').value,
+      leckage_entity: $('e-tank-leck').value,
+      melden_an: gewaehlt($('e-tank-melden')),
+    },
     fenster: {
       aktiv: $('e-fe-aktiv').checked,
       sturz_k: parseFloat($('e-fe-sturz').value),
@@ -2305,6 +2458,85 @@ $('btn-speichern-einst').onclick = async () => {
     meldung('m-einstellungen', 'Gespeichert', true);
     setTimeout(statusLaden, 800);
   } catch (err) { meldung('m-einstellungen', err.message); }
+};
+
+// ────────────────────────────────────────────────── Öltank ──
+// Alles hier ist stumm, solange der Tankteil aus ist: Der Reiter bleibt
+// verborgen, und geladen wird nichts.
+
+function tankReiterZeigen(an) {
+  const knopf = $('nav-tank');
+  if (!knopf) return;
+  knopf.hidden = !an;
+  // Wer den Reiter abschaltet, während er ihn ansieht, soll nicht auf einem
+  // leeren Blatt sitzenbleiben.
+  if (!an && knopf.classList.contains('an')) {
+    document.querySelector('nav button[data-blatt="uebersicht"]').click();
+  }
+}
+
+function tankZeichnen(t) {
+  if (!t || !t.aktiv) return;
+  const prozent = t.prozent === null || t.prozent === undefined ? 0 : t.prozent;
+  $('tank-fuellung').style.width = Math.max(0, Math.min(100, prozent)) + '%';
+  $('tank-fuellung').style.background = t.warnung ? 'var(--warnung, #c0392b)' : 'var(--warm)';
+  $('tank-rest').textContent = t.stand_liter === null || t.stand_liter === undefined
+    ? '–' : `${t.stand_liter} l`;
+  $('tank-heute').textContent = `${(t.verbrauch_heute ?? 0).toFixed(1)} l`;
+  $('tank-reichweite').textContent = t.reichweite_tage ? `${t.reichweite_tage} Tage` : '–';
+
+  const lage = [];
+  if (t.leck) lage.push('⚠ Der Leckagemelder hat angesprochen.');
+  else if (t.warnung) lage.push('Der Vorrat wird knapp.');
+  if (t.stand_liter === null || t.stand_liter === undefined) {
+    lage.push('Noch kein Füllstand bekannt – trag eine Lieferung ein oder setz '
+              + 'den Stand von Hand.');
+  }
+  $('tank-lage').textContent = lage.join(' ') || 'Alles unauffällig.';
+
+  $('tank-quelle').textContent = t.laufzeit_gekoppelt
+    ? `Verbrauch aus der Brennerlaufzeit (Zählerstand ${t.laufzeit_h ?? '–'} h).`
+    : 'Kein Laufzeitzähler eingestellt – der Stand ändert sich nur durch Eingaben.';
+
+  const koerper = $('tank-lieferungen');
+  koerper.innerHTML = '';
+  (t.lieferungen || []).forEach(l => {
+    const zeile = document.createElement('tr');
+    zeile.innerHTML = `<td class="zeit">${l.datum}</td><td>${l.liter} l</td>`;
+    koerper.appendChild(zeile);
+  });
+  if (!koerper.children.length) {
+    koerper.innerHTML = '<tr><td class="zeit">Noch keine Lieferung eingetragen</td></tr>';
+  }
+}
+
+async function tankLaden() {
+  try {
+    tankZeichnen(await hole('tank'));
+  } catch (err) { meldung('m-tank', err.message); }
+}
+
+$('btn-tank-lieferung').onclick = async () => {
+  const liter = parseFloat($('tank-liter').value);
+  if (!liter || liter <= 0) return meldung('m-tank', 'Bitte eine Menge angeben');
+  try {
+    await sendeJSON('tank/lieferung', 'POST',
+                    { liter, datum: $('tank-datum').value || null });
+    $('tank-liter').value = '';
+    meldung('m-tank', 'Lieferung verbucht', true);
+    tankLaden();
+  } catch (err) { meldung('m-tank', err.message); }
+};
+
+$('btn-tank-stand').onclick = async () => {
+  const liter = parseFloat($('tank-stand').value);
+  if (isNaN(liter) || liter < 0) return meldung('m-tank', 'Bitte einen Füllstand angeben');
+  try {
+    await sendeJSON('tank/stand', 'PUT', { liter });
+    $('tank-stand').value = '';
+    meldung('m-tank', 'Stand übernommen', true);
+    tankLaden();
+  } catch (err) { meldung('m-tank', err.message); }
 };
 
 // ─────────────────────────────────────────────── Protokoll ──

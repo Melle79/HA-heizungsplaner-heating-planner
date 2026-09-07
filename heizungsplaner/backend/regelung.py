@@ -431,7 +431,8 @@ def entscheide(raum: dict, rz: dict, umgebung: dict) -> dict:
                              fenster_hinweis)
 
     # 6 — Zeitplan, ggf. übersteuert, ggf. vorgezogen
-    eintrag = zp.aktueller_eintrag(plan, jetzt, umgebung.get("schulfrei"))
+    eintrag = zp.aktueller_eintrag(plan, jetzt, umgebung.get("schulfrei"),
+                                   umgebung.get("feiertag"))
     modus = eintrag["modus"] if eintrag else "eco"
     basis = zp.modus_temperatur(raum, modus, frostschutz)
     begruendung = (texte.t("zeitplan", modus=texte.modus(modus),
@@ -457,7 +458,8 @@ def entscheide(raum: dict, rz: dict, umgebung: dict) -> dict:
     vorlauf = witterung.vorlaufminuten(umgebung.get("aussen"), einst["vorheizen"])
     if vorlauf and not uebersteuerung:
         kommend = zp.naechster_waermerer_wechsel(
-            raum, jetzt, umgebung.get("schulfrei"), basis, frostschutz)
+            raum, jetzt, umgebung.get("schulfrei"), basis, frostschutz,
+            umgebung.get("feiertag"))
         if kommend:
             zeitpunkt, kommender_eintrag = kommend
             if jetzt + timedelta(minutes=vorlauf) >= zeitpunkt:
@@ -571,13 +573,15 @@ def _nur_absenken(raum: dict, rz: dict, umgebung: dict, plan: list[dict],
         return ergebnis("manuell", anzeige, begruendung, handwert=eingestellt,
                         nicht_schreiben=True, wiederherstellen=True)
 
-    treffer = zp.letzter_zeitpunkt(plan, jetzt, umgebung.get("schulfrei"))
+    treffer = zp.letzter_zeitpunkt(plan, jetzt, umgebung.get("schulfrei"),
+                                   umgebung.get("feiertag"))
     if not treffer:
         return ruhen(texte.t("hand_ohne_punkt"))
 
     zeitpunkt, eintrag = treffer
     zuletzt = _aus_iso(rz.get("zuletzt_ausgeloest"))
-    naechster = zp.naechster_wechsel(plan, jetzt, umgebung.get("schulfrei"))
+    naechster = zp.naechster_wechsel(plan, jetzt, umgebung.get("schulfrei"),
+                                     umgebung.get("feiertag"))
     ausblick = (texte.t("hand_ausblick", uhrzeit=naechster[1]["start"])
                 if naechster else "")
 
@@ -867,9 +871,11 @@ def takt(config: dict, state: dict, protokoll) -> dict:
 
     urlaub = _bool_state(states_index, einst.get("urlaub_entity", "")) or False
     schulfrei = _bool_state(states_index, einst.get("schulfrei_entity", ""))
+    feiertag = _bool_state(states_index, einst.get("feiertag_entity", ""))
     heim = ha_api.zone_home(states)
     zonen = anwesenheit.zonennamen(states_index)
-    personen = anwesenheit.personen_status(states_index, heim, zonen)
+    personen = anwesenheit.personen_status(states_index, heim, zonen,
+                                           einst.get("haushalt"))
     anwesenheit.bewegung_fortschreiben(
         personen, state.setdefault("personen", {}), jetzt,
         float(einst["vorheizen"].get("heimkehr_annaeherung_km", 0.3)))
@@ -879,7 +885,8 @@ def takt(config: dict, state: dict, protokoll) -> dict:
     # wissen, was gleich passiert.
     raum_wechsel, naechste = {}, {}
     for raum in config["raeume"]:
-        treffer = zp.naechster_wechsel(raum.get("zeitplan") or [], jetzt, schulfrei)
+        treffer = zp.naechster_wechsel(raum.get("zeitplan") or [], jetzt, schulfrei,
+                                       feiertag)
         raum_wechsel[raum["id"]] = treffer[0] if treffer else jetzt + timedelta(hours=12)
         if treffer:
             zeitpunkt, eintrag = treffer
@@ -894,7 +901,8 @@ def takt(config: dict, state: dict, protokoll) -> dict:
     umgebung = {
         "jetzt": jetzt, "einstellungen": einst, "states_index": states_index,
         "aussen": aussen, "aussen_gedaempft": gedaempft, "sommerbetrieb": sommer,
-        "urlaub": urlaub, "schulfrei": schulfrei, "personen": personen,
+        "urlaub": urlaub, "schulfrei": schulfrei, "feiertag": feiertag,
+        "personen": personen,
         "raum_wechsel": raum_wechsel, "party_bis": party_bis,
     }
 
@@ -971,6 +979,7 @@ def takt(config: dict, state: dict, protokoll) -> dict:
         "sommerbetrieb": sommer,
         "urlaub": urlaub,
         "schulfrei": schulfrei,
+        "feiertag": feiertag,
         "party_bis": _iso(party_bis),
         "automatik": automatik,
         "trockenlauf": bool(einst.get("trockenlauf")),

@@ -51,12 +51,26 @@ def zonennamen(states_index: dict) -> set[str]:
 
 
 def personen_status(states_index: dict, heim: tuple[float, float, float] | None,
-                    zonen: set[str] | None = None) -> dict:
-    """Für jede Person: zu Hause? wie weit weg? in einer Zone?"""
+                    zonen: set[str] | None = None,
+                    haushalt: list[str] | None = None) -> dict:
+    """Für jede Person: zu Hause? wie weit weg? in einer Zone?
+
+    ``haushalt`` grenzt ein, wer überhaupt zählt. **Leer oder None heißt: alle**
+    – das ist das bisherige Verhalten und bleibt die Vorgabe.
+
+    Die Einschränkung gibt es, weil in einer gewachsenen Installation mehr
+    ``person.*``-Entitäten stehen, als Menschen im Haus wohnen: Gäste, alte
+    Konten, Personen ohne Gerätetracker. Gerade die letzte Sorte ist heikel –
+    sie steht dauerhaft auf "unknown" oder "home" und hielte jeden Raum für
+    besetzt, womit die Absenkung bei Abwesenheit lautlos nie mehr griffe.
+    """
     zonen = zonen if zonen is not None else zonennamen(states_index)
+    erlaubt = {p for p in (haushalt or []) if p}
     out = {}
     for entity_id, eintrag in states_index.items():
         if not entity_id.startswith("person."):
+            continue
+        if erlaubt and entity_id not in erlaubt:
             continue
         attrs = eintrag.get("attributes", {}) or {}
         zustand = eintrag.get("state")

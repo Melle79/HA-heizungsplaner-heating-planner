@@ -348,6 +348,10 @@ def sensor_candidates(states: list[dict] | None = None,
     Trennung stünden in der Auswahl auch Dinge wie Tankstellen-Öffnungszeiten.
     """
     aussen, fenster, sonstige, praesenz, raumtemp, schalter = [], [], [], [], [], []
+    # Zählerstände: alles, was monoton wächst oder in Stunden/Minuten zählt.
+    # Daraus wählt der Tankteil die Brennerlaufzeit – eine Liste aller
+    # numerischen Sensoren wäre in einer gewachsenen Installation unbrauchbar.
+    zaehler = []
     # Kalender taugen als Bedingung einer Übersteuerung: „Ferien & Feiertage“
     # ist genau die Entität, die eine Homeoffice-Regel braucht.
     kalender = []
@@ -368,6 +372,13 @@ def sensor_candidates(states: list[dict] | None = None,
             eintrag = {"entity_id": eid, "name": name, "wert": as_float(s.get("state"))}
             aussen.append(eintrag)
             raumtemp.append(eintrag)
+        elif domain == "sensor" and (
+                attrs.get("state_class") in ("total", "total_increasing")
+                or str(attrs.get("unit_of_measurement") or "").strip() in ("h", "min")):
+            if as_float(s.get("state")) is not None:
+                zaehler.append({"entity_id": eid, "name": name,
+                                "wert": as_float(s.get("state")),
+                                "einheit": attrs.get("unit_of_measurement") or ""})
         elif domain == "binary_sensor":
             eintrag = {"entity_id": eid, "name": name,
                        "bereich": bereiche.get(eid, ""),
@@ -386,11 +397,12 @@ def sensor_candidates(states: list[dict] | None = None,
         elif domain == "calendar":
             kalender.append({"entity_id": eid, "name": name,
                              "zustand": s.get("state")})
-    for liste in (aussen, fenster, sonstige, praesenz, raumtemp, schalter, kalender):
+    for liste in (aussen, fenster, sonstige, praesenz, raumtemp, schalter,
+                  kalender, zaehler):
         liste.sort(key=lambda e: e["name"])
     return {"aussen": aussen, "fenster": fenster, "sonstige_melder": sonstige,
             "praesenz": praesenz, "raumtemp": raumtemp, "schalter": schalter,
-            "kalender": kalender}
+            "kalender": kalender, "zaehler": zaehler}
 
 
 def zone_home(states: list[dict] | None = None) -> tuple[float, float, float] | None:

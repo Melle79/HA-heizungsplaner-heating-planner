@@ -16,8 +16,8 @@ Wohnzimmer 21,5 °C bekommt, sondern warum.
 
 ## Was der Planer berücksichtigt
 
-* **Zeitplan je Raum** – Komfort, Eco, Nacht und Aus, getrennt nach Schultagen
-  und schulfreien Tagen
+* **Zeitplan je Raum** – Komfort, Eco, Nacht und Aus. Zwei Paare von
+  Tagesarten: *Schultag / schulfrei* und *Werktag / arbeitsfrei*
 * **Außentemperatur** – Heizkurve und Sommerbetrieb, beides über eine
   geglättete Außentemperatur
 * **Anwesenheit je Raum** – zuständige Personen und Präsenzmelder, mit
@@ -27,6 +27,8 @@ Wohnzimmer 21,5 °C bekommt, sondern warum.
 * **Überwachung** – ein Thermostat, das sich nicht mehr meldet, wird gemeldet
 * **Sprache und Einheit** – beides aus Home Assistant: Deutsch oder Englisch,
   Celsius oder Fahrenheit
+* **Öltank** *(optional, ab Werk aus)* – Restmenge, Verbrauch, Reichweite und
+  Leckagewache
 
 ## Erste Schritte
 

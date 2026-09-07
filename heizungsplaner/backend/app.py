@@ -21,6 +21,7 @@ import ha_api
 import logbuch
 import regelung
 import store
+import tank
 import texte
 import uebernahme
 import wachhund
@@ -81,6 +82,7 @@ def _takt_ausfuehren() -> dict:
         else:
             _stoerungen_melden(bericht.get("stoerungen") or [], state,
                                config["einstellungen"])
+            bericht["tank"] = _tank_rechnen(config["einstellungen"], state)
             store.save_state(state)
         bericht["version"] = VERSION
         _letzter_bericht = bericht
@@ -89,6 +91,30 @@ def _takt_ausfuehren() -> dict:
             _publisher.publish_status(bericht)
         except Exception as err:  # noqa: BLE001
             _LOGGER.warning("MQTT-Meldung fehlgeschlagen: %s", err)
+    return bericht
+
+
+def _tank_rechnen(einstellungen: dict, state: dict) -> dict:
+    """Der Tankteil ist optional – und darf den Regelbetrieb nie gefährden.
+
+    Deshalb steht er in einer eigenen Funktion mit eigenem Fangnetz: Wenn hier
+    etwas schiefgeht, heizt das Haus trotzdem weiter.
+    """
+    if not (einstellungen.get("tank") or {}).get("aktiv"):
+        return {"aktiv": False}
+    try:
+        bericht = tank.takt(einstellungen, state)
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.exception("Tankberechnung fehlgeschlagen")
+        return {"aktiv": True, "fehler": str(err)}
+
+    dienste = ((einstellungen.get("tank") or {}).get("melden_an")
+               or (einstellungen.get("wachhund") or {}).get("melden_an") or [])
+    for titel, text in tank.meldungen(bericht, state):
+        logbuch.eintragen("Öltank", titel, text, "",
+                          art="fehler" if bericht.get("leck") else "warnung")
+        for dienst in dienste:
+            ha_api.notify(dienst, titel, text)
     return bericht
 
 
@@ -419,6 +445,80 @@ def api_party_raeume():
     store.save_config(config)
     _sofort_rechnen()
     return jsonify({"raeume": [r["id"] for r in config["raeume"] if r["party"]]})
+
+
+# ------------------------------------------------------------------ Tank ----
+# Alle drei Wege antworten mit 404, solange der Tankteil nicht eingeschaltet
+# ist. So kann die Oberfläche fragen, ohne vorher zu wissen, ob es ihn gibt.
+
+def _tank_einstellungen() -> tuple[dict, dict] | tuple[None, None]:
+    """Gibt (alle Einstellungen, Tankblock) zurück – oder zweimal None, wenn aus."""
+    einstellungen = store.load_config()["einstellungen"]
+    tk = einstellungen.get("tank") or {}
+    return (einstellungen, tk) if tk.get("aktiv") else (None, None)
+
+
+@app.route("/api/tank")
+def api_tank():
+    einstellungen, _ = _tank_einstellungen()
+    if einstellungen is None:
+        return jsonify({"aktiv": False}), 404
+    state = store.load_state()
+    bericht = tank.takt(einstellungen, state)
+    store.save_state(state)
+    return jsonify(bericht)
+
+
+@app.route("/api/tank/lieferung", methods=["POST"])
+def api_tank_lieferung():
+    """Eine Tanklieferung verbuchen – die Zahl vom Lieferschein.
+
+    Sie ist geeicht und damit die genaueste Information, die es über diesen
+    Tank je geben wird. Deshalb zieht sie den gerechneten Stand gerade.
+    """
+    _, tk = _tank_einstellungen()
+    if tk is None:
+        return jsonify({"fehler": "Der Tankteil ist nicht eingeschaltet"}), 404
+    daten = request.get_json(force=True) or {}
+    try:
+        liter = float(daten.get("liter"))
+    except (TypeError, ValueError):
+        return jsonify({"fehler": "Bitte eine Liefermenge in Litern angeben"}), 400
+    state = store.load_state()
+    try:
+        eintrag = tank.lieferung_eintragen(
+            state, liter, str(daten.get("datum") or "").strip() or None,
+            tank.nutzbar_liter(tk))
+    except ValueError as err:
+        return jsonify({"fehler": str(err)}), 400
+    store.save_state(state)
+    logbuch.eintragen("Öltank", "Lieferung",
+                      f"{eintrag['liter']:.0f} Liter verbucht", "", art="gut")
+    _sofort_rechnen()
+    return jsonify(eintrag)
+
+
+@app.route("/api/tank/stand", methods=["PUT"])
+def api_tank_stand():
+    """Den Stand von Hand setzen – etwa nach einem Blick auf den Zeiger."""
+    _, tk = _tank_einstellungen()
+    if tk is None:
+        return jsonify({"fehler": "Der Tankteil ist nicht eingeschaltet"}), 404
+    daten = request.get_json(force=True) or {}
+    try:
+        liter = float(daten.get("liter"))
+    except (TypeError, ValueError):
+        return jsonify({"fehler": "Bitte einen Füllstand in Litern angeben"}), 400
+    state = store.load_state()
+    try:
+        stand = tank.stand_setzen(state, liter, tank.nutzbar_liter(tk))
+    except ValueError as err:
+        return jsonify({"fehler": str(err)}), 400
+    store.save_state(state)
+    logbuch.eintragen("Öltank", "Stand korrigiert",
+                      f"auf {stand:.0f} Liter gesetzt", "", art="info")
+    _sofort_rechnen()
+    return jsonify({"stand_liter": stand})
 
 
 @app.route("/api/zustand")

@@ -29,7 +29,9 @@ _lock = threading.Lock()
 
 TAGE = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 MODI = ["komfort", "eco", "nacht", "aus"]
-GELTUNG = ["immer", "schultag", "schulfrei"]
+# Zwei Paare, weil nicht jeder im Haus demselben Kalender folgt: Schüler
+# richten sich nach den Ferien, Berufstätige nach den Feiertagen.
+GELTUNG = ["immer", "schultag", "schulfrei", "werktag", "arbeitsfrei"]
 
 # "plan"         – der Planer führt den Sollwert durchgehend.
 # "nur_absenken" – der Raum wird von Hand gestellt; der Planer greift allein zu
@@ -89,6 +91,10 @@ STANDARD_EINSTELLUNGEN = {
     "aussen_entity": "weather.forecast_home",
     "daempfung_stunden": 24.0,    # Zeitkonstante der gedämpften Außentemperatur
     "schulfrei_entity": "input_boolean.wochenende_feiertag",
+    # Getrennt vom Schulfrei-Schalter: Wer arbeitet, hat in den Schulferien
+    # trotzdem Dienst. Das Wochenende steckt schon in den Wochentag-Haken,
+    # hier zählt allein der Feiertag.
+    "feiertag_entity": "",
     "urlaub_entity": "input_boolean.urlaub",
     "urlaub_temperatur": 12.0,
     "frostschutz": 8.0,
@@ -96,6 +102,13 @@ STANDARD_EINSTELLUNGEN = {
     "manuell_respektieren": True,
     # Melder, die der Planer nicht mehr zur Zuordnung vorschlagen soll.
     "ignorierte_vorschlaege": [],
+    # Wer zum Haushalt zählt. **Leer heißt: alle** – so verhält sich der
+    # Planer wie bisher, und niemand muss nach einem Update etwas nachtragen.
+    #
+    # Die Angabe ist trotzdem wichtig: Eine Person ohne Gerätetracker steht in
+    # Home Assistant dauerhaft auf "unknown" oder "home" und hielte damit
+    # jeden Raum für besetzt. Die Absenkung bei Abwesenheit wäre still tot.
+    "haushalt": [],
     "heizkurve": {
         "aktiv": True,
         "basis_aussen": 15.0,     # bei dieser Außentemperatur gilt der Sollwert unverändert
@@ -133,6 +146,18 @@ STANDARD_EINSTELLUNGEN = {
     "party": {
         "dauer_stunden": 3.0,
         "modus": "komfort",
+    },
+    # Öltank: für fast jeden uninteressant, deshalb ab Werk aus. Erst wenn
+    # jemand hier "aktiv" setzt, erscheint der Reiter überhaupt.
+    "tank": {
+        "aktiv": False,
+        "inhalt_liter": 3000.0,       # Nenninhalt laut Typenschild
+        "max_fuell_prozent": 95,      # so viel darf hinein (Behälterauflage)
+        "warnschwelle_liter": 500.0,  # darunter gibt es eine Warnung
+        "brenner_entity": "",         # Sensor mit der Brennerlaufzeit in Stunden
+        "durchsatz_l_h": 2.4,         # Öldurchsatz der Düse
+        "leckage_entity": "",         # Melder im Auffangraum, optional
+        "melden_an": [],              # leer = die Meldewege des Wachhunds
     },
     # Ein ausgefallenes Thermostat soll auffallen, ohne dass jemand hinsieht.
     "wachhund": {
@@ -468,11 +493,14 @@ def validate_einstellungen(roh: dict) -> dict:
     e["manuell_respektieren"] = bool(e["manuell_respektieren"])
     e["aussen_entity"] = str(e["aussen_entity"] or "").strip()
     e["schulfrei_entity"] = str(e["schulfrei_entity"] or "").strip()
+    e["feiertag_entity"] = str(e["feiertag_entity"] or "").strip()
     e["urlaub_entity"] = str(e["urlaub_entity"] or "").strip()
     e["urlaub_temperatur"] = _temp(e["urlaub_temperatur"], "Urlaubstemperatur", 5.0, 25.0)
     e["frostschutz"] = _temp(e["frostschutz"], "Frostschutz", 4.0, 15.0)
     e["daempfung_stunden"] = _zahl(e["daempfung_stunden"], "Dämpfung", 0.0, 48.0)
     e["takt_sekunden"] = int(_zahl(e["takt_sekunden"], "Takt", 60, 3600))
+    e["haushalt"] = [str(p).strip() for p in (e.get("haushalt") or [])
+                     if str(p).strip().startswith("person.")]
     e["ignorierte_vorschlaege"] = sorted({
         str(x).strip() for x in (e.get("ignorierte_vorschlaege") or []) if str(x).strip()})
 
@@ -510,6 +538,16 @@ def validate_einstellungen(roh: dict) -> dict:
     w["stumm_stunden"] = _zahl(w["stumm_stunden"], "Schweigefrist", 0.5, 168.0)
     w["batterie_prozent"] = int(_zahl(w["batterie_prozent"], "Batterieschwelle", 0, 100))
     w["melden_an"] = [str(d).strip() for d in (w.get("melden_an") or []) if str(d).strip()]
+
+    tk = e["tank"]
+    tk["aktiv"] = bool(tk["aktiv"])
+    tk["inhalt_liter"] = _zahl(tk["inhalt_liter"], "Tankinhalt", 0.0, 100000.0)
+    tk["max_fuell_prozent"] = int(_zahl(tk["max_fuell_prozent"], "Füllgrenze", 50, 100))
+    tk["warnschwelle_liter"] = _zahl(tk["warnschwelle_liter"], "Warnschwelle", 0.0, 100000.0)
+    tk["durchsatz_l_h"] = _zahl(tk["durchsatz_l_h"], "Düsendurchsatz", 0.0, 100.0)
+    tk["brenner_entity"] = str(tk["brenner_entity"] or "").strip()
+    tk["leckage_entity"] = str(tk["leckage_entity"] or "").strip()
+    tk["melden_an"] = [str(d).strip() for d in (tk.get("melden_an") or []) if str(d).strip()]
 
     f = e["fenster"]
     f["aktiv"] = bool(f["aktiv"])
@@ -571,6 +609,7 @@ def load_state() -> dict:
     state.setdefault("veroeffentlichte_raeume", [])
     state.setdefault("aussen_gedaempft", None)
     state.setdefault("sommerbetrieb", False)
+    state.setdefault("tank", {})
     return state
 
 

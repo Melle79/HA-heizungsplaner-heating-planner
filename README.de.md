@@ -23,14 +23,19 @@ komfort um 12:30 Uhr (50 Minuten Vorlauf) · Heizkurve +0,6 K“.
 
 ## Was der Planer berücksichtigt
 
-* **Zeitplan je Raum** – Umschaltpunkte für Komfort, Eco, Nacht und Aus,
-  getrennt nach Schultagen und schulfreien Tagen.
+* **Zeitplan je Raum** – Umschaltpunkte für Komfort, Eco, Nacht und Aus. Ein
+  Punkt kann für eine Tagesart gelten, und davon gibt es zwei Paare: *Schultag
+  / schulfrei* für alle, die zur Schule gehen, und *Werktag / arbeitsfrei* für
+  alle, die arbeiten. In den Sommerferien ist schulfrei – wer arbeitet, steht
+  trotzdem um sechs auf.
 * **Außentemperatur** – eine Heizkurve führt den Sollwert nach: je kälter
   draußen, desto höher der Sollwert. Bei milder Witterung geht die Anlage in
   den Sommerbetrieb und schließt die Ventile.
 * **Anwesenheit je Raum** – jedem Raum lassen sich die zuständigen Personen
   zuordnen. Ist niemand von ihnen da, senkt der Planer nach einer Karenzzeit
-  ab; nähert sich jemand dem Haus, heizt er wieder vor.
+  ab; nähert sich jemand dem Haus, heizt er wieder vor. Global lässt sich
+  festlegen, wer überhaupt zum Haushalt zählt – wichtig, wenn in Home
+  Assistant mehr Personen stehen als im Haus wohnen.
 * **Vorheizen** – der Vorlauf richtet sich nach der Außentemperatur. Bei 12 °C
   reichen 30 Minuten, bei −10 °C sind es zwei Stunden.
 * **Fenster** – über Fensterkontakte oder, wo es keine gibt, über den
@@ -55,9 +60,15 @@ komfort um 12:30 Uhr (50 Minuten Vorlauf) · Heizkurve +0,6 K“.
   Wohnzimmer auf Komfort, statt es vormittags abzusenken. Als Bedingung taugt
   alles, was an oder aus sein kann – Schalter, Melder, Kalender und Personen.
 
+* **Öltank** *(optional, ab Werk aus)* – Restmenge, Tagesverbrauch,
+  Reichweite und eine Leckagewache. Der Füllstand kommt ohne Sensor im Tank
+  aus: die geeichte Liefermenge vom Lieferschein als Anker, die Brennerlaufzeit
+  mal Düsendurchsatz als Auflösung dazwischen.
+
 ## Die Oberfläche
 
-Vier Reiter: **Übersicht**, **Räume**, **Einstellungen**, **Protokoll**.
+Vier Reiter: **Übersicht**, **Räume**, **Einstellungen**, **Protokoll** – dazu
+**Öltank**, wenn er eingeschaltet ist.
 
 Die **Übersicht** (Bild oben) zeigt je Raum den Zielwert, die gemessene
 Temperatur und in einem Satz, warum gerade dieser Wert gilt. Oben stehen

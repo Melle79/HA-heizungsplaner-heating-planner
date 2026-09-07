@@ -1,5 +1,53 @@
 # Änderungen
 
+## 1.17.0
+
+- **Neu: Werktag und arbeitsfrei im Zeitplan.** Bisher kannte ein
+  Umschaltpunkt nur *immer*, *Schultag* und *schulfrei* – gedacht für
+  Kinderzimmer. Wer arbeitet, folgt aber einem anderen Kalender: In den
+  Schulferien ist Dienst, an Feiertagen nicht. Dafür gibt es jetzt ein
+  zweites Paar, das sich mit dem ersten in einem Plan mischen lässt.
+- Die neue Quelle unter *Einstellungen* heißt **Feiertag** und ist bewusst
+  getrennt vom Schulfrei-Schalter. Dort gehört **nur** der Feiertag hinein:
+  Das Wochenende steckt schon in den Wochentag-Haken des Punktes, und
+  Schulferien sind für einen Berufstätigen keine freien Tage. Ohne Angabe
+  bleiben die beiden neuen Punktarten wirkungslos – bestehende Pläne
+  ändern sich also nicht.
+- **Neu: „Wer zum Haushalt zählt".** Bisher zählte **jede** `person.*`-Entität
+  aus Home Assistant zur Anwesenheit, und einschränken ließ sich das nur je
+  Raum. Das ist heikler, als es klingt: Eine Person **ohne Gerätetracker**
+  steht dauerhaft auf „zu Hause" und hält damit jeden Raum für besetzt – die
+  Absenkung bei Abwesenheit greift dann nie mehr, ohne dass irgendwo ein
+  Fehler auftaucht. Unter *Einstellungen → Anwesenheit* lässt sich jetzt
+  global festlegen, wer gemeint ist. **Leer heißt weiterhin: alle**, das
+  bisherige Verhalten bleibt also unverändert. Die Auswahl je Raum engt
+  innerhalb des Haushalts weiter ein.
+- **Neu: Öltank – optional.** Restmenge, Tagesverbrauch, Reichweite und eine
+  Leckagewache, zu finden unter *Einstellungen → Öltank*. **Ab Werk aus**: Wer
+  ihn nicht einschaltet, sieht den Reiter „Öltank“ gar nicht erst und merkt von
+  diesem Baustein nichts.
+- Der Füllstand kommt ohne Sensor im Tank aus. Er stützt sich auf zwei Zahlen,
+  die sich gegenseitig korrigieren: die **Liefermenge** vom Lieferschein, die
+  geeicht ist, aber nur ein- bis zweimal im Jahr kommt – und die
+  **Brennerlaufzeit** mal Düsendurchsatz, die die Auflösung dazwischen liefert
+  und mit jeder Lieferung wieder eingenordet wird.
+- Der Laufzeitzähler ist **optional**. Fehlt er, bleibt der Stand stehen, bis
+  jemand eine Lieferung einträgt oder ihn von Hand setzt – der Tankteil ist
+  also auch ohne Kesselanbindung brauchbar.
+- Gegen die drei Fälle, die einen gerechneten Tank sonst leerfressen: Der
+  **erste** gesehene Zählerstand gilt nicht als Verbrauch, ein **Rücksprung**
+  (neuer Kessel) wird übernommen statt verbucht, und ein **Sprung** über 24
+  Stunden je Takt gilt als Zählerfehler.
+- **Leckagewache**: ein Melder im Auffangraum als optionale Entität. Meldung
+  einmal beim Ansprechen, nicht alle fünf Minuten. Heizöl leitet keinen Strom –
+  ein gewöhnlicher Wassermelder taugt dafür nicht, es braucht einen optischen
+  Sensor oder einen Schwimmer. Ohne eigene Meldewege gelten die des Wachhunds.
+- Der Tankteil rechnet in einem **eigenen Fangnetz**: Geht dort etwas schief,
+  läuft die Heizungsregelung unberührt weiter.
+- Die Auswahllisten kennen jetzt **Zählerstände** (Sensoren mit `state_class`
+  `total`/`total_increasing` oder Einheit h/min) – daraus wählt man die
+  Brennerlaufzeit, statt sich durch alle numerischen Sensoren zu suchen.
+
 ## 1.16.1
 
 - **Behoben: Ausfallmeldungen für Geräte, die nur still waren.** Im

@@ -167,6 +167,33 @@ presuppose a continuously controlled target. What still applies:
 
 ## Schedule
 
+### Day types
+
+Every switching point applies to a day type. There are two pairs, because not
+everyone in the house follows the same calendar:
+
+| Point applies … | when |
+|---|---|
+| **always** | on the ticked weekdays, no further condition |
+| **school day** | when the school-free switch is *off* |
+| **school-free** | when it is *on* – holidays, public holidays, weekend |
+| **working day** | when it is *not* a public holiday |
+| **day off** | when it is a public holiday |
+
+Both pairs can be mixed in one schedule. Use school day / school-free for a
+child's room, working day / day off for the room of someone in work.
+
+The difference is not cosmetic: during the summer holidays *school-free* is on,
+but anyone who works still gets up at six. That is why the two pairs hang on
+**different sources** (*Settings → Sources from Home Assistant*).
+
+For the public holiday, only the holiday itself belongs there – not “weekend or
+holiday”. The weekend is already covered by the weekday buttons of the point;
+having it in the source as well would count Saturday and Sunday twice. Without
+a source, *working day* and *day off* stay inert and only the other points
+apply.
+
+
 A schedule consists of **switching points**, not of time ranges. Each point
 says: from this time, on these weekdays, this mode applies – until the next
 point comes. The last point of a day reaches past midnight into the next one.
@@ -341,6 +368,22 @@ If the switch is missing in Home Assistant or reports nothing, the room is
 because of a broken switch would be the more unpleasant surprise.
 
 ## Presence
+
+### Who counts as the household
+
+*Settings → Presence* holds the list of people the planner considers at all.
+**Nothing ticked means everyone** – that is the default and right for most
+people.
+
+The selection matters once Home Assistant holds more people than live in the
+house. The dangerous case is a person **without a device tracker**: they stay
+“at home” permanently and thereby keep every room occupied. The away setback
+would never take effect again, and no error would point to it – the rooms
+would simply stay warm.
+
+The per-room selection (“Responsible people”) narrows things further within
+the household.
+
 
 Every room can have people assigned to it. Without an assignment the whole
 family counts. In addition a presence or motion sensor can report the room as
@@ -527,6 +570,62 @@ also appears in the log and in the notice bar.
 For your own automations there is `binary_sensor.heizungsplaner_stoerung`
 (device class `problem`) with the messages as an attribute, as well as
 `sensor.heizungsplaner_stoerungen` with the number of failed devices.
+
+## Oil tank (optional)
+
+This part is **off by default**. It only appears once you switch it on under
+*Settings → Oil tank* – before that there is no “Oil tank” tab and nothing is
+calculated. Anyone heating with gas, district heating or a heat pump will never
+notice this chapter.
+
+### Where the level comes from
+
+Without a sensor in the tank, from two figures that correct each other:
+
+* The **delivered quantity** on the delivery note is calibrated and therefore
+  more accurate than any measurement – but it only arrives once or twice a year.
+* The **burner runtime** times the nozzle throughput provides the resolution in
+  between. As the throughput is only an estimate from the nozzle size, it
+  drifts – until the next delivery puts it straight again.
+
+The runtime counter is optional. If you do not configure one, the level simply
+stays put until you record a delivery or set it by hand.
+
+### Settings
+
+| Field | Meaning |
+|---|---|
+| Tank capacity | Nominal capacity from the nameplate |
+| Fill limit | How much may go in, usually 95 % |
+| Warning threshold | Below this you get a warning |
+| Runtime counter | Sensor holding the burner hours |
+| Nozzle throughput | Litres per operating hour |
+| Detector in the bund | For the leak watch |
+| Notify | Empty: the watchdog’s channels |
+
+### Guarding against wrong figures
+
+A calculated tank is only as good as its counter, and counters jump. Three
+cases are handled: the **first** counter value seen is never treated as
+consumption – otherwise the tank would be empty after the first cycle. A
+**backward jump** (new boiler, reset counter) is adopted as a new baseline
+rather than booked. And a **jump** of more than 24 hours between two cycles is
+treated as a counter fault and goes to the log, not into the calculation.
+
+### Leak watch
+
+A detector in the bund, given as any entity that knows “on” and “off”. If it
+triggers there is **one** notification, not the same one every five minutes.
+
+One hint that saves money: **heating oil does not conduct electricity.** The
+usual water alarms measure the resistance between two contacts and stay silent
+in a pool of oil. You need an optical sensor or a float.
+
+### Days left
+
+The average of the last fourteen days, projected onto the remaining quantity.
+With fewer than three days of consumption there is no figure, and in summer –
+when nothing is used – you get a dash instead of an infinity.
 
 ## Manual changes
 

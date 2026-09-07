@@ -23,14 +23,19 @@ nothing to configure; both come from `/config` and are read on every cycle.
 
 ## What the planner takes into account
 
-* **A schedule per room** – switching points for comfort, eco, night and off,
-  separated into school days and days off.
+* **A schedule per room** – switching points for comfort, eco, night and off.
+  A point can apply to a day type, and there are two pairs: *school day /
+  school-free* for anyone at school, and *working day / day off* for anyone in
+  work. During the summer holidays it is school-free – but whoever works still
+  gets up at six.
 * **Outdoor temperature** – a heating curve follows it: the colder it is
   outside, the higher the setpoint. In mild weather the system enters summer
   mode and closes the valves.
 * **Presence per room** – every room can have the people responsible for it
   assigned. If none of them is at home, the planner sets back after a grace
-  period; if someone approaches the house, it preheats again.
+  period; if someone approaches the house, it preheats again. A global list
+  defines who counts as the household at all – which matters once Home
+  Assistant holds more people than live in the house.
 * **Preheating** – the lead time depends on the outdoor temperature. At 12 °C
   thirty minutes are enough, at −10 °C it takes two hours.
 * **Windows** – via contacts or, where there are none, via the temperature
@@ -55,9 +60,15 @@ nothing to configure; both come from `/config` and are read on every cycle.
   are converted as spans: a hysteresis of 1.5 K becomes 2.7 °F, not 34.7. If
   the measurement system changes, the stored values are converted once.
 
+* **Oil tank** *(optional, off by default)* – remaining oil, daily
+  consumption, days left and a leak watch. The level works without a sensor in
+  the tank: the calibrated delivery note as the anchor, burner runtime times
+  nozzle throughput as the resolution in between.
+
 ## The interface
 
-Four tabs: **Overview**, **Rooms**, **Settings**, **Log**.
+Four tabs: **Overview**, **Rooms**, **Settings**, **Log** – plus **Oil tank**
+once it is switched on.
 
 The **overview** (image above) shows each room's setpoint, the measured
 temperature and, in one sentence, why this value applies. On top you find the

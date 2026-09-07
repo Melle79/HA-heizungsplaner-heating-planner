@@ -304,6 +304,75 @@ window.SPRACHEN.en = {
   "Was": "What",
   "Warum": "Why",
   "Wer ist zu Hause": "Who is at home",
+
+  // ── Tagesarten im Zeitplan
+  "Schule": "School",
+  "Arbeit": "Work",
+  "Werktag": "Working day",
+  "arbeitsfrei": "day off",
+  "Feiertag": "Public holiday",
+  "Für die Punkte „Werktag“ und „arbeitsfrei“ – gedacht für alle, die arbeiten statt zur Schule zu gehen. Hier gehört nur der Feiertag hinein: Das Wochenende steht schon in den Wochentag-Haken des Punktes, und Schulferien sind für einen Berufstätigen keine freien Tage. Ohne Angabe bleiben die beiden Punktarten wirkungslos.":
+    "For the \u201cWorking day\u201d and \u201cday off\u201d points \u2013 meant for anyone who works rather than goes to school. Only the public holiday belongs here: weekends are already covered by the weekday buttons of the point, and school holidays are not days off for someone in work. Without a source, both kinds of point stay inert.",
+
+  // ── Haushalt
+  "Wer zum Haushalt zählt": "Who counts as the household",
+  "Nichts angehakt: alle Personen zählen. Das ist die Vorgabe und für die meisten richtig.":
+    "Nothing ticked: everyone counts. That is the default and right for most people.",
+  "Wichtig wird die Auswahl, wenn in Home Assistant mehr Personen stehen als im Haus wohnen – Gäste, alte Konten oder Personen ohne Gerätetracker. Letztere stehen dauerhaft auf „zu Hause“ und hielten damit jeden Raum für besetzt; die Absenkung bei Abwesenheit griffe dann nie mehr.":
+    "The selection matters when Home Assistant holds more people than live in the house \u2013 guests, old accounts, or people without a device tracker. The latter stay \u201cat home\u201d permanently and would keep every room occupied, so the away setback would never take effect again.",
+  "Je Raum lässt sich die Auswahl weiter einengen.":
+    "The selection can be narrowed further per room.",
+
+  // ── Öltank (optionaler Baustein)
+  "Öltank": "Oil tank",
+  "Füllstand": "Tank level",
+  "Wird geladen …": "Loading …",
+  "Restmenge": "Remaining",
+  "Verbrauch heute": "Used today",
+  "Reichweite": "Days left",
+  "Lieferung eintragen": "Record a delivery",
+  "Die Menge vom Lieferschein ist geeicht und damit genauer als jede Rechnung – sie zieht den Stand wieder gerade.":
+    "The quantity on the delivery note is calibrated and therefore more accurate than any calculation – it puts the level straight again.",
+  "Datum": "Date",
+  "Menge (Liter)": "Quantity (litres)",
+  "Verbuchen": "Record",
+  "Stand von Hand setzen": "Set the level by hand",
+  "Nach einem Blick auf den Zeiger am Tank.": "After a glance at the gauge on the tank.",
+  "Füllstand (Liter)": "Level (litres)",
+  "Übernehmen": "Apply",
+  "Letzte Lieferungen": "Recent deliveries",
+  "Noch keine Lieferung eingetragen": "No delivery recorded yet",
+  "Alles unauffällig.": "Nothing unusual.",
+  "⚠ Der Leckagemelder hat angesprochen.": "⚠ The leak detector has triggered.",
+  "Der Vorrat wird knapp.": "The supply is running low.",
+  "Noch kein Füllstand bekannt – trag eine Lieferung ein oder setz den Stand von Hand.":
+    "No level known yet – record a delivery or set the level by hand.",
+  "Kein Laufzeitzähler eingestellt – der Stand ändert sich nur durch Eingaben.":
+    "No runtime counter configured – the level only changes when you enter something.",
+  "Lieferung verbucht": "Delivery recorded",
+  "Stand übernommen": "Level applied",
+  "Bitte eine Menge angeben": "Please enter a quantity",
+  "Bitte einen Füllstand angeben": "Please enter a level",
+  "Tanküberwachung anzeigen – Restmenge, Verbrauch und Leckagewache":
+    "Show tank monitoring – remaining oil, consumption and leak watch",
+  "Nur für Anlagen mit Öltank. Ausgeschaltet erscheint der Reiter „Öltank“ gar nicht erst.":
+    "Only for systems with an oil tank. When switched off, the \u201cOil tank\u201d tab does not appear at all.",
+  "Tankinhalt (Liter)": "Tank capacity (litres)",
+  "Füllgrenze (%)": "Fill limit (%)",
+  "Steht auf dem Typenschild, meist 95.": "Stated on the nameplate, usually 95.",
+  "Warnschwelle (Liter)": "Warning threshold (litres)",
+  "Verbrauch aus der Brennerlaufzeit": "Consumption from burner runtime",
+  "Optional. Ohne diese Quelle bleibt der Stand stehen, bis jemand eine Lieferung einträgt.":
+    "Optional. Without this source the level stays put until someone records a delivery.",
+  "Laufzeitzähler": "Runtime counter",
+  "Düsendurchsatz (Liter/Stunde)": "Nozzle throughput (litres/hour)",
+  "Aus der Düsengröße; wird mit jeder Lieferung genauer.":
+    "From the nozzle size; gets more accurate with every delivery.",
+  "Leckagewache": "Leak watch",
+  "Melder im Auffangraum": "Detector in the bund",
+  "Heizöl leitet keinen Strom – ein gewöhnlicher Wassermelder spricht darauf nicht an. Es braucht einen optischen Sensor oder einen Schwimmer.":
+    "Heating oil does not conduct electricity – an ordinary water alarm will not respond to it. You need an optical sensor or a float.",
+  "Leer: die Meldewege des Wachhunds.": "Empty: the watchdog\u2019s notification channels.",
   },
 
   muster: [

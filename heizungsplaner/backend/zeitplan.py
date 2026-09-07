@@ -6,8 +6,17 @@ gilt dieser Modus. Es gibt keine Endzeiten; der nächste Punkt löst den
 vorherigen ab. Dadurch kann keine Lücke entstehen, in der niemand zuständig
 ist – der Fallstrick der Slot-Pläne mit ``stop``-Zeit.
 
-Ein Punkt kann auf Schultage oder schulfreie Tage beschränkt sein. Welcher
-Fall gerade gilt, entscheidet eine Entität in Home Assistant.
+Ein Punkt kann auf eine Tagesart beschränkt sein. Es gibt zwei Paare, weil
+nicht jeder im Haus demselben Kalender folgt:
+
+* **Schultag / schulfrei** – für alle, die zur Schule gehen. Entscheidet der
+  Schulfrei-Schalter, der auch die Ferien kennt.
+* **Werktag / arbeitsfrei** – für alle, die arbeiten. Entscheidet allein der
+  **Feiertag**: Das Wochenende steckt schon in den Wochentag-Haken des Punktes,
+  und Schulferien gehen einen Berufstätigen nichts an.
+
+Beide Paare lassen sich in einem Plan mischen; welcher Fall gerade gilt,
+entscheiden zwei getrennte Entitäten in Home Assistant.
 """
 from __future__ import annotations
 
@@ -21,21 +30,29 @@ def _uhrzeit(text: str) -> time:
     return time(int(stunde), int(minute))
 
 
-def _passt(eintrag: dict, wochentag: str, schulfrei: bool | None) -> bool:
+def _passt(eintrag: dict, wochentag: str, schulfrei: bool | None,
+           feiertag: bool | None = None) -> bool:
     if wochentag not in eintrag.get("tage", []):
         return False
     gilt = eintrag.get("gilt", "immer")
     if gilt == "immer":
         return True
-    if schulfrei is None:
-        # Ohne Kenntnis des Schulfrei-Schalters gelten nur die immer-Einträge,
-        # sonst würden Schultag- und Schulfrei-Plan gleichzeitig greifen.
-        return False
-    return (gilt == "schulfrei") == schulfrei
+    # Ohne Kenntnis des zuständigen Schalters gelten nur die immer-Einträge –
+    # sonst würden beide Hälften eines Paares gleichzeitig greifen.
+    if gilt in ("schultag", "schulfrei"):
+        if schulfrei is None:
+            return False
+        return (gilt == "schulfrei") == schulfrei
+    if gilt in ("werktag", "arbeitsfrei"):
+        if feiertag is None:
+            return False
+        return (gilt == "arbeitsfrei") == feiertag
+    return False
 
 
 def letzter_zeitpunkt(zeitplan: list[dict], jetzt: datetime,
-                      schulfrei: bool | None) -> tuple[datetime, dict] | None:
+                      schulfrei: bool | None,
+                      feiertag: bool | None = None) -> tuple[datetime, dict] | None:
     """Der zuletzt fällig gewordene Umschaltpunkt samt Zeitpunkt.
 
     Sucht rückwärts über Tagesgrenzen hinweg: Die Nachtabsenkung von gestern
@@ -46,7 +63,7 @@ def letzter_zeitpunkt(zeitplan: list[dict], jetzt: datetime,
     for versatz in range(8):
         tag = jetzt - timedelta(days=versatz)
         wochentag = TAGE[tag.weekday()]
-        kandidaten = [e for e in zeitplan if _passt(e, wochentag, schulfrei)]
+        kandidaten = [e for e in zeitplan if _passt(e, wochentag, schulfrei, feiertag)]
         if versatz == 0:
             kandidaten = [e for e in kandidaten if _uhrzeit(e["start"]) <= jetzt.time()]
         if kandidaten:
@@ -56,19 +73,21 @@ def letzter_zeitpunkt(zeitplan: list[dict], jetzt: datetime,
 
 
 def aktueller_eintrag(zeitplan: list[dict], jetzt: datetime,
-                      schulfrei: bool | None) -> dict | None:
+                      schulfrei: bool | None,
+                      feiertag: bool | None = None) -> dict | None:
     """Der zuletzt fällig gewordene Umschaltpunkt."""
-    treffer = letzter_zeitpunkt(zeitplan, jetzt, schulfrei)
+    treffer = letzter_zeitpunkt(zeitplan, jetzt, schulfrei, feiertag)
     return treffer[1] if treffer else None
 
 
 def naechster_wechsel(zeitplan: list[dict], jetzt: datetime,
-                      schulfrei: bool | None) -> tuple[datetime, dict] | None:
+                      schulfrei: bool | None,
+                      feiertag: bool | None = None) -> tuple[datetime, dict] | None:
     """Der nächste anstehende Umschaltpunkt samt Zeitpunkt."""
     for versatz in range(8):
         tag = jetzt + timedelta(days=versatz)
         wochentag = TAGE[tag.weekday()]
-        kandidaten = [e for e in zeitplan if _passt(e, wochentag, schulfrei)]
+        kandidaten = [e for e in zeitplan if _passt(e, wochentag, schulfrei, feiertag)]
         if versatz == 0:
             kandidaten = [e for e in kandidaten if _uhrzeit(e["start"]) > jetzt.time()]
         if kandidaten:
@@ -87,7 +106,9 @@ def modus_temperatur(raum: dict, modus: str, frostschutz: float) -> float:
 
 def naechster_waermerer_wechsel(raum: dict, jetzt: datetime, schulfrei: bool | None,
                                 aktuelle_temperatur: float,
-                                frostschutz: float) -> tuple[datetime, dict] | None:
+                                frostschutz: float,
+                                feiertag: bool | None = None
+                                ) -> tuple[datetime, dict] | None:
     """Der nächste Wechsel, der es wärmer haben will – Ziel des Vorheizens.
 
     Sucht über mehrere Wechsel hinweg, damit auch ein kurzer Zwischenschritt
@@ -98,7 +119,7 @@ def naechster_waermerer_wechsel(raum: dict, jetzt: datetime, schulfrei: bool | N
         return None
     zeiger = jetzt
     for _ in range(8):
-        treffer = naechster_wechsel(zeitplan, zeiger, schulfrei)
+        treffer = naechster_wechsel(zeitplan, zeiger, schulfrei, feiertag)
         if not treffer:
             return None
         zeitpunkt, eintrag = treffer

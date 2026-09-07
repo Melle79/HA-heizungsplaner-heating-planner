@@ -163,6 +163,35 @@ setzen ein durchgehend geführtes Ziel voraus. Was weiter gilt:
 
 ## Zeitplan
 
+### Tagesarten
+
+Jeder Umschaltpunkt gilt für eine Tagesart. Es gibt zwei Paare, weil nicht
+jeder im Haus demselben Kalender folgt:
+
+| Punkt gilt … | wann |
+|---|---|
+| **immer** | an den angehakten Wochentagen, ohne weitere Bedingung |
+| **Schultag** | wenn der Schulfrei-Schalter *aus* ist |
+| **schulfrei** | wenn er *an* ist – Ferien, Feiertage, Wochenende |
+| **Werktag** | wenn *kein* Feiertag ist |
+| **arbeitsfrei** | wenn Feiertag ist |
+
+Beide Paare lassen sich in einem Plan mischen. Für ein Kinderzimmer nimmt man
+Schultag und schulfrei, für das Zimmer einer berufstätigen Person Werktag und
+arbeitsfrei.
+
+Der Unterschied ist nicht kosmetisch: In den Sommerferien ist *schulfrei* an,
+aber wer arbeitet, steht trotzdem um sechs auf. Deshalb hängen die beiden
+Paare an **verschiedenen Quellen** (*Einstellungen → Quellen aus Home
+Assistant*).
+
+Beim Feiertag gehört ausdrücklich **nur** der Feiertag hinein – nicht
+„Wochenende oder Feiertag". Das Wochenende steht schon in den Wochentag-Haken
+des Punktes; stünde es zusätzlich in der Quelle, wären Samstag und Sonntag
+doppelt berücksichtigt. Ohne eingetragene Quelle bleiben *Werktag* und
+*arbeitsfrei* wirkungslos, und nur die übrigen Punkte greifen.
+
+
 Ein Zeitplan besteht aus **Umschaltpunkten**, nicht aus Zeitfenstern. Jeder
 Punkt sagt: ab dieser Uhrzeit, an diesen Wochentagen, gilt dieser Modus – bis
 der nächste Punkt kommt. Der letzte Punkt eines Tages reicht über Mitternacht
@@ -342,6 +371,22 @@ Fehlt der Schalter in Home Assistant oder meldet er nichts, wird der Raum
 kaputten Schalters kalt zu lassen wäre die unangenehmere Überraschung.
 
 ## Anwesenheit
+
+### Wer zum Haushalt zählt
+
+Unter *Einstellungen → Anwesenheit* steht, welche Personen der Planer
+überhaupt betrachtet. **Nichts angehakt heißt: alle** – das ist die Vorgabe
+und für die meisten richtig.
+
+Wichtig wird die Auswahl, wenn in Home Assistant mehr Personen stehen als im
+Haus wohnen. Der gefährliche Fall ist eine Person **ohne Gerätetracker**: Sie
+steht dauerhaft auf „zu Hause" und hält damit jeden Raum für besetzt. Die
+Absenkung bei Abwesenheit griffe dann nie mehr, und es gäbe keine
+Fehlermeldung, die darauf hinweist – die Räume blieben einfach warm.
+
+Die Auswahl je Raum („Zuständige Personen") engt innerhalb des Haushalts
+weiter ein.
+
 
 Jedem Raum lassen sich zuständige Personen zuordnen. Ohne Zuordnung zählt die
 ganze Familie. Zusätzlich kann ein Präsenz- oder Bewegungsmelder den Raum als
@@ -532,6 +577,65 @@ Protokoll und im Hinweisbalken.
 Für eigene Automationen gibt es `binary_sensor.heizungsplaner_stoerung`
 (Geräteklasse `problem`) mit den Meldungen als Attribut sowie
 `sensor.heizungsplaner_stoerungen` mit der Zahl der ausgefallenen Geräte.
+
+## Öltank (optional)
+
+Dieser Baustein ist **ab Werk aus**. Er erscheint erst, wenn du ihn unter
+*Einstellungen → Öltank* einschaltest – vorher gibt es den Reiter „Öltank“
+nicht, und es wird auch nichts gerechnet. Wer mit Gas, Fernwärme oder einer
+Wärmepumpe heizt, merkt von diesem Kapitel nichts.
+
+### Woher der Füllstand kommt
+
+Ohne Sensor im Tank, aus zwei Zahlen, die sich gegenseitig korrigieren:
+
+* Die **Liefermenge** vom Lieferschein ist geeicht und damit genauer als jede
+  Messung – aber sie kommt nur ein- bis zweimal im Jahr.
+* Die **Brennerlaufzeit** mal Düsendurchsatz liefert die Auflösung dazwischen.
+  Weil der Durchsatz nur ein Schätzwert aus der Düsengröße ist, driftet sie –
+  bis die nächste Lieferung sie wieder einnordet.
+
+Der Laufzeitzähler ist optional. Trägst du keinen ein, bleibt der Stand
+einfach stehen, bis du eine Lieferung einträgst oder ihn von Hand setzt. Auch
+so ist die Anzeige brauchbar: Sie zeigt dann, was seit der letzten Lieferung
+noch übrig sein sollte.
+
+### Einstellungen
+
+| Feld | Bedeutung |
+|---|---|
+| Tankinhalt | Nenninhalt laut Typenschild |
+| Füllgrenze | Wie viel hinein darf, meist 95 % |
+| Warnschwelle | Darunter gibt es eine Warnung |
+| Laufzeitzähler | Sensor mit der Brennerlaufzeit in Stunden |
+| Düsendurchsatz | Liter je Betriebsstunde |
+| Melder im Auffangraum | Für die Leckagewache |
+| Melden an | Leer: die Meldewege des Wachhunds |
+
+### Was gegen falsche Zahlen unternommen wird
+
+Ein gerechneter Tank ist nur so gut wie sein Zähler, und Zähler springen. Drei
+Fälle sind abgefangen: Der **erste** gesehene Zählerstand gilt nie als
+Verbrauch – sonst wäre der Tank beim ersten Takt leer. Ein **Rücksprung**
+(neuer Kessel, zurückgesetzter Zähler) wird als neuer Ausgangswert übernommen
+statt verbucht. Und ein **Sprung** von mehr als 24 Stunden zwischen zwei Takten
+gilt als Zählerfehler und wandert ins Protokoll, nicht in die Rechnung.
+
+### Leckagewache
+
+Ein Melder im Auffangraum, angegeben als beliebige Entität, die „an“ oder „aus“
+kennt. Spricht er an, gibt es **eine** Meldung – nicht alle fünf Minuten
+dieselbe.
+
+Ein Hinweis, der Geld spart: **Heizöl leitet keinen Strom.** Die üblichen
+Wassermelder messen den Widerstand zwischen zwei Kontakten und schweigen bei
+einer Ölpfütze. Es braucht einen optischen Sensor oder einen Schwimmer.
+
+### Reichweite
+
+Der Durchschnitt der letzten vierzehn Tage, hochgerechnet auf die Restmenge.
+Unter drei Tagen mit Verbrauch gibt es keine Zahl, und im Sommer – wenn nichts
+verbraucht wird – steht dort ein Strich statt einer Unendlichkeit.
 
 ## Handeingriffe
 

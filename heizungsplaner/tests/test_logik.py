@@ -164,6 +164,73 @@ alle = dict(store.STANDARD_RAUM, name="Wohnzimmer", personen=[])
 besetzt, _ = anwesenheit.raum_besetzt(alle, {}, personen)
 pruefe(besetzt, "Raum ohne Personenzuordnung folgt der ganzen Familie")
 
+print("\n=== Werktag und arbeitsfrei ===")
+# Finn arbeitet: In den Schulferien hat er Dienst, an einem Feiertag nicht.
+# Das Wochenende steckt schon in den Wochentag-Haken, hier zaehlt nur der
+# Feiertag.
+plan_finn = [
+    {"start": "06:00", "modus": "komfort", "gilt": "werktag",
+     "tage": ["mon", "tue", "wed", "thu", "fri"]},
+    {"start": "09:00", "modus": "komfort", "gilt": "arbeitsfrei",
+     "tage": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]},
+]
+montag = datetime(2026, 9, 7, 7, 0)      # Montag, bayerische Sommerferien
+# schulfrei=True (Ferien), feiertag=False (Arbeitstag)
+e = zp.aktueller_eintrag(plan_finn, montag, True, False)
+pruefe(e is not None and e["gilt"] == "werktag",
+       "in den Schulferien gilt fuer Finn der Werktag-Punkt")
+e = zp.aktueller_eintrag(plan_finn, montag, True, True)
+pruefe(e is None or e["gilt"] != "werktag",
+       "am Feiertag greift der Werktag-Punkt nicht")
+mittag = datetime(2026, 9, 7, 12, 0)
+e = zp.aktueller_eintrag(plan_finn, mittag, True, True)
+pruefe(e is not None and e["gilt"] == "arbeitsfrei",
+       "am Feiertag gilt der arbeitsfrei-Punkt")
+# Ohne Feiertagsquelle darf keine der beiden Haelften greifen, sonst gaelten
+# sie gleichzeitig.
+e = zp.aktueller_eintrag(plan_finn, mittag, True, None)
+pruefe(e is None, "ohne Feiertagsquelle bleiben Werktag und arbeitsfrei stumm")
+
+# Die Schul-Punkte duerfen davon voellig unberuehrt bleiben.
+plan_luna = [{"start": "06:00", "modus": "komfort", "gilt": "schultag",
+              "tage": ["mon"]}]
+e = zp.aktueller_eintrag(plan_luna, montag, False, None)
+pruefe(e is not None, "Schultag funktioniert weiterhin ohne Feiertagsquelle")
+e = zp.aktueller_eintrag(plan_luna, montag, True, None)
+pruefe(e is None, "in den Ferien greift der Schultag-Punkt nicht")
+
+pruefe("werktag" in store.GELTUNG and "arbeitsfrei" in store.GELTUNG,
+       "die Pruefung kennt die neuen Geltungen")
+try:
+    store.validate_zeitplan([{"start": "06:00", "modus": "komfort",
+                              "gilt": "montags", "tage": ["mon"]}])
+    pruefe(False, "eine erfundene Geltung wird abgelehnt")
+except store.ValidationError:
+    pruefe(True, "eine erfundene Geltung wird abgelehnt")
+
+print("\n=== Wer zum Haushalt zaehlt ===")
+# Der Fall, der die Absenkung lautlos toetet: eine Person ohne Geraetetracker.
+# Sie steht dauerhaft auf "home" und hielte jeden Raum fuer besetzt.
+haus_index = {
+    "person.sven": {"state": "not_home", "attributes": {"friendly_name": "Sven"}},
+    "person.gast": {"state": "home", "attributes": {"friendly_name": "Gastkonto"}},
+    "zone.home": {"state": "1", "attributes": {}},
+}
+alle = anwesenheit.personen_status(haus_index, None, set())
+pruefe(len(alle) == 2, "ohne Angabe zaehlen alle Personen (bisheriges Verhalten)")
+pruefe(alle["person.gast"]["zuhause"], "das Gastkonto gilt als zu Hause")
+
+eng = anwesenheit.personen_status(haus_index, None, set(), ["person.sven"])
+pruefe(list(eng) == ["person.sven"], "mit Haushaltsliste bleibt nur, wer darin steht")
+leer = anwesenheit.personen_status(haus_index, None, set(), [])
+pruefe(len(leer) == 2, "eine leere Liste heisst weiterhin: alle")
+
+e_haus = store.validate_einstellungen({"haushalt": ["person.sven", "  ", "sensor.unfug"]})
+pruefe(e_haus["haushalt"] == ["person.sven"],
+       "die Pruefung wirft Leerzeichen und Nicht-Personen heraus")
+pruefe(store.standard_einstellungen()["haushalt"] == [],
+       "ab Werk ist die Liste leer, es zaehlen also alle")
+
 print("\n=== Regelkette ===")
 einst = store.validate_einstellungen({})
 einst["trockenlauf"] = True
