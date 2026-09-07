@@ -1,5 +1,23 @@
 # Änderungen
 
+## 1.24.0
+
+- **Behoben: Eine Änderung der Umrechnung veränderte die Ölmenge in die
+  falsche Richtung.** Der Füllstand lag in Litern gespeichert, eingegeben
+  worden war er aber als *Ablesung*. Wer danach den Nullpunkt berichtigte,
+  bekam mehr Öl statt weniger – die Literzahl blieb stehen, und der Planer
+  behauptete eine Anzeige, die am Tank gar nicht stand.
+- **Die Ablesung ist jetzt die gespeicherte Wahrheit**, die Literzahl nur
+  daraus abgeleitet: Stand = letzte Beobachtung minus Verbrauch seitdem.
+  Ändert sich die Umrechnung – anderer Nullpunkt, neue Einmessung –, wandert
+  die Literzahl mit, und der Zeigerstand bleibt der, den man abgelesen hat.
+- Wer den Stand in **Litern** einträgt, bekommt weiterhin Liter. Auch eine
+  Lieferung setzt die Grundlage neu.
+- Ein Zustand aus einer älteren Fassung behält seinen Literwert – beim Update
+  springt nichts.
+- Die Oberfläche zeigt als Hinweis am Bestand, worauf er beruht: welche
+  Ablesung, von wann.
+
 ## 1.23.0
 
 - **Neu: Was das Heizöl kostet.** Zu jeder Lieferung lässt sich **Preis je

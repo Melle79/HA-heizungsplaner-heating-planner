@@ -642,6 +642,18 @@ am Nenninhalt vom Typenschild. Kommt dabei ein **negativer** Nullpunkt heraus,
 sagt der Planer das ausdrücklich – dann passt der eingetragene Tankinhalt nicht
 zu dieser Skala, und beides gehört überprüft.
 
+**Was gespeichert wird: die Ablesung, nicht die Literzahl.** Trägst du den
+Stand in Zentimetern ein, merkt sich der Planer genau das – und rechnet die
+Liter jedes Mal neu daraus, abzüglich dessen, was seitdem verbrannt wurde.
+
+Das klingt nach einer Feinheit, ist aber der Unterschied zwischen richtig und
+falsch: Berichtigst du später den Nullpunkt oder misst den Tank neu ein, wandert
+die Literzahl mit. Läge die Wahrheit in den Litern, behauptete der Planer nach
+jeder Korrektur einen Zeigerstand, der am Tank gar nicht steht.
+
+Wer den Stand in Litern einträgt, bekommt weiterhin Liter. Eine Lieferung setzt
+die Grundlage ebenfalls neu.
+
 **Der Nullpunkt, wenn der Anzeiger nachgerüstet ist.** Der Planer rechnet
 Liter aus der Höhe *über dem Nullpunkt* – also über dem, was die Anzeige bei
 leerem Tank zeigt. Bei einem ab Werk passenden Gerät ist das null. Bei einem

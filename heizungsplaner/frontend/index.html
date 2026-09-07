@@ -2635,6 +2635,12 @@ function tankZeichnen(t) {
       ? `Eingemessen: ${t.liter_pro_cm} Liter je Zentimeter`
       : `Geschätzt aus dem Tankinhalt: ${t.liter_pro_cm} Liter je Zentimeter`;
   }
+  if (t.basis) {
+    const b = t.basis;
+    $('tank-rest').title = b.art === 'cm'
+      ? `Grundlage: Ablesung ${b.wert} cm vom ${(b.zeit || '').slice(0, 10)}`
+      : `Grundlage: ${b.wert} l vom ${(b.zeit || '').slice(0, 10)}`;
+  }
   $('tank-quelle').textContent = t.laufzeit_gekoppelt
     ? `Verbrauch aus der Brennerlaufzeit (Zählerstand ${t.laufzeit_h ?? '–'} h).`
     : 'Kein Laufzeitzähler eingestellt – der Stand ändert sich nur durch Eingaben.';

@@ -631,6 +631,18 @@ nominal capacity from the nameplate. If it produces a **negative** zero point,
 the planner says so explicitly – the capacity entered does not fit this scale,
 and both deserve a check.
 
+**What is stored is the reading, not the litre figure.** Enter the level in
+centimetres and the planner remembers exactly that – working out the litres
+afresh each time, minus whatever has been burned since.
+
+That sounds like a detail but is the difference between right and wrong: correct
+the zero point later, or measure the tank anew, and the litre figure follows.
+Were the truth held in litres, the planner would claim a needle position that
+the tank does not show.
+
+Enter the level in litres and you still get litres. A delivery also resets the
+basis.
+
 **The zero point, if the gauge was retrofitted.** The planner works out
 litres from the height *above the zero point* – that is, above whatever the
 gauge shows on an empty tank. On a factory-matched device that is zero. On a

@@ -56,7 +56,18 @@ MIN_TAGE_FUER_REICHWEITE = 3
 
 def standard_zustand() -> dict:
     return {
-        "stand_liter": None,      # None = noch nie gesetzt
+        "stand_liter": None,      # abgeleitet – die Wahrheit steht in "basis"
+        # Was zuletzt wirklich beobachtet wurde: eine Ablesung in Zentimetern
+        # oder eine Literangabe. Daraus wird der Stand jedes Mal neu gerechnet,
+        # abzüglich dessen, was seitdem verbrannt wurde.
+        #
+        # Das ist der Kern: Eine Ablesung ist eine Messung, die Literzahl nur
+        # eine Umrechnung. Ändert sich die Umrechnung – ein anderer Nullpunkt,
+        # eine neue Einmessung –, muss die Literzahl mitwandern. Läge die
+        # Wahrheit in den Litern, behauptete der Planer nach jeder Korrektur
+        # eine Anzeige, die am Tank gar nicht steht.
+        "basis": None,            # {"art": "cm"|"liter", "wert": 23.0, "zeit": …}
+        "verbraucht_seit_basis": 0.0,
         "laufzeit_h": None,       # letzter gesehener Zählerstand
         "lieferungen": [],        # [{"datum": "YYYY-MM-DD", "liter": 3000.0}]
         "verbrauch_tage": {},     # {"YYYY-MM-DD": liter} – nur die letzten 60 Tage
@@ -134,8 +145,9 @@ def nutzbar_liter(tank: dict) -> float:
 def _verbrauch_buchen(t: dict, liter: float, heute: str) -> None:
     if liter <= 0:
         return
-    if t["stand_liter"] is not None:
-        t["stand_liter"] = max(0.0, round(t["stand_liter"] - liter, 2))
+    # Der Stand wird nicht heruntergezählt, sondern aus Basis minus Verbrauch
+    # abgeleitet. Nur so überlebt er eine Änderung der Umrechnung.
+    t["verbraucht_seit_basis"] = round(t.get("verbraucht_seit_basis", 0.0) + liter, 3)
     verlauf = t["verbrauch_tage"]
     verlauf[heute] = round(verlauf.get(heute, 0.0) + liter, 3)
     _verlauf_kuerzen(verlauf)
@@ -156,6 +168,33 @@ def _verlauf_kuerzen(verlauf: dict) -> None:
     grenze = (date.today() - timedelta(days=VERLAUF_TAGE)).isoformat()
     for tag in [d for d in verlauf if d < grenze]:
         verlauf.pop(tag, None)
+
+
+def _basis_setzen(t: dict, art: str, wert: float) -> None:
+    t["basis"] = {"art": art, "wert": round(float(wert), 2),
+                  "zeit": datetime.now().isoformat(timespec="seconds")}
+    t["verbraucht_seit_basis"] = 0.0
+
+
+def stand_ableiten(t: dict, tank: dict) -> float | None:
+    """Der Stand: die letzte Beobachtung, abzüglich des Verbrauchs seitdem.
+
+    Ohne Basis – etwa bei einem Zustand aus einer älteren Fassung – gilt der
+    gespeicherte Literwert weiter. Dann verhält sich alles wie bisher, statt
+    dass beim Update eine Zahl springt.
+    """
+    basis = t.get("basis")
+    if not basis:
+        return t.get("stand_liter")
+    if basis.get("art") == "cm":
+        anfang = cm_zu_liter(tank, float(basis["wert"]))
+        if anfang is None:
+            # Umrechnung (noch) nicht möglich: Der zuletzt gerechnete Wert
+            # ist immer noch besser als gar keiner.
+            return t.get("stand_liter")
+    else:
+        anfang = float(basis["wert"])
+    return max(0.0, round(anfang - t.get("verbraucht_seit_basis", 0.0), 1))
 
 
 def _laufzeit_lesen(entity_id: str) -> float | None:
@@ -269,6 +308,7 @@ def takt(einstellungen: dict, state: dict) -> dict:
     elif not leck:
         t["leck_seit"] = None
 
+    t["stand_liter"] = stand_ableiten(t, tank)
     stand = t["stand_liter"]
     nutzbar = nutzbar_liter(tank)
     warnschwelle = float(tank.get("warnschwelle_liter") or 0.0)
@@ -288,6 +328,10 @@ def takt(einstellungen: dict, state: dict) -> dict:
         "reserve_liter": round(reserve) if reserve else 0,
         "liter_pro_cm": round(liter_je_cm(tank), 2) or None,
         "eingemessen": bool(tank.get("liter_pro_cm")),
+        # Worauf der Stand beruht – die Oberfläche zeigt es als Hinweis, und
+        # bei einer Rückfrage steht damit schwarz auf weiß, was eingegeben war.
+        "basis": t.get("basis"),
+        "verbraucht_seit_basis": round(t.get("verbraucht_seit_basis", 0.0), 1),
         "verbrauch_heute": round(t["verbrauch_tage"].get(heute, 0.0), 1),
         "verbrauch_monat": round(t["verbrauch_monate"].get(heute[:7], 0.0), 1),
         "verbrauch_saison": _saison_summe(t["verbrauch_monate"]),
@@ -451,17 +495,19 @@ def lieferung_eintragen(state: dict, liter: float, datum: str | None,
 
     if voll and nutzbar > 0:
         # Der bekannte Inhalt schlägt jede Ablesung und jede Fortschreibung.
-        t["stand_liter"] = round(nutzbar, 1)
+        _basis_setzen(t, "liter", nutzbar)
     elif cm_nachher is not None and liter_je_cm(tank) > 0:
-        # Die abgelesene Höhe ist eine Messung, die gerechnete Summe nur eine
-        # Fortschreibung. Die Messung gewinnt.
-        t["stand_liter"] = cm_zu_liter(tank, float(cm_nachher))
+        # Die abgelesene Höhe ist eine Messung. Sie wird als Ablesung
+        # gespeichert, nicht als Literzahl – dann überlebt sie auch eine
+        # spätere Korrektur der Umrechnung.
+        _basis_setzen(t, "cm", float(cm_nachher))
     else:
-        vorher = t["stand_liter"] or 0.0
+        vorher = stand_ableiten(t, tank) or 0.0
         # Mehr als voll geht nicht – wer sich vertippt, bekommt den Deckel,
         # nicht einen Tank mit 6000 Litern in einem 4700-Liter-Behälter.
-        t["stand_liter"] = round(min(vorher + eintrag["liter"], nutzbar), 1) \
-            if nutzbar > 0 else round(vorher + eintrag["liter"], 1)
+        neu = vorher + eintrag["liter"]
+        _basis_setzen(t, "liter", min(neu, nutzbar) if nutzbar > 0 else neu)
+    t["stand_liter"] = stand_ableiten(t, tank)
     return eintrag
 
 
@@ -484,5 +530,12 @@ def stand_setzen(state: dict, tank: dict, liter: float | None = None,
         raise ValueError("Der Füllstand kann nicht negativ sein")
     nutzbar = nutzbar_liter(tank)
     t = _zustand(state)
-    t["stand_liter"] = round(min(float(liter), nutzbar) if nutzbar > 0 else float(liter), 1)
+    if cm is not None:
+        # Als Ablesung merken, nicht als Literzahl: Wer später den Nullpunkt
+        # berichtigt, will nicht denselben Zeigerstand neu eintippen müssen.
+        _basis_setzen(t, "cm", float(cm))
+    else:
+        _basis_setzen(t, "liter",
+                      min(float(liter), nutzbar) if nutzbar > 0 else float(liter))
+    t["stand_liter"] = stand_ableiten(t, tank)
     return t["stand_liter"]

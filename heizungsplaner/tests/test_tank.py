@@ -267,6 +267,62 @@ bericht = tank.takt(einstellungen(), state4)
 pruefe(bericht["warnung"] is True, "unter 800 Litern wird gewarnt")
 pruefe(bericht["prozent"] == 16, "700 von 4465 Litern sind 16 %")
 
+print("\n=== Eine Ablesung bleibt eine Ablesung ===")
+# Der Fehler, der das ausgeloest hat: Der Stand lag in Litern. Wer danach den
+# Nullpunkt berichtigte, bekam mehr Oel statt weniger - die Literzahl blieb
+# stehen, und der Planer behauptete eine Anzeige, die am Tank nicht stand.
+tk_a = einstellungen()["tank"]
+tk_a.update({"hoehe_voll_cm": 126.0, "hoehe_min_cm": 15.0, "nullpunkt_cm": 0.0})
+state_a = {}
+tank.stand_setzen(state_a, tk_a, cm=23.0)
+_zustaende["sensor.brennerstunden"] = "0.0"
+b1 = tank.takt({"tank": tk_a}, state_a)
+pruefe(b1["stand_cm"] == 23.0, "die Anzeige steht auf 23 cm")
+pruefe(b1["stand_liter"] == 815, "das sind ohne Versatz 815 Liter")
+
+# Jetzt der Nullpunkt - und nur der.
+tk_a["nullpunkt_cm"] = 10.0
+b2 = tank.takt({"tank": tk_a}, state_a)
+pruefe(b2["stand_cm"] == 23.0, "die Anzeige steht immer noch auf 23 cm")
+pruefe(b2["stand_liter"] < b1["stand_liter"],
+       f"und es ist jetzt WENIGER Oel ({b2['stand_liter']} statt {b1['stand_liter']})")
+pruefe(b2["reserve_liter"] < b1["reserve_liter"],
+       f"und weniger liegt unter dem Saugfuss ({b2['reserve_liter']} statt "
+       f"{b1['reserve_liter']})")
+# Die erreichbare Menge aendert sich dabei kaum, und das ist richtig: Der
+# Abstand zwischen Zeiger und Saugfuss bleibt 8 cm, nur wiegt ein Skalen-
+# zentimeter jetzt mehr Liter, weil derselbe Inhalt auf weniger cm verteilt ist.
+pruefe(abs(b2["verfuegbar_liter"] - b1["verfuegbar_liter"]) < 40,
+       "die erreichbare Menge bleibt in derselben Groessenordnung")
+
+print("\n=== Verbrauch zaehlt von der Ablesung ab ===")
+_zustaende["sensor.brennerstunden"] = "10.0"      # 24 Liter
+b3 = tank.takt({"tank": tk_a}, state_a)
+pruefe(abs(b3["stand_liter"] - (b2["stand_liter"] - 24)) <= 1,
+       "24 Liter weniger als bei der Ablesung")
+# Und eine Korrektur der Umrechnung rechnet den Verbrauch weiter mit.
+tk_a["nullpunkt_cm"] = 8.0
+b4 = tank.takt({"tank": tk_a}, state_a)
+erwartet = round(tank.cm_zu_liter(tk_a, 23.0) - 24, 1)
+pruefe(abs(b4["stand_liter"] - erwartet) <= 1,
+       "nach der naechsten Korrektur stimmt beides zusammen")
+
+print("\n=== Literangaben bleiben Literangaben ===")
+tk_l = einstellungen()["tank"]
+state_l = {}
+tank.stand_setzen(state_l, tk_l, 1000)
+tk_l["nullpunkt_cm"] = 10.0                       # aendert an Litern nichts
+_zustaende["sensor.brennerstunden"] = "0.0"
+b = tank.takt({"tank": tk_l}, state_l)
+pruefe(b["stand_liter"] == 1000, "wer Liter eintraegt, bekommt Liter")
+
+print("\n=== Zustand aus einer aelteren Fassung ===")
+# Ohne "basis" darf beim Update nichts springen.
+alt_state = {"tank": {"stand_liter": 815.0, "laufzeit_h": None, "lieferungen": [],
+                      "verbrauch_tage": {}, "leck_seit": None}}
+b = tank.takt(einstellungen(), alt_state)
+pruefe(b["stand_liter"] == 815, "der alte Literwert gilt unveraendert weiter")
+
 print("\n=== Preise und der gleitende Mischpreis ===")
 tk_p = einstellungen()["tank"]
 state_p = {}
