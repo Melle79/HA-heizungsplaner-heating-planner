@@ -653,10 +653,15 @@
       <div class="raster-felder eng" style="margin-top:var(--l3)">
         <div class="feld"><label>Anzeige bei vollem Tank (cm)</label>
           <input type="number" id="e-tank-voll-cm" min="0" step="1"></div>
+        <div class="feld"><label>Anzeige bei leerem Tank (cm)</label>
+          <input type="number" id="e-tank-null-cm" min="0" step="0.5">
+          <div class="notiz">Meist 0 – aber ein nachgerüsteter Anzeiger hat oft
+            eine Skala, die nicht zum Tank passt. Steht der Zeiger bei leerem
+            Tank auf 8, gehört hier 8 hinein.</div></div>
         <div class="feld"><label>Untergrenze (cm)</label>
           <input type="number" id="e-tank-min-cm" min="0" step="0.5">
-          <div class="notiz">Höhe des Saugfußes. Darunter zieht der Brenner
-            Luft.</div></div>
+          <div class="notiz">Höhe des Saugfußes, auf derselben Skala abgelesen.
+            Darunter zieht der Brenner Luft.</div></div>
         <div class="feld"><label>Liter je Zentimeter</label>
           <input type="number" id="e-tank-l-cm" min="0" step="0.01">
           <div class="notiz">Trägt sich beim Einmessen selbst ein.</div></div>
@@ -2357,6 +2362,7 @@ function einstellungenZeichnen() {
   $('e-tank-durchsatz').value = tk.durchsatz_l_h;
   $('e-tank-voll-cm').value = tk.hoehe_voll_cm;
   $('e-tank-min-cm').value = tk.hoehe_min_cm;
+  $('e-tank-null-cm').value = tk.nullpunkt_cm;
   $('e-tank-l-cm').value = tk.liter_pro_cm;
   fuelleAuswahl($('e-tank-brenner'), entitaeten.zaehler || [], tk.brenner_entity, 'keiner');
   fuelleAuswahl($('e-tank-leck'), entitaeten.schalter || [], tk.leckage_entity, 'keiner');
@@ -2536,6 +2542,7 @@ $('btn-speichern-einst').onclick = async () => {
       durchsatz_l_h: parseFloat($('e-tank-durchsatz').value),
       hoehe_voll_cm: parseFloat($('e-tank-voll-cm').value),
       hoehe_min_cm: parseFloat($('e-tank-min-cm').value),
+      nullpunkt_cm: parseFloat($('e-tank-null-cm').value),
       liter_pro_cm: parseFloat($('e-tank-l-cm').value),
       brenner_entity: $('e-tank-brenner').value,
       leckage_entity: $('e-tank-leck').value,

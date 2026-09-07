@@ -615,6 +615,22 @@ written into the settings, and from then on the planner converts between
 centimetres and litres: the level can be set in centimetres, and the display
 shows both.
 
+**The zero point, if the gauge was retrofitted.** The planner works out
+litres from the height *above the zero point* – that is, above whatever the
+gauge shows on an empty tank. On a factory-matched device that is zero. On a
+gauge screwed on later, rarely: a 150 cm scale on a 130 cm tank, a cord cut
+too long, and the whole scale sits shifted.
+
+Two notes:
+
+* **Calibration through a delivery is unaffected.** It works on the
+  *difference* between two readings, and an offset cancels out. The slope is
+  right even when the scale is not.
+* **The zero point itself has to be established once.** Easiest shortly before
+  a delivery, when the tank is nearly empty: dip a stick through the dome,
+  measure the true oil height and compare it with the gauge – the difference is
+  the offset.
+
 **The lower limit is the honest figure.** The suction foot sits a few
 centimetres above the bottom. Whatever is below it is yours, but no longer any
 help to the burner, which starts drawing air and faults out. With a lower limit

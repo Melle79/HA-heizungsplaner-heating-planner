@@ -160,6 +160,11 @@ STANDARD_EINSTELLUNGEN = {
         # den Unterschied zwischen "im Tank" und "für den Brenner erreichbar".
         "hoehe_voll_cm": 0.0,         # Anzeige bei vollem Tank; 0 = unbekannt
         "hoehe_min_cm": 0.0,          # darunter saugt der Brenner Luft
+        # Was die Anzeige bei leerem Tank zeigt. Bei einem nachgerüsteten
+        # Anzeiger ist das selten null: Die Skala passt dann nicht zum Tank,
+        # der Faden ist zu lang oder zu kurz abgelängt. Ohne diesen Versatz
+        # rechnet jede Umrechnung an der Wirklichkeit vorbei.
+        "nullpunkt_cm": 0.0,
         "liter_pro_cm": 0.0,          # 0 = noch nicht eingemessen
         "brenner_entity": "",         # Sensor mit der Brennerlaufzeit in Stunden
         "durchsatz_l_h": 2.4,         # Öldurchsatz der Düse
@@ -555,6 +560,9 @@ def validate_einstellungen(roh: dict) -> dict:
     tk["hoehe_voll_cm"] = _zahl(tk["hoehe_voll_cm"], "Höhe bei vollem Tank", 0.0, 1000.0)
     tk["hoehe_min_cm"] = _zahl(tk["hoehe_min_cm"], "Untergrenze", 0.0, 1000.0)
     tk["liter_pro_cm"] = _zahl(tk["liter_pro_cm"], "Liter je Zentimeter", 0.0, 1000.0)
+    tk["nullpunkt_cm"] = _zahl(tk["nullpunkt_cm"], "Nullpunkt", 0.0, 1000.0)
+    if tk["hoehe_voll_cm"] and tk["nullpunkt_cm"] >= tk["hoehe_voll_cm"]:
+        raise ValidationError("Der Nullpunkt muss unter der Höhe bei vollem Tank liegen")
     if tk["hoehe_voll_cm"] and tk["hoehe_min_cm"] >= tk["hoehe_voll_cm"]:
         raise ValidationError(
             "Die Untergrenze muss unter der Höhe bei vollem Tank liegen")

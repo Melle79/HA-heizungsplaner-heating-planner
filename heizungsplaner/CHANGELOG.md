@@ -1,5 +1,21 @@
 # Änderungen
 
+## 1.21.0
+
+- **Neu: Nullpunkt für nachgerüstete Anzeiger.** Bisher rechnete der Planer
+  „Liter = cm × Liter je Zentimeter" und nahm damit an, dass der Zeiger bei
+  leerem Tank auf null steht. Bei einem nachträglich aufgeschraubten Anzeiger
+  stimmt das selten – eine 150-cm-Skala auf einem 130-cm-Tank, ein zu lang
+  abgelängter Faden, und die ganze Skala liegt verschoben. Unter *Anzeige bei
+  leerem Tank* lässt sich der Versatz jetzt eintragen; gerechnet wird ab dann
+  mit der Höhe **über dem Nullpunkt**.
+- Vorgabe ist 0 – für passende Geräte ändert sich damit nichts.
+- Die Einmessung über eine Lieferung war davon nie betroffen: Sie rechnet mit
+  der Differenz zweier Ablesungen, und ein Versatz kürzt sich heraus. Das ist
+  jetzt auch so geprüft.
+- Auch die geschätzte Steigung berücksichtigt den Nullpunkt: Sie teilt den
+  Tankinhalt durch die Höhe *über* ihm, nicht durch die Skalenhöhe.
+
 ## 1.20.0
 
 - **Neu: Der Ölverbrauch bekommt ein Gedächtnis.** Bisher hielt der Planer nur

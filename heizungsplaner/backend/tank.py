@@ -84,20 +84,31 @@ def liter_je_cm(tank: dict) -> float:
     gemessen = float(tank.get("liter_pro_cm") or 0.0)
     if gemessen > 0:
         return gemessen
-    hoehe = float(tank.get("hoehe_voll_cm") or 0.0)
+    hoehe = float(tank.get("hoehe_voll_cm") or 0.0) - float(
+        tank.get("nullpunkt_cm") or 0.0)
     if hoehe > 0:
         return nutzbar_liter(tank) / hoehe
     return 0.0
 
 
 def cm_zu_liter(tank: dict, cm: float) -> float | None:
+    """Eine Ablesung in Liter – über dem Nullpunkt, nicht über der Skala.
+
+    Der Nullpunkt ist das, was die Anzeige bei leerem Tank zeigt. Bei einem
+    nachgerüsteten Anzeiger ist er selten null.
+    """
     je_cm = liter_je_cm(tank)
-    return None if je_cm <= 0 else round(cm * je_cm, 1)
+    if je_cm <= 0:
+        return None
+    ueber_null = float(cm) - float(tank.get("nullpunkt_cm") or 0.0)
+    return round(max(0.0, ueber_null) * je_cm, 1)
 
 
 def liter_zu_cm(tank: dict, liter: float | None) -> float | None:
     je_cm = liter_je_cm(tank)
-    return None if (je_cm <= 0 or liter is None) else round(liter / je_cm, 1)
+    if je_cm <= 0 or liter is None:
+        return None
+    return round(liter / je_cm + float(tank.get("nullpunkt_cm") or 0.0), 1)
 
 
 def reserve_liter(tank: dict) -> float:

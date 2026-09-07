@@ -167,6 +167,41 @@ pruefe(b["verfuegbar_liter"] == 0, "unter dem Saugfuss ist nichts mehr erreichba
 pruefe(b["unter_grenze"] is True, "und das wird gemeldet")
 pruefe(len(tank.meldungen(b, state_v)) >= 1, "es gibt eine Meldung dazu")
 
+print("\n=== Nachgeruesteter Anzeiger: der Nullpunkt ===")
+# Svens Fall: Skala 0-150 cm auf einem Tank von etwa 130 cm. Der Zeiger steht
+# bei leerem Tank nicht auf null.
+tk_v = einstellungen()["tank"]
+tk_v.update({"liter_pro_cm": 35.0, "hoehe_voll_cm": 126.0, "hoehe_min_cm": 15.0,
+             "nullpunkt_cm": 8.0})
+pruefe(tank.cm_zu_liter(tk_v, 8.0) == 0.0, "am Nullpunkt sind es null Liter")
+pruefe(tank.cm_zu_liter(tk_v, 23.0) == 525.0,
+       "23 cm sind 15 cm ueber null, also 525 Liter statt 805")
+pruefe(tank.cm_zu_liter(tk_v, 3.0) == 0.0,
+       "unter dem Nullpunkt gibt es keine negativen Liter")
+pruefe(tank.liter_zu_cm(tk_v, 525.0) == 23.0, "der Rueckweg trifft wieder 23 cm")
+
+# Die Einmessung ueber eine Lieferung bleibt vom Versatz unberuehrt: Sie
+# rechnet mit der Differenz, und die kuerzt ihn heraus.
+tk_a = einstellungen()["tank"]; tk_a["nullpunkt_cm"] = 0.0
+tk_b = einstellungen()["tank"]; tk_b["nullpunkt_cm"] = 8.0
+e1 = tank.lieferung_eintragen({}, 3000, None, tk_a, cm_vorher=30.0, cm_nachher=126.0)
+e2 = tank.lieferung_eintragen({}, 3000, None, tk_b, cm_vorher=30.0, cm_nachher=126.0)
+pruefe(e1["liter_pro_cm"] == e2["liter_pro_cm"],
+       "der Versatz kuerzt sich beim Einmessen heraus")
+
+# Ohne eingemessenen Wert wird die Steigung ueber die nutzbare Hoehe geschaetzt,
+# und die ist um den Nullpunkt kuerzer.
+tk_s = einstellungen()["tank"]
+tk_s.update({"hoehe_voll_cm": 126.0, "nullpunkt_cm": 8.0})
+pruefe(abs(tank.liter_je_cm(tk_s) - 4465.0 / 118.0) < 0.01,
+       "die Schaetzung rechnet mit 118 statt 126 Zentimetern")
+
+try:
+    store.validate_einstellungen({"tank": {"hoehe_voll_cm": 100, "nullpunkt_cm": 120}})
+    pruefe(False, "ein Nullpunkt ueber der Fuellhoehe wird abgelehnt")
+except store.ValidationError:
+    pruefe(True, "ein Nullpunkt ueber der Fuellhoehe wird abgelehnt")
+
 print("\n=== Zentimeter ohne Einmessung ===")
 tk3 = einstellungen()["tank"]      # ohne hoehe_voll_cm und liter_pro_cm
 try:

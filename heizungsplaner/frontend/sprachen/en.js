@@ -340,7 +340,12 @@ window.SPRACHEN.en = {
   "Freiwillig. Wer den Stand am Tank in Zentimetern abliest, bekommt damit die ehrliche Restmenge: Was unter dem Saugfuß steht, gehört dir, hilft dem Brenner aber nicht mehr.":
     "Optional. If you read the level off the tank in centimetres, this gives you the honest remaining quantity: whatever sits below the suction foot is yours, but no longer any help to the burner.",
   "Anzeige bei vollem Tank (cm)": "Reading when the tank is full (cm)",
+  "Anzeige bei leerem Tank (cm)": "Reading when the tank is empty (cm)",
+  "Meist 0 – aber ein nachgerüsteter Anzeiger hat oft eine Skala, die nicht zum Tank passt. Steht der Zeiger bei leerem Tank auf 8, gehört hier 8 hinein.":
+    "Usually 0 \u2013 but a retrofitted gauge often has a scale that does not match the tank. If the needle sits at 8 on an empty tank, put 8 here.",
   "Untergrenze (cm)": "Lower limit (cm)",
+  "Höhe des Saugfußes, auf derselben Skala abgelesen. Darunter zieht der Brenner Luft.":
+    "Height of the suction foot, read off the same scale. Below that the burner draws air.",
   "Höhe des Saugfußes. Darunter zieht der Brenner Luft.":
     "Height of the suction foot. Below that the burner draws air.",
   "Liter je Zentimeter": "Litres per centimetre",

@@ -626,6 +626,22 @@ Typenschild von 1965. Der Wert trägt sich in die Einstellungen ein, und ab
 dann rechnet der Planer zwischen Zentimetern und Litern hin und her: Der Stand
 lässt sich in Zentimetern setzen, und die Anzeige nennt beides.
 
+**Der Nullpunkt, wenn der Anzeiger nachgerüstet ist.** Der Planer rechnet
+Liter aus der Höhe *über dem Nullpunkt* – also über dem, was die Anzeige bei
+leerem Tank zeigt. Bei einem ab Werk passenden Gerät ist das null. Bei einem
+nachträglich aufgeschraubten Anzeiger selten: Eine 150-cm-Skala auf einem
+130-cm-Tank, ein zu lang abgelängter Faden, und schon liegt die ganze Skala
+verschoben.
+
+Zwei Hinweise dazu:
+
+* **Die Einmessung über eine Lieferung ist davon unberührt.** Sie rechnet mit
+  der *Differenz* zweier Ablesungen, und ein Versatz kürzt sich dabei heraus.
+  Die Steigung stimmt also auch bei krummer Skala.
+* **Den Nullpunkt selbst muss man einmal bestimmen.** Am einfachsten kurz vor
+  einer Lieferung, wenn der Tank fast leer ist: Peilstab in den Dom, wahre
+  Ölhöhe messen, mit der Anzeige vergleichen – die Differenz ist der Versatz.
+
 **Die Untergrenze ist die ehrlichere Zahl.** Der Saugfuß sitzt einige
 Zentimeter über dem Boden. Was darunter steht, gehört dir, hilft dem Brenner
 aber nicht mehr – der zieht dann Luft und geht auf Störung. Ist eine
