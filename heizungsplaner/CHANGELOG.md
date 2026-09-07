@@ -1,5 +1,15 @@
 # Änderungen
 
+## 1.24.1
+
+- **Behoben: Tankwerte ohne Zahl landeten auf `unavailable` statt `unknown`.**
+  Für „kein Wert" hatte ich das Wort `unknown` gesendet. Das ist für einen
+  Sensor mit Geräteklasse keine gültige Zahl – Home Assistant erklärte die
+  Entität daraufhin für nicht verfügbar. Vorgeschrieben ist die Zeichenfolge
+  `None`; daraus wird dort der Zustand *unbekannt*.
+- Betroffen war vor allem die Reichweite, solange noch kein Verbrauch
+  vorliegt. Am Verhalten des Add-ons ändert sich sonst nichts.
+
 ## 1.24.0
 
 - **Behoben: Eine Änderung der Umrechnung veränderte die Ölmenge in die

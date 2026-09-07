@@ -379,10 +379,17 @@ class Publisher:
             return
 
         def zahl(wert):
-            # "unknown" statt einer erfundenen Null: Ein Tank ohne bekannten
-            # Stand ist nicht leer, er ist unbekannt. Eine Null würde in der
-            # Statistik als echter Messwert landen.
-            return "unknown" if wert is None else str(wert)
+            # Kein Wert heißt "None" – so schreibt es die MQTT-Anbindung von
+            # Home Assistant vor, und daraus wird dort der Zustand "unknown".
+            #
+            # Nicht etwa das Wort "unknown" senden: Das ist für einen Sensor
+            # mit Geräteklasse keine gültige Zahl, und die Entität landet
+            # daraufhin auf "unavailable" statt auf "unbekannt".
+            #
+            # Eine erfundene Null wäre ohnehin falsch: Ein Tank ohne bekannten
+            # Stand ist nicht leer, und die Null stünde als echter Messwert in
+            # der Langzeitstatistik.
+            return "None" if wert is None else str(wert)
 
         gemeinsam = {"saison": tank.get("saison"),
                      "eingemessen": tank.get("eingemessen")}
