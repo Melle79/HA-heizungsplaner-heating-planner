@@ -68,6 +68,13 @@ def standard_zustand() -> dict:
         # state_class "total_increasing" eine Langzeitstatistik, die den
         # Verlust dieser Datei überlebt.
         "gesamt_liter": 0.0,
+        # Gleitender Durchschnittspreis, wie bei einer Lagerbewertung: Jede
+        # Lieferung mischt sich mit dem Restbestand. Der Verbrauch wird zu
+        # diesem Mischpreis bewertet – alles andere wäre geraten, weil im Tank
+        # nun einmal kein Öl von 2019 neben Öl von 2026 liegt.
+        "preis_pro_liter": None,
+        "kosten_monate": {},      # {"YYYY-MM": Betrag}
+        "kosten_gesamt": 0.0,
         "leck_seit": None,
     }
 
@@ -137,6 +144,13 @@ def _verbrauch_buchen(t: dict, liter: float, heute: str) -> None:
         t["verbrauch_monate"].get(monat, 0.0) + liter, 2)
     t["gesamt_liter"] = round(t.get("gesamt_liter", 0.0) + liter, 2)
 
+    preis = t.get("preis_pro_liter")
+    if preis:
+        kosten = liter * float(preis)
+        t["kosten_monate"][monat] = round(
+            t["kosten_monate"].get(monat, 0.0) + kosten, 2)
+        t["kosten_gesamt"] = round(t.get("kosten_gesamt", 0.0) + kosten, 2)
+
 
 def _verlauf_kuerzen(verlauf: dict) -> None:
     grenze = (date.today() - timedelta(days=VERLAUF_TAGE)).isoformat()
@@ -178,6 +192,21 @@ def saison(heute: date | None = None) -> str:
     heute = heute or date.today()
     beginn = heute.year if heute.month >= 7 else heute.year - 1
     return f"{beginn}/{str(beginn + 1)[-2:]}"
+
+
+def _preis_mischen(t: dict, liter: float, preis: float) -> float:
+    """Gleitender Durchschnittspreis nach einer Lieferung.
+
+    Der alte Bestand behält seinen Wert, die neue Lieferung bringt ihren mit,
+    und der Mischpreis gilt ab jetzt für alles im Tank. Das ist die übliche
+    Lagerbewertung – und die einzige Rechnung, die ohne Erfindungen auskommt.
+    """
+    bestand = t.get("stand_liter") or 0.0
+    alt = t.get("preis_pro_liter")
+    if alt is None or bestand <= 0:
+        return round(float(preis), 4)
+    wert = bestand * float(alt) + liter * float(preis)
+    return round(wert / (bestand + liter), 4)
 
 
 def _saison_summe(monate: dict, heute: date | None = None) -> float:
@@ -264,8 +293,17 @@ def takt(einstellungen: dict, state: dict) -> dict:
         "verbrauch_saison": _saison_summe(t["verbrauch_monate"]),
         "saison": saison(),
         "gesamt_liter": round(t.get("gesamt_liter", 0.0), 1),
+        "preis_pro_liter": (round(t["preis_pro_liter"], 3)
+                            if t.get("preis_pro_liter") else None),
+        "wert_im_tank": (round(stand * t["preis_pro_liter"])
+                         if (stand is not None and t.get("preis_pro_liter")) else None),
+        "kosten_monat": round(t["kosten_monate"].get(heute[:7], 0.0), 2),
+        "kosten_saison": _saison_summe(t["kosten_monate"]),
+        "kosten_gesamt": round(t.get("kosten_gesamt", 0.0), 2),
+        "waehrung": tank.get("waehrung") or "€",
         # Die jüngsten 24 Monate für die Oberfläche, neueste zuerst.
-        "monate": [{"monat": m, "liter": round(t["verbrauch_monate"][m], 1)}
+        "monate": [{"monat": m, "liter": round(t["verbrauch_monate"][m], 1),
+                    "kosten": round(t["kosten_monate"].get(m, 0.0), 2) or None}
                    for m in sorted(t["verbrauch_monate"], reverse=True)[:24]],
         "reichweite_tage": _reichweite_tage(t, verfuegbar),
         "laufzeit_h": t["laufzeit_h"],
@@ -318,7 +356,9 @@ def meldungen(bericht: dict, state: dict) -> list[tuple[str, str]]:
 def lieferung_eintragen(state: dict, liter: float, datum: str | None,
                         tank: dict, cm_vorher: float | None = None,
                         cm_nachher: float | None = None,
-                        voll: bool = False) -> dict:
+                        voll: bool = False,
+                        preis_pro_liter: float | None = None,
+                        gesamtpreis: float | None = None) -> dict:
     """Eine Tanklieferung verbuchen und den Stand entsprechend anheben.
 
     Sind der Stand **vorher und nachher** in Zentimetern dabei, misst diese
@@ -351,6 +391,15 @@ def lieferung_eintragen(state: dict, liter: float, datum: str | None,
     eintrag = {"datum": datum or date.today().isoformat(),
                "liter": round(float(liter), 1)}
 
+    # ── Preis: eines von beiden genügt, das andere fällt heraus
+    if preis_pro_liter is None and gesamtpreis is not None:
+        preis_pro_liter = float(gesamtpreis) / float(liter)
+    if preis_pro_liter is not None:
+        if preis_pro_liter < 0:
+            raise ValueError("Der Preis kann nicht negativ sein")
+        eintrag["preis_pro_liter"] = round(float(preis_pro_liter), 4)
+        eintrag["gesamtpreis"] = round(float(preis_pro_liter) * float(liter), 2)
+
     # ── Einmessen, wenn beide Höhen dabei sind
     if cm_vorher is not None and cm_nachher is not None:
         differenz = float(cm_nachher) - float(cm_vorher)
@@ -362,6 +411,12 @@ def lieferung_eintragen(state: dict, liter: float, datum: str | None,
         tank["liter_pro_cm"] = eintrag["liter_pro_cm"]
         _LOGGER.info("Tank eingemessen: %.1f l auf %.1f cm = %.2f l/cm",
                      liter, differenz, eintrag["liter_pro_cm"])
+
+    # Erst mischen, dann den Bestand anheben – der alte Preis gilt für das,
+    # was vorher drin war.
+    if eintrag.get("preis_pro_liter") is not None:
+        t["preis_pro_liter"] = _preis_mischen(
+            t, float(liter), eintrag["preis_pro_liter"])
 
     # ── Voll getankt: Der Inhalt danach ist bekannt, und damit die Geometrie
     nutzbar = nutzbar_liter(tank)

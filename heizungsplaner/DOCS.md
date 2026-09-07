@@ -691,6 +691,25 @@ further effort.
 A tank with no known level reports `unknown`, not zero. An invented zero would
 otherwise end up in the statistics as a real measurement.
 
+### What the oil costs
+
+Every delivery can carry a **price per litre** or a **total price** – either
+will do, the other follows from the quantity.
+
+Consumption is then valued at a **moving average price**: every delivery mixes
+with what is left, just as the oil in the tank does. With 2000 litres at 1.10
+in the tank and 2000 litres at 0.90 added, consumption from then on is valued
+at 1.00. That is standard inventory valuation and the only calculation that
+needs no invention – the tank does not keep the 2019 oil neatly beside the 2026
+oil.
+
+Out of it come: cost per month and per heating season, the value of what is
+currently in the tank, and a cost counter in Home Assistant. It carries
+`device_class: monetary`, so it sits in the same statistics as electricity and
+gas.
+
+Without a price, everything stays in litres – no invented figures.
+
 ### Settings
 
 | Field | Meaning |

@@ -331,6 +331,14 @@ window.SPRACHEN.en = {
   "Restmenge": "Remaining",
   "Für den Brenner erreichbar": "Reachable for the burner",
   "Der Tank wurde voll gefüllt": "The tank was filled completely",
+  "Preis je Liter": "Price per litre",
+  "oder Gesamtpreis": "or total price",
+  "Beim Preis genügt eines von beiden – das andere rechnet sich aus der Menge. Der Verbrauch wird danach zum gleitenden Durchschnittspreis bewertet: Jede Lieferung mischt sich mit dem Restbestand, so wie das Öl im Tank auch.":
+    "Either price will do \u2013 the other follows from the quantity. Consumption is then valued at a moving average price: every delivery mixes with what is left, just as the oil in the tank does.",
+  "Kosten dieser Monat": "Cost this month",
+  "Kosten Heizperiode": "Cost this season",
+  "Mischpreis · Wert im Tank": "Average price \u00b7 value in tank",
+  "noch kein Preis eingetragen": "no price recorded yet",
   "Dann ist der Inhalt danach bekannt – der Tankwagen füllt bis zur Abschaltung des Grenzwertgebers. Zusammen mit den beiden Höhen reicht das, um Anzeige bei vollem Tank und Nullpunkt auszurechnen: zwei Gleichungen für zwei Unbekannte. Das erspart den Gang mit dem Peilstab in den Dom.":
     "Then the content afterwards is known \u2013 the tanker fills until the overfill cut-off trips. Together with the two heights that is enough to work out the reading when full and the zero point: two equations for two unknowns. It saves the trip to the dome with a dipstick.",
   "Stand vorher (cm)": "Level before (cm)",

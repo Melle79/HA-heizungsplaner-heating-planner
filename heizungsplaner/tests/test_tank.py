@@ -267,6 +267,54 @@ bericht = tank.takt(einstellungen(), state4)
 pruefe(bericht["warnung"] is True, "unter 800 Litern wird gewarnt")
 pruefe(bericht["prozent"] == 16, "700 von 4465 Litern sind 16 %")
 
+print("\n=== Preise und der gleitende Mischpreis ===")
+tk_p = einstellungen()["tank"]
+state_p = {}
+# Erste Lieferung: 2000 Liter zu 1,10 - der Tank war leer.
+e = tank.lieferung_eintragen(state_p, 2000, "2026-01-10", tk_p, preis_pro_liter=1.10)
+pruefe(e["gesamtpreis"] == 2200.0, "der Gesamtpreis faellt aus der Menge")
+pruefe(state_p["tank"]["preis_pro_liter"] == 1.10, "der Mischpreis ist der Lieferpreis")
+
+# Gesamtpreis statt Literpreis: das andere rechnet sich aus.
+e2 = tank.lieferung_eintragen({}, 1000, None, dict(tk_p), gesamtpreis=950.0)
+pruefe(e2["preis_pro_liter"] == 0.95, "aus 950 Euro fuer 1000 Liter werden 0,95/l")
+
+# Zweite Lieferung zu einem anderen Preis: der Bestand mischt sich.
+tank.lieferung_eintragen(state_p, 2000, "2026-06-10", tk_p, preis_pro_liter=0.90)
+pruefe(state_p["tank"]["preis_pro_liter"] == 1.0,
+       "2000 l zu 1,10 und 2000 l zu 0,90 ergeben 1,00 im Mittel")
+
+print("\n=== Kosten folgen dem Verbrauch ===")
+_zustaende["sensor.brennerstunden"] = "0.0"
+tank.takt({"tank": tk_p}, state_p)
+_zustaende["sensor.brennerstunden"] = "10.0"          # 24 Liter
+b = tank.takt({"tank": tk_p}, state_p)
+pruefe(b["kosten_gesamt"] == 24.0, "24 Liter zu 1,00 kosten 24 Euro")
+pruefe(b["kosten_monat"] == 24.0, "die Monatskosten stehen auch")
+pruefe(b["preis_pro_liter"] == 1.0, "der Mischpreis steht im Bericht")
+pruefe(b["wert_im_tank"] == round(b["stand_liter"] * 1.0),
+       "der Wert im Tank ist Bestand mal Mischpreis")
+pruefe(b["waehrung"] == "€", "die Waehrung kommt aus den Einstellungen")
+
+print("\n=== Ohne Preis bleibt es bei Litern ===")
+tk_o = einstellungen()["tank"]
+state_o = {}
+tank.stand_setzen(state_o, tk_o, 1000)
+tank.lieferung_eintragen(state_o, 500, None, tk_o)     # kein Preis
+_zustaende["sensor.brennerstunden"] = "0.0"
+tank.takt({"tank": tk_o}, state_o)
+_zustaende["sensor.brennerstunden"] = "10.0"
+b = tank.takt({"tank": tk_o}, state_o)
+pruefe(b["preis_pro_liter"] is None, "ohne Lieferpreis gibt es keinen Mischpreis")
+pruefe(b["kosten_gesamt"] == 0.0, "und keine Kosten - keine erfundenen Zahlen")
+pruefe(b["wert_im_tank"] is None, "auch keinen Wert im Tank")
+
+try:
+    tank.lieferung_eintragen({}, 100, None, dict(tk_o), preis_pro_liter=-1)
+    pruefe(False, "ein negativer Preis wird abgelehnt")
+except ValueError:
+    pruefe(True, "ein negativer Preis wird abgelehnt")
+
 print("\n=== Verbrauchshistorie ===")
 # Tageswerte werden nach 60 Tagen weggeworfen, Monatssummen nie. Nur so
 # laesst sich eine Heizperiode mit der vorigen vergleichen.

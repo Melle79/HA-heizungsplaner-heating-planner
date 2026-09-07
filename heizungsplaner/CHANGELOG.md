@@ -1,5 +1,22 @@
 # Änderungen
 
+## 1.23.0
+
+- **Neu: Was das Heizöl kostet.** Zu jeder Lieferung lässt sich **Preis je
+  Liter** oder **Gesamtpreis** eintragen – eines genügt, das andere rechnet
+  sich aus der Menge. Ein Komma statt Punkt wird verstanden.
+- Bewertet wird der Verbrauch zum **gleitenden Durchschnittspreis**: Jede
+  Lieferung mischt sich mit dem Restbestand, so wie das Öl im Tank auch. Das
+  ist die übliche Lagerbewertung und die einzige Rechnung, die ohne
+  Erfindungen auskommt.
+- Neu im Reiter: **Kosten dieses Monats**, **Kosten der Heizperiode**,
+  Mischpreis und **Wert des Bestands**. Die Monatsliste und die
+  Lieferungsliste zeigen die Beträge mit.
+- Neu in Home Assistant: **Heizöl Kosten** mit `device_class: monetary` und
+  `state_class: total_increasing` – damit steht die Heizölrechnung in
+  derselben Langzeitstatistik wie Strom und Gas.
+- Ohne Preisangabe bleibt alles bei Litern. Erfundene Zahlen gibt es nicht.
+
 ## 1.22.0
 
 - **Neu: „Der Tank wurde voll gefüllt".** Ein Haken beim Eintragen einer

@@ -737,9 +737,17 @@
         <input type="number" id="tank-cm-vorher" min="0" step="0.5"></div>
       <div class="feld"><label>Stand nachher (cm)</label>
         <input type="number" id="tank-cm-nachher" min="0" step="0.5"></div>
+      <div class="feld"><label>Preis je Liter</label>
+        <input type="number" id="tank-preis-liter" min="0" step="0.001"></div>
+      <div class="feld"><label>oder Gesamtpreis</label>
+        <input type="number" id="tank-preis-gesamt" min="0" step="0.01"></div>
       <div class="feld" style="align-self:end">
         <button id="btn-tank-lieferung">Verbuchen</button></div>
     </div>
+    <div class="notiz">Beim Preis genügt eines von beiden – das andere rechnet
+      sich aus der Menge. Der Verbrauch wird danach zum gleitenden
+      Durchschnittspreis bewertet: Jede Lieferung mischt sich mit dem
+      Restbestand, so wie das Öl im Tank auch.</div>
     <label class="haken" style="margin-top:var(--l2)">
       <input type="checkbox" id="tank-voll">
       <span>Der Tank wurde voll gefüllt</span></label>
@@ -777,6 +785,14 @@
         <div class="wert-gross" id="tank-periode">–</div></div>
       <div class="feld"><label>Seit Beginn der Aufzeichnung</label>
         <div class="wert-gross" id="tank-gesamt">–</div></div>
+    </div>
+    <div class="raster-felder eng" style="margin-top:var(--l3)">
+      <div class="feld"><label>Kosten dieser Monat</label>
+        <div class="wert-gross" id="tank-kosten-monat">–</div></div>
+      <div class="feld"><label>Kosten Heizperiode</label>
+        <div class="wert-gross" id="tank-kosten-periode">–</div></div>
+      <div class="feld"><label>Mischpreis · Wert im Tank</label>
+        <div class="wert-gross" id="tank-preis">–</div></div>
     </div>
     <table style="margin-top:var(--l3)"><tbody id="tank-monate"></tbody></table>
     <div class="notiz">Die Monatssummen bleiben dauerhaft erhalten. In Home
@@ -2627,12 +2643,19 @@ function tankZeichnen(t) {
   $('tank-periode').textContent = `${(t.verbrauch_saison ?? 0).toFixed(0)} l`;
   $('tank-saison').textContent = t.saison || '';
   $('tank-gesamt').textContent = `${(t.gesamt_liter ?? 0).toFixed(0)} l`;
+  const w = t.waehrung || '€';
+  $('tank-kosten-monat').textContent = `${(t.kosten_monat ?? 0).toFixed(2)} ${w}`;
+  $('tank-kosten-periode').textContent = `${(t.kosten_saison ?? 0).toFixed(2)} ${w}`;
+  $('tank-preis').textContent = t.preis_pro_liter
+    ? `${t.preis_pro_liter.toFixed(3)} ${w}/l  ·  ${t.wert_im_tank ?? '–'} ${w}`
+    : 'noch kein Preis eingetragen';
 
   const monate = $('tank-monate');
   monate.innerHTML = '';
   (t.monate || []).forEach(m => {
     const zeile = document.createElement('tr');
-    zeile.innerHTML = `<td class="zeit">${m.monat}</td><td>${m.liter} l</td>`;
+    const geld = m.kosten ? `<td class="zeit">${m.kosten.toFixed(2)} ${w}</td>` : '<td></td>';
+    zeile.innerHTML = `<td class="zeit">${m.monat}</td><td>${m.liter} l</td>${geld}`;
     monate.appendChild(zeile);
   });
   if (!monate.children.length) {
@@ -2647,7 +2670,12 @@ function tankZeichnen(t) {
       ? `<td class="zeit">${l.cm_vorher} → ${l.cm_nachher} cm  ·  `
         + `${l.liter_pro_cm} l/cm</td>`
       : '<td></td>';
-    zeile.innerHTML = `<td class="zeit">${l.datum}</td><td>${l.liter} l</td>${zusatz}`;
+    const preis = l.gesamtpreis
+      ? `<td class="zeit">${l.gesamtpreis.toFixed(2)} ${w}  ·  `
+        + `${l.preis_pro_liter.toFixed(3)} ${w}/l</td>`
+      : '<td></td>';
+    zeile.innerHTML = `<td class="zeit">${l.datum}</td><td>${l.liter} l</td>`
+                    + `${preis}${zusatz}`;
     koerper.appendChild(zeile);
   });
   if (!koerper.children.length) {
@@ -2669,11 +2697,15 @@ $('btn-tank-lieferung').onclick = async () => {
       liter, datum: $('tank-datum').value || null,
       cm_vorher: $('tank-cm-vorher').value || null,
       cm_nachher: $('tank-cm-nachher').value || null,
-      voll: $('tank-voll').checked });
+      voll: $('tank-voll').checked,
+      preis_pro_liter: $('tank-preis-liter').value || null,
+      gesamtpreis: $('tank-preis-gesamt').value || null });
     $('tank-liter').value = '';
     $('tank-cm-vorher').value = '';
     $('tank-cm-nachher').value = '';
     $('tank-voll').checked = false;
+    $('tank-preis-liter').value = '';
+    $('tank-preis-gesamt').value = '';
     // Ein Hinweis aus der Einmessung wiegt schwerer als die Erfolgsmeldung.
     if (gebucht && gebucht.hinweis) meldung('m-tank', gebucht.hinweis);
     else meldung('m-tank', 'Lieferung verbucht', true);

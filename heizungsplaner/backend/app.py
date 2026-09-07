@@ -203,14 +203,16 @@ def _discovery_auffrischen() -> None:
     try:
         config = store.load_config()
         raeume = config["raeume"]
-        tank_aktiv = bool((config["einstellungen"].get("tank") or {}).get("aktiv"))
+        tank = config["einstellungen"].get("tank") or {}
+        tank_aktiv = bool(tank.get("aktiv"))
         aktuell = _publisher.raum_schluessel(raeume)
         zustand = store.load_state()
         veraltet = [k for k in (zustand.get("veroeffentlichte_raeume") or [])
                     if k not in aktuell]
         if veraltet:
             _publisher.entferne_raeume(veraltet)
-        _publisher.publish_discovery(raeume, tank_aktiv)
+        _publisher.publish_discovery(raeume, tank_aktiv,
+                                    tank.get("waehrung") or "€")
         zustand["veroeffentlichte_raeume"] = aktuell
         store.save_state(zustand)
     except Exception as err:  # noqa: BLE001
@@ -501,11 +503,22 @@ def api_tank_lieferung():
         except (TypeError, ValueError):
             raise ValueError(f"{name}: Bitte eine Höhe in Zentimetern angeben")
 
+    def _geld(name):
+        wert = daten.get(name)
+        if wert in (None, ""):
+            return None
+        try:
+            # Komma statt Punkt ist die häufigere Eingabe hierzulande.
+            return float(str(wert).replace(",", "."))
+        except (TypeError, ValueError):
+            raise ValueError(f"{name}: Bitte einen Betrag angeben")
+
     state = store.load_state()
     try:
         eintrag = tank.lieferung_eintragen(
             state, liter, str(daten.get("datum") or "").strip() or None,
-            tk, _cm("cm_vorher"), _cm("cm_nachher"), bool(daten.get("voll")))
+            tk, _cm("cm_vorher"), _cm("cm_nachher"), bool(daten.get("voll")),
+            _geld("preis_pro_liter"), _geld("gesamtpreis"))
     except ValueError as err:
         return jsonify({"fehler": str(err)}), 400
     store.save_state(state)

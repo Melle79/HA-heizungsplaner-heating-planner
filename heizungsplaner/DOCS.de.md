@@ -701,6 +701,24 @@ ohne weiteres Zutun mit.
 Ein Tank ohne bekannten Stand meldet `unknown`, nicht null. Eine erfundene Null
 landete sonst als echter Messwert in der Statistik.
 
+### Was das Heizöl kostet
+
+Zu jeder Lieferung lässt sich der **Preis je Liter** oder der **Gesamtpreis**
+eintragen – eines von beiden genügt, das andere rechnet sich aus der Menge.
+
+Bewertet wird der Verbrauch danach zum **gleitenden Durchschnittspreis**: Jede
+Lieferung mischt sich mit dem Restbestand, so wie das Öl im Tank auch. Wer
+2000 Liter zu 1,10 im Tank hat und 2000 Liter zu 0,90 dazubekommt, verbraucht
+ab dann zu 1,00. Das ist die übliche Lagerbewertung und die einzige Rechnung,
+die ohne Erfindungen auskommt – im Tank liegt nun einmal kein Öl von 2019
+säuberlich neben dem von 2026.
+
+Daraus entstehen: Kosten je Monat und je Heizperiode, der Wert dessen, was
+gerade im Tank steht, und ein Kostenzähler in Home Assistant. Der trägt
+`device_class: monetary`, steht also in derselben Statistik wie Strom und Gas.
+
+Ohne Preisangabe bleibt alles bei Litern – erfundene Zahlen gibt es nicht.
+
 ### Einstellungen
 
 | Feld | Bedeutung |

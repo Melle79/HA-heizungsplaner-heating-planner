@@ -57,6 +57,10 @@ TANK_ENTITAETEN = [
      "L", "volume", "total_increasing"),
     ("sensor", "tank_reichweite", "Heizöl Reichweite", "mdi:calendar-clock",
      "d", "duration", None),
+    # Kosten als eigener Zähler: Damit steht die Heizölrechnung neben Strom
+    # und Gas in derselben Statistik.
+    ("sensor", "tank_kosten", "Heizöl Kosten", "mdi:cash",
+     "WAEHRUNG", "monetary", "total_increasing"),
     ("binary_sensor", "tank_leck", "Öltank Leckage", "mdi:water-alert",
      None, "problem", None),
 ]
@@ -75,6 +79,10 @@ def _slug(text: str) -> str:
 
 class Publisher:
     """MQTT-Verbindung, Discovery und Zustandsmeldungen."""
+
+    # Vorgabe, damit ein Aufruf vor der ersten Discovery nicht auf die Nase
+    # fällt. Der wirkliche Wert kommt aus den Tankeinstellungen.
+    _waehrung = "€"
 
     def __init__(self, host: str, port: int, username: str | None, password: str | None):
         self.connected = threading.Event()
@@ -180,8 +188,10 @@ class Publisher:
             _LOGGER.info("Entfernt: %s", ", ".join(schluessel))
 
     def publish_discovery(self, raeume: list[dict] | None = None,
-                          tank_aktiv: bool = False) -> None:
+                          tank_aktiv: bool = False,
+                          waehrung: str = "€") -> None:
         device = self._device()
+        self._waehrung = waehrung or "€"
         for component, key, name, icon, mass, klasse, verlauf in TANK_ENTITAETEN:
             pfad = f"{DISCOVERY_PREFIX}/{component}/{DEVICE_ID}/{key}/config"
             if not tank_aktiv:
@@ -200,7 +210,9 @@ class Publisher:
                 "device": device,
             }
             if mass:
-                payload["unit_of_measurement"] = mass
+                # „WAEHRUNG“ steht für das Zeichen aus den Tankeinstellungen.
+                payload["unit_of_measurement"] = (
+                    self._waehrung if mass == "WAEHRUNG" else mass)
             if klasse:
                 payload["device_class"] = klasse
             if verlauf:
@@ -395,6 +407,13 @@ class Publisher:
             "heizperiode_liter": tank.get("verbrauch_saison"),
         })
         self._zustand("tank_reichweite", zahl(tank.get("reichweite_tage")), gemeinsam)
+        self._zustand("tank_kosten", zahl(tank.get("kosten_gesamt")), {
+            **gemeinsam,
+            "preis_pro_liter": tank.get("preis_pro_liter"),
+            "wert_im_tank": tank.get("wert_im_tank"),
+            "monat": tank.get("kosten_monat"),
+            "heizperiode": tank.get("kosten_saison"),
+        })
         self._zustand("tank_leck", "ON" if tank.get("leck") else "OFF",
                       {**gemeinsam, "seit": tank.get("leck_seit"),
                        "ueberwacht": tank.get("leckage_ueberwacht")})
