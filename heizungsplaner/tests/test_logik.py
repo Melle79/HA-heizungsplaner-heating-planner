@@ -212,27 +212,28 @@ plan_finn = [
      "tage": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]},
 ]
 montag = datetime(2026, 9, 7, 7, 0)      # Montag, bayerische Sommerferien
-# schulfrei=True (Ferien), feiertag=False (Arbeitstag)
-e = zp.aktueller_eintrag(plan_finn, montag, True, False)
+# Der Arbeitstag-Schalter ist "an", wenn gearbeitet wird - Wochenende und
+# Feiertage also "aus". Genau so liefert es die Workday-Integration.
+e = zp.aktueller_eintrag(plan_finn, montag, True, True)
 pruefe(e is not None and e["gilt"] == "werktag",
        "in den Schulferien gilt fuer Finn der Werktag-Punkt")
-e = zp.aktueller_eintrag(plan_finn, montag, True, True)
+e = zp.aktueller_eintrag(plan_finn, montag, True, False)
 pruefe(e is None or e["gilt"] != "werktag",
-       "am Feiertag greift der Werktag-Punkt nicht")
+       "an einem arbeitsfreien Tag greift der Werktag-Punkt nicht")
 mittag = datetime(2026, 9, 7, 12, 0)
-e = zp.aktueller_eintrag(plan_finn, mittag, True, True)
+e = zp.aktueller_eintrag(plan_finn, mittag, True, False)
 pruefe(e is not None and e["gilt"] == "arbeitsfrei",
-       "am Feiertag gilt der arbeitsfrei-Punkt")
-# Ohne Feiertagsquelle darf keine der beiden Haelften greifen, sonst gaelten
+       "am Feiertag oder Wochenende gilt der arbeitsfrei-Punkt")
+# Ohne Arbeitstag-Quelle darf keine der beiden Haelften greifen, sonst gaelten
 # sie gleichzeitig.
 e = zp.aktueller_eintrag(plan_finn, mittag, True, None)
-pruefe(e is None, "ohne Feiertagsquelle bleiben Werktag und arbeitsfrei stumm")
+pruefe(e is None, "ohne Arbeitstag-Quelle bleiben Werktag und arbeitsfrei stumm")
 
 # Die Schul-Punkte duerfen davon voellig unberuehrt bleiben.
 plan_luna = [{"start": "06:00", "modus": "komfort", "gilt": "schultag",
               "tage": ["mon"]}]
 e = zp.aktueller_eintrag(plan_luna, montag, False, None)
-pruefe(e is not None, "Schultag funktioniert weiterhin ohne Feiertagsquelle")
+pruefe(e is not None, "Schultag funktioniert weiterhin ohne Arbeitstag-Quelle")
 e = zp.aktueller_eintrag(plan_luna, montag, True, None)
 pruefe(e is None, "in den Ferien greift der Schultag-Punkt nicht")
 

@@ -1,5 +1,24 @@
 # Änderungen
 
+## 1.18.0
+
+- **Suche über den Auswahllisten.** Wer in einer gewachsenen Installation den
+  Workday-Sensor sucht, scrollt sonst an „Aquarium-Membranpumpe“ vorbei. Ab
+  zwölf Einträgen erscheint über der Liste ein Suchfeld, das Namen und
+  Entitäts-ID durchsucht. Bei drei Wetterquellen bleibt es weg – dort wäre es
+  nur im Weg.
+- **Geändert: Aus der Quelle „Feiertag“ wird „Arbeitstag“.** Die Umkehrung ist
+  Absicht: Gemeint ist jetzt ein Schalter, der **an** ist, wenn gearbeitet
+  wird. Genau das liefert die **Workday-Integration** von Home Assistant
+  (`binary_sensor.workday_sensor`), und sie kennt Wochenende *und* Feiertage.
+  Damit deckt ein einziges Punktpaar alles ab: *Werktag* mit Haken auf Montag
+  bis Freitag, *arbeitsfrei* mit Haken auf allen sieben Tagen. Mit dem reinen
+  Feiertagssensor aus v1.17.0 hätte das Wochenende eine dritte Gruppe von
+  Punkten gebraucht.
+- Wer in v1.17.0 bereits eine Feiertagsquelle eingetragen hatte, muss sie neu
+  setzen – die Bedeutung hat sich umgedreht, ein stilles Übernehmen wäre genau
+  verkehrt herum gewesen. Die Einstellung war einen Tag alt und ab Werk leer.
+
 ## 1.17.1
 
 - **Behoben: Die MQTT-Auto-Discovery war seit v1.15.0 tot.** `mqtt_publisher`

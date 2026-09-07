@@ -173,8 +173,8 @@ jeder im Haus demselben Kalender folgt:
 | **immer** | an den angehakten Wochentagen, ohne weitere Bedingung |
 | **Schultag** | wenn der Schulfrei-Schalter *aus* ist |
 | **schulfrei** | wenn er *an* ist – Ferien, Feiertage, Wochenende |
-| **Werktag** | wenn *kein* Feiertag ist |
-| **arbeitsfrei** | wenn Feiertag ist |
+| **Werktag** | wenn der Arbeitstag-Schalter *an* ist |
+| **arbeitsfrei** | wenn er *aus* ist – Wochenende und Feiertage |
 
 Beide Paare lassen sich in einem Plan mischen. Für ein Kinderzimmer nimmt man
 Schultag und schulfrei, für das Zimmer einer berufstätigen Person Werktag und
@@ -185,11 +185,18 @@ aber wer arbeitet, steht trotzdem um sechs auf. Deshalb hängen die beiden
 Paare an **verschiedenen Quellen** (*Einstellungen → Quellen aus Home
 Assistant*).
 
-Beim Feiertag gehört ausdrücklich **nur** der Feiertag hinein – nicht
-„Wochenende oder Feiertag". Das Wochenende steht schon in den Wochentag-Haken
-des Punktes; stünde es zusätzlich in der Quelle, wären Samstag und Sonntag
-doppelt berücksichtigt. Ohne eingetragene Quelle bleiben *Werktag* und
-*arbeitsfrei* wirkungslos, und nur die übrigen Punkte greifen.
+Als Arbeitstag-Quelle eignet sich die **Workday-Integration** von Home
+Assistant: `binary_sensor.workday_sensor` ist an, wenn gearbeitet wird, und
+kennt Wochenende und Feiertage. Damit deckt ein einziges Punktpaar alles ab –
+*Werktag* mit Haken auf Montag bis Freitag, *arbeitsfrei* mit Haken auf allen
+sieben Tagen. Der arbeitsfrei-Punkt greift dann an Wochenenden **und** an
+Feiertagen.
+
+Ein reiner Feiertagssensor täte es auch, ließe aber das Wochenende offen –
+dafür bräuchte es dann eine dritte Gruppe von Punkten.
+
+Ohne eingetragene Quelle bleiben *Werktag* und *arbeitsfrei* wirkungslos, und
+nur die übrigen Punkte greifen.
 
 
 Ein Zeitplan besteht aus **Umschaltpunkten**, nicht aus Zeitfenstern. Jeder

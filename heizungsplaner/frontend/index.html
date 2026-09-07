@@ -47,6 +47,8 @@
   }
   /* Sicherheitsgurt: In einer Flex-Leiste ist schon manches [hidden] von
      einer display-Regel überstimmt worden. */
+  input.auswahlsuche{width:100%; box-sizing:border-box; margin-bottom:var(--l1);
+    font-size:.8rem; padding:var(--l1) var(--l2)}
   nav button[hidden]{display:none}
   nav button:hover{color:var(--text)}
   nav button.an{color:var(--text); border-bottom-color:var(--warm)}
@@ -463,14 +465,14 @@
         <select id="e-schulfrei"></select>
         <div class="notiz">Entscheidet, ob im Zeitplan die Schultag- oder die
           Schulfrei-Punkte gelten.</div></div>
-      <div class="feld"><label>Feiertag</label>
-        <select id="e-feiertag"></select>
+      <div class="feld"><label>Arbeitstag</label>
+        <select id="e-arbeitstag"></select>
         <div class="notiz">Für die Punkte „Werktag“ und „arbeitsfrei“ – gedacht
-          für alle, die arbeiten statt zur Schule zu gehen. Hier gehört
-          <em>nur</em> der Feiertag hinein: Das Wochenende steht schon in den
-          Wochentag-Haken des Punktes, und Schulferien sind für einen
-          Berufstätigen keine freien Tage. Ohne Angabe bleiben die beiden
-          Punktarten wirkungslos.</div></div>
+          für alle, die arbeiten statt zur Schule zu gehen. Gemeint ist ein
+          Schalter, der <em>an</em> ist, wenn gearbeitet wird: Wochenende und
+          Feiertage also aus. Genau das liefert die Workday-Integration von
+          Home Assistant (<code>binary_sensor.workday_sensor</code>). Ohne
+          Angabe bleiben die beiden Punktarten wirkungslos.</div></div>
     </div>
   </div>
 
@@ -1028,7 +1030,47 @@ function meldung(id, text, gut) {
   if (text) setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 6000);
 }
 
-function fuelleAuswahl(select, liste, wert, leerText) {
+// Ein Suchfeld über einer Auswahlliste. In einer gewachsenen Installation
+// stehen dort mehrere hundert Einträge – wer den Workday-Sensor sucht,
+// scrollt sonst an „Aquarium-Membranpumpe“ vorbei.
+//
+// Das Feld erscheint erst ab einer Handvoll Einträgen: Bei drei Wetterquellen
+// wäre es nur im Weg.
+const SUCHE_AB = 12;
+
+function suchfeld(select, neuAufbauen) {
+  let feld = select.previousElementSibling;
+  if (!feld || !feld.classList.contains('auswahlsuche')) {
+    feld = document.createElement('input');
+    feld.type = 'search';
+    feld.className = 'auswahlsuche';
+    feld.placeholder = 'suchen …';
+    select.parentNode.insertBefore(feld, select);
+    feld.oninput = () => {
+      // Die Auswahl darf beim Tippen nicht verlorengehen: Sie wird als Wert
+      // durchgereicht und notfalls wieder eingehängt.
+      neuAufbauen(feld.value.trim().toLowerCase());
+    };
+  }
+  feld._neu = neuAufbauen;
+  return feld;
+}
+
+function fuelleAuswahl(select, liste, wert, leerText, suche) {
+  liste = liste || [];
+  if (suche === undefined && liste.length >= SUCHE_AB) {
+    const feld = suchfeld(select, (text) =>
+      fuelleAuswahl(select, liste, select.value || wert, leerText, text));
+    suche = (feld.value || '').trim().toLowerCase();
+  }
+  // Was es wirklich gibt – gemessen an der *ungefilterten* Liste. Sonst
+  // stünde die gerade gewählte Entität beim Suchen nach etwas anderem als
+  // „zurzeit nicht in Home Assistant“ da, obwohl sie nur weggefiltert ist.
+  const esGibt = new Set(liste.map(e => e.entity_id));
+  if (suche) {
+    liste = liste.filter(e =>
+      (e.name + ' ' + e.entity_id).toLowerCase().includes(suche));
+  }
   select.innerHTML = '';
   if (leerText !== undefined) {
     const leer = document.createElement('option');
@@ -1050,7 +1092,9 @@ function fuelleAuswahl(select, liste, wert, leerText) {
   for (const fehlend of werte.filter(w => w && !vorhanden.has(w))) {
     const option = document.createElement('option');
     option.value = fehlend;
-    option.textContent = fehlend + '  (zurzeit nicht in Home Assistant)';
+    option.textContent = esGibt.has(fehlend)
+      ? fehlend                                  // nur weggefiltert
+      : fehlend + '  (zurzeit nicht in Home Assistant)';
     select.appendChild(option);
   }
   if (Array.isArray(wert)) {
@@ -2258,7 +2302,7 @@ function einstellungenZeichnen() {
   fuelleAuswahl($('e-aussen'), entitaeten.aussen, e.aussen_entity, 'keine');
   fuelleAuswahl($('e-urlaub'), entitaeten.schalter || [], e.urlaub_entity, 'keiner');
   fuelleAuswahl($('e-schulfrei'), entitaeten.schalter || [], e.schulfrei_entity, 'keiner');
-  fuelleAuswahl($('e-feiertag'), entitaeten.schalter || [], e.feiertag_entity, 'keiner');
+  fuelleAuswahl($('e-arbeitstag'), entitaeten.schalter || [], e.arbeitstag_entity, 'keiner');
 
   const tk = e.tank || {};
   $('e-tank-aktiv').checked = !!tk.aktiv;
@@ -2400,7 +2444,7 @@ $('btn-speichern-einst').onclick = async () => {
     aussen_entity: $('e-aussen').value,
     urlaub_entity: $('e-urlaub').value,
     schulfrei_entity: $('e-schulfrei').value,
-    feiertag_entity: $('e-feiertag').value,
+    arbeitstag_entity: $('e-arbeitstag').value,
     daempfung_stunden: parseFloat($('e-daempfung').value),
     heizkurve: {
       aktiv: $('e-hk-aktiv').checked,

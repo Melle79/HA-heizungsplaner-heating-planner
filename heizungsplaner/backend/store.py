@@ -92,9 +92,10 @@ STANDARD_EINSTELLUNGEN = {
     "daempfung_stunden": 24.0,    # Zeitkonstante der gedämpften Außentemperatur
     "schulfrei_entity": "input_boolean.wochenende_feiertag",
     # Getrennt vom Schulfrei-Schalter: Wer arbeitet, hat in den Schulferien
-    # trotzdem Dienst. Das Wochenende steckt schon in den Wochentag-Haken,
-    # hier zählt allein der Feiertag.
-    "feiertag_entity": "",
+    # trotzdem Dienst. Gemeint ist ein Schalter, der "an" ist, wenn gearbeitet
+    # wird – Wochenende und Feiertage also "aus". Genau das liefert die
+    # Workday-Integration von Home Assistant.
+    "arbeitstag_entity": "",
     "urlaub_entity": "input_boolean.urlaub",
     "urlaub_temperatur": 12.0,
     "frostschutz": 8.0,
@@ -493,7 +494,7 @@ def validate_einstellungen(roh: dict) -> dict:
     e["manuell_respektieren"] = bool(e["manuell_respektieren"])
     e["aussen_entity"] = str(e["aussen_entity"] or "").strip()
     e["schulfrei_entity"] = str(e["schulfrei_entity"] or "").strip()
-    e["feiertag_entity"] = str(e["feiertag_entity"] or "").strip()
+    e["arbeitstag_entity"] = str(e["arbeitstag_entity"] or "").strip()
     e["urlaub_entity"] = str(e["urlaub_entity"] or "").strip()
     e["urlaub_temperatur"] = _temp(e["urlaub_temperatur"], "Urlaubstemperatur", 5.0, 25.0)
     e["frostschutz"] = _temp(e["frostschutz"], "Frostschutz", 4.0, 15.0)

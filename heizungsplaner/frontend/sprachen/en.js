@@ -310,9 +310,10 @@ window.SPRACHEN.en = {
   "Arbeit": "Work",
   "Werktag": "Working day",
   "arbeitsfrei": "day off",
-  "Feiertag": "Public holiday",
-  "Für die Punkte „Werktag“ und „arbeitsfrei“ – gedacht für alle, die arbeiten statt zur Schule zu gehen. Hier gehört nur der Feiertag hinein: Das Wochenende steht schon in den Wochentag-Haken des Punktes, und Schulferien sind für einen Berufstätigen keine freien Tage. Ohne Angabe bleiben die beiden Punktarten wirkungslos.":
-    "For the \u201cWorking day\u201d and \u201cday off\u201d points \u2013 meant for anyone who works rather than goes to school. Only the public holiday belongs here: weekends are already covered by the weekday buttons of the point, and school holidays are not days off for someone in work. Without a source, both kinds of point stay inert.",
+  "Arbeitstag": "Working day source",
+  "suchen …": "search \u2026",
+  "Für die Punkte „Werktag“ und „arbeitsfrei“ – gedacht für alle, die arbeiten statt zur Schule zu gehen. Gemeint ist ein Schalter, der an ist, wenn gearbeitet wird: Wochenende und Feiertage also aus. Genau das liefert die Workday-Integration von Home Assistant (binary_sensor.workday_sensor). Ohne Angabe bleiben die beiden Punktarten wirkungslos.":
+    "For the \u201cWorking day\u201d and \u201cday off\u201d points \u2013 meant for anyone who works rather than goes to school. It wants a switch that is on when work happens: weekends and public holidays off. That is exactly what Home Assistant\u2019s built-in Workday integration provides (binary_sensor.workday_sensor). Without a source, both kinds of point stay inert.",
 
   // ── Haushalt
   "Wer zum Haushalt zählt": "Who counts as the household",

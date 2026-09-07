@@ -177,8 +177,8 @@ everyone in the house follows the same calendar:
 | **always** | on the ticked weekdays, no further condition |
 | **school day** | when the school-free switch is *off* |
 | **school-free** | when it is *on* – holidays, public holidays, weekend |
-| **working day** | when it is *not* a public holiday |
-| **day off** | when it is a public holiday |
+| **working day** | when the working-day switch is *on* |
+| **day off** | when it is *off* – weekends and public holidays |
 
 Both pairs can be mixed in one schedule. Use school day / school-free for a
 child's room, working day / day off for the room of someone in work.
@@ -187,11 +187,17 @@ The difference is not cosmetic: during the summer holidays *school-free* is on,
 but anyone who works still gets up at six. That is why the two pairs hang on
 **different sources** (*Settings → Sources from Home Assistant*).
 
-For the public holiday, only the holiday itself belongs there – not “weekend or
-holiday”. The weekend is already covered by the weekday buttons of the point;
-having it in the source as well would count Saturday and Sunday twice. Without
-a source, *working day* and *day off* stay inert and only the other points
-apply.
+Home Assistant's built-in **Workday integration** is the natural source:
+`binary_sensor.workday_sensor` is on when work happens and already knows
+weekends and public holidays. One pair of points then covers everything –
+*working day* ticked Monday to Friday, *day off* ticked on all seven days. The
+day-off point then applies on weekends **and** public holidays.
+
+A pure public-holiday sensor would work too, but would leave the weekend
+uncovered – you would need a third group of points for that.
+
+Without a source, *working day* and *day off* stay inert and only the other
+points apply.
 
 
 A schedule consists of **switching points**, not of time ranges. Each point
