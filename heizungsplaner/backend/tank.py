@@ -317,7 +317,8 @@ def meldungen(bericht: dict, state: dict) -> list[tuple[str, str]]:
 
 def lieferung_eintragen(state: dict, liter: float, datum: str | None,
                         tank: dict, cm_vorher: float | None = None,
-                        cm_nachher: float | None = None) -> dict:
+                        cm_nachher: float | None = None,
+                        voll: bool = False) -> dict:
     """Eine Tanklieferung verbuchen und den Stand entsprechend anheben.
 
     Sind der Stand **vorher und nachher** in Zentimetern dabei, misst diese
@@ -325,6 +326,21 @@ def lieferung_eintragen(state: dict, liter: float, datum: str | None,
     Menge geteilt durch den Höhenunterschied. Das ist der genaueste Wert, den
     es über diesen Behälter je geben wird – er stammt aus einer geeichten
     Menge und dem Tank selbst, nicht aus einem Typenschild von 1965.
+
+    Wurde der Tank dabei **voll gefüllt**, fällt sogar noch mehr ab. Dann ist
+    der Inhalt danach bekannt – der Tankwagen füllt bis zur Abschaltung des
+    Grenzwertgebers, also auf die Füllgrenze. Damit stehen zwei Gleichungen für
+    zwei Unbekannte, und der Planer kennt anschließend auch:
+
+    * die **Anzeige bei vollem Tank** – gemessen statt geschätzt, das ist ja
+      genau die Ablesung, die gerade vorliegt;
+    * den **Nullpunkt** der Skala, also was die Anzeige bei leerem Tank zeigt::
+
+          Nullpunkt = cm nachher − bekannter Inhalt ÷ Liter je Zentimeter
+
+    Das erspart den Gang mit dem Peilstab in den Dom. Die Rechnung hängt
+    allerdings am Nenninhalt vom Typenschild: Stimmt der nicht, wandert der
+    Fehler in den Nullpunkt.
 
     Der eingemessene Wert wird in die Einstellungen zurückgeschrieben; der
     Aufrufer speichert sie.
@@ -347,11 +363,41 @@ def lieferung_eintragen(state: dict, liter: float, datum: str | None,
         _LOGGER.info("Tank eingemessen: %.1f l auf %.1f cm = %.2f l/cm",
                      liter, differenz, eintrag["liter_pro_cm"])
 
+    # ── Voll getankt: Der Inhalt danach ist bekannt, und damit die Geometrie
+    nutzbar = nutzbar_liter(tank)
+    if voll:
+        eintrag["voll"] = True
+        if cm_nachher is not None:
+            # Die Ablesung bei vollem Tank ist keine Schätzung mehr.
+            tank["hoehe_voll_cm"] = round(float(cm_nachher), 1)
+            eintrag["hoehe_voll_cm"] = tank["hoehe_voll_cm"]
+            je_cm = liter_je_cm(tank)
+            if je_cm > 0 and nutzbar > 0:
+                null = round(float(cm_nachher) - nutzbar / je_cm, 1)
+                if null < 0:
+                    # Das ist keine Panne, sondern ein Befund: Der Nenninhalt
+                    # vom Typenschild passt nicht zu dem, was die Skala sagt.
+                    # Der Nutzer soll das erfahren, nicht nur der Log.
+                    eintrag["hinweis"] = (
+                        f"Der errechnete Nullpunkt wäre {null:.1f} cm – "
+                        f"negativ. Das heißt: Der eingetragene Tankinhalt passt "
+                        f"nicht zu dieser Skala. Prüf den Nenninhalt und die "
+                        f"Füllgrenze; bis dahin steht der Nullpunkt auf 0.")
+                    _LOGGER.warning("Errechneter Nullpunkt wäre %.1f cm – der "
+                                    "Nenninhalt passt nicht zur Skala.", null)
+                    null = 0.0
+                if null < float(cm_nachher):
+                    tank["nullpunkt_cm"] = null
+                    eintrag["nullpunkt_cm"] = null
+                    _LOGGER.info("Nullpunkt aus voller Füllung: %.1f cm", null)
+
     t["lieferungen"].append(eintrag)
     t["lieferungen"] = t["lieferungen"][-60:]
 
-    nutzbar = nutzbar_liter(tank)
-    if cm_nachher is not None and liter_je_cm(tank) > 0:
+    if voll and nutzbar > 0:
+        # Der bekannte Inhalt schlägt jede Ablesung und jede Fortschreibung.
+        t["stand_liter"] = round(nutzbar, 1)
+    elif cm_nachher is not None and liter_je_cm(tank) > 0:
         # Die abgelesene Höhe ist eine Messung, die gerechnete Summe nur eine
         # Fortschreibung. Die Messung gewinnt.
         t["stand_liter"] = cm_zu_liter(tank, float(cm_nachher))

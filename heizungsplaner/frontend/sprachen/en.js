@@ -330,6 +330,9 @@ window.SPRACHEN.en = {
   "Wird geladen …": "Loading …",
   "Restmenge": "Remaining",
   "Für den Brenner erreichbar": "Reachable for the burner",
+  "Der Tank wurde voll gefüllt": "The tank was filled completely",
+  "Dann ist der Inhalt danach bekannt – der Tankwagen füllt bis zur Abschaltung des Grenzwertgebers. Zusammen mit den beiden Höhen reicht das, um Anzeige bei vollem Tank und Nullpunkt auszurechnen: zwei Gleichungen für zwei Unbekannte. Das erspart den Gang mit dem Peilstab in den Dom.":
+    "Then the content afterwards is known \u2013 the tanker fills until the overfill cut-off trips. Together with the two heights that is enough to work out the reading when full and the zero point: two equations for two unknowns. It saves the trip to the dome with a dipstick.",
   "Stand vorher (cm)": "Level before (cm)",
   "Stand nachher (cm)": "Level after (cm)",
   "Die beiden Höhen sind freiwillig – aber wenn du sie notierst, misst diese Lieferung den Tank gleich mit ein: Liter je Zentimeter ist die gelieferte Menge geteilt durch den Höhenunterschied. Genauer geht es nicht, und es ersetzt jede Schätzung aus dem Typenschild.":

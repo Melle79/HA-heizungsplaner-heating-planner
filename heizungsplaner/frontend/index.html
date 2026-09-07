@@ -740,6 +740,14 @@
       <div class="feld" style="align-self:end">
         <button id="btn-tank-lieferung">Verbuchen</button></div>
     </div>
+    <label class="haken" style="margin-top:var(--l2)">
+      <input type="checkbox" id="tank-voll">
+      <span>Der Tank wurde voll gefüllt</span></label>
+    <div class="notiz">Dann ist der Inhalt danach bekannt – der Tankwagen füllt
+      bis zur Abschaltung des Grenzwertgebers. Zusammen mit den beiden Höhen
+      reicht das, um <em>Anzeige bei vollem Tank</em> und <em>Nullpunkt</em>
+      auszurechnen: zwei Gleichungen für zwei Unbekannte. Das erspart den Gang
+      mit dem Peilstab in den Dom.</div>
     <div class="notiz">Die beiden Höhen sind freiwillig – aber wenn du sie
       notierst, misst diese Lieferung den Tank gleich mit ein: Liter je
       Zentimeter ist die gelieferte Menge geteilt durch den Höhenunterschied.
@@ -2657,14 +2665,18 @@ $('btn-tank-lieferung').onclick = async () => {
   const liter = parseFloat($('tank-liter').value);
   if (!liter || liter <= 0) return meldung('m-tank', 'Bitte eine Menge angeben');
   try {
-    await sendeJSON('tank/lieferung', 'POST', {
+    const gebucht = await sendeJSON('tank/lieferung', 'POST', {
       liter, datum: $('tank-datum').value || null,
       cm_vorher: $('tank-cm-vorher').value || null,
-      cm_nachher: $('tank-cm-nachher').value || null });
+      cm_nachher: $('tank-cm-nachher').value || null,
+      voll: $('tank-voll').checked });
     $('tank-liter').value = '';
     $('tank-cm-vorher').value = '';
     $('tank-cm-nachher').value = '';
-    meldung('m-tank', 'Lieferung verbucht', true);
+    $('tank-voll').checked = false;
+    // Ein Hinweis aus der Einmessung wiegt schwerer als die Erfolgsmeldung.
+    if (gebucht && gebucht.hinweis) meldung('m-tank', gebucht.hinweis);
+    else meldung('m-tank', 'Lieferung verbucht', true);
     tankLaden();
   } catch (err) { meldung('m-tank', err.message); }
 };

@@ -1,5 +1,21 @@
 # Änderungen
 
+## 1.22.0
+
+- **Neu: „Der Tank wurde voll gefüllt".** Ein Haken beim Eintragen einer
+  Lieferung, und der Planer rechnet sich die ganze Geometrie selbst aus. Der
+  Tankwagen füllt bis zur Abschaltung des Grenzwertgebers, der Inhalt danach
+  ist also bekannt. Zusammen mit den beiden Ablesungen sind das zwei
+  Gleichungen für zwei Unbekannte – heraus fallen **Liter je Zentimeter**,
+  die **Anzeige bei vollem Tank** und der **Nullpunkt**.
+- Damit erübrigt sich der Gang mit dem Peilstab in den Dom, um den Versatz
+  einer nachgerüsteten Skala zu bestimmen.
+- Der Stand nach einer vollen Füllung ist der bekannte Inhalt – er schlägt
+  jede Ablesung und jede Fortschreibung.
+- Kommt ein **negativer** Nullpunkt heraus, sagt der Planer das jetzt in der
+  Oberfläche statt nur im Log: Dann passt der eingetragene Nenninhalt nicht zu
+  dieser Skala, und beides gehört überprüft.
+
 ## 1.21.0
 
 - **Neu: Nullpunkt für nachgerüstete Anzeiger.** Bisher rechnete der Planer

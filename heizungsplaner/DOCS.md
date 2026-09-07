@@ -615,6 +615,22 @@ written into the settings, and from then on the planner converts between
 centimetres and litres: the level can be set in centimetres, and the display
 shows both.
 
+**Filled up completely? Then the geometry works itself out.** Tick *The
+tank was filled completely* when recording the delivery. The tanker fills until
+the overfill cut-off trips, so the content afterwards is known – the fill
+limit. Together with the two readings that gives two equations for two
+unknowns, and the planner learns in one go:
+
+* **litres per centimetre** from the difference in height,
+* the **reading when full** – which is exactly the reading at hand, so measured
+  rather than estimated,
+* the **zero point**, from `cm after − known content ÷ litres per centimetre`.
+
+After that the dipstick is redundant. One caveat: the calculation rests on the
+nominal capacity from the nameplate. If it produces a **negative** zero point,
+the planner says so explicitly – the capacity entered does not fit this scale,
+and both deserve a check.
+
 **The zero point, if the gauge was retrofitted.** The planner works out
 litres from the height *above the zero point* – that is, above whatever the
 gauge shows on an empty tank. On a factory-matched device that is zero. On a

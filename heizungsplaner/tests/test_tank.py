@@ -167,6 +167,48 @@ pruefe(b["verfuegbar_liter"] == 0, "unter dem Saugfuss ist nichts mehr erreichba
 pruefe(b["unter_grenze"] is True, "und das wird gemeldet")
 pruefe(len(tank.meldungen(b, state_v)) >= 1, "es gibt eine Meldung dazu")
 
+print("\n=== Voll getankt: die Geometrie faellt mit ab ===")
+# Svens Fall vor der ersten Bestellung: Anzeiger nachgeruestet, Skala passt
+# nicht, Nullpunkt unbekannt. Eine volle Fuellung loest beides auf.
+tk_f = einstellungen()["tank"]        # 4700 l, 95 % -> 4465 nutzbar
+state_f = {}
+tank.stand_setzen(state_f, tk_f, 500)
+# 3920 Liter von 23 auf 135 cm: 112 cm Unterschied, also 35,0 l/cm.
+e = tank.lieferung_eintragen(state_f, 3920, "2026-09-10", tk_f,
+                             cm_vorher=23.0, cm_nachher=135.0, voll=True)
+pruefe(e["liter_pro_cm"] == 35.0,
+       "die Steigung kommt aus der Differenz der Ablesungen")
+pruefe(tk_f["hoehe_voll_cm"] == 135.0,
+       "die Anzeige bei vollem Tank ist jetzt gemessen, nicht geschaetzt")
+erwartet = round(135.0 - 4465 / 35.0, 1)      # 7,4 cm
+pruefe(tk_f["nullpunkt_cm"] == erwartet,
+       f"der Nullpunkt faellt mit ab ({erwartet} cm)")
+pruefe(state_f["tank"]["stand_liter"] == 4465.0,
+       "der Stand ist danach der bekannte Inhalt, nicht die Summe")
+# Gegenprobe: Die Umrechnung trifft die volle Hoehe wieder.
+pruefe(abs(tank.cm_zu_liter(tk_f, 135.0) - 4465.0) < 2.0,
+       "135 cm ergeben rueckgerechnet wieder den vollen Tank")
+
+print("\n=== Voll getankt ohne Hoehen ===")
+tk_g = einstellungen()["tank"]
+state_g = {}
+tank.stand_setzen(state_g, tk_g, 200)
+tank.lieferung_eintragen(state_g, 4000, None, tk_g, voll=True)
+pruefe(state_g["tank"]["stand_liter"] == 4465.0,
+       "auch ohne Ablesungen gilt danach der bekannte Inhalt")
+pruefe(tk_g["nullpunkt_cm"] == 0.0, "an der Geometrie aendert sich nichts")
+
+print("\n=== Wenn der Nenninhalt nicht zur Skala passt ===")
+# Zu grosser Nenninhalt: Der errechnete Nullpunkt waere negativ. Statt eine
+# unsinnige Zahl zu speichern, wird auf null geklemmt.
+tk_h = einstellungen(inhalt_liter=20000.0)["tank"]
+tank.lieferung_eintragen({}, 3600, None, tk_h,
+                         cm_vorher=23.0, cm_nachher=126.0, voll=True)
+pruefe(tk_h["nullpunkt_cm"] == 0.0, "ein negativer Nullpunkt wird auf 0 geklemmt")
+e_h = tank.lieferung_eintragen({}, 3600, None, dict(tk_h),
+                               cm_vorher=23.0, cm_nachher=126.0, voll=True)
+pruefe("hinweis" in e_h, "und der Nutzer bekommt einen Hinweis, nicht nur der Log")
+
 print("\n=== Nachgeruesteter Anzeiger: der Nullpunkt ===")
 # Svens Fall: Skala 0-150 cm auf einem Tank von etwa 130 cm. Der Zeiger steht
 # bei leerem Tank nicht auf null.

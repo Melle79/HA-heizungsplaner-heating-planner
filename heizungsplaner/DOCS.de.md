@@ -626,6 +626,22 @@ Typenschild von 1965. Der Wert trägt sich in die Einstellungen ein, und ab
 dann rechnet der Planer zwischen Zentimetern und Litern hin und her: Der Stand
 lässt sich in Zentimetern setzen, und die Anzeige nennt beides.
 
+**Voll getankt? Dann rechnet sich die Geometrie selbst aus.** Setz beim
+Eintragen den Haken *Der Tank wurde voll gefüllt*. Der Tankwagen füllt bis zur
+Abschaltung des Grenzwertgebers, der Inhalt danach ist also bekannt – die
+Füllgrenze. Zusammen mit den beiden Ablesungen stehen damit zwei Gleichungen
+für zwei Unbekannte, und der Planer lernt in einem Zug:
+
+* die **Liter je Zentimeter** aus dem Höhenunterschied,
+* die **Anzeige bei vollem Tank** – das ist ja genau die Ablesung, die gerade
+  vorliegt, also gemessen statt geschätzt,
+* den **Nullpunkt** aus `cm nachher − bekannter Inhalt ÷ Liter je Zentimeter`.
+
+Danach ist der Peilstab überflüssig. Ein Vorbehalt bleibt: Die Rechnung hängt
+am Nenninhalt vom Typenschild. Kommt dabei ein **negativer** Nullpunkt heraus,
+sagt der Planer das ausdrücklich – dann passt der eingetragene Tankinhalt nicht
+zu dieser Skala, und beides gehört überprüft.
+
 **Der Nullpunkt, wenn der Anzeiger nachgerüstet ist.** Der Planer rechnet
 Liter aus der Höhe *über dem Nullpunkt* – also über dem, was die Anzeige bei
 leerem Tank zeigt. Bei einem ab Werk passenden Gerät ist das null. Bei einem

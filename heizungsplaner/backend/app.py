@@ -505,15 +505,20 @@ def api_tank_lieferung():
     try:
         eintrag = tank.lieferung_eintragen(
             state, liter, str(daten.get("datum") or "").strip() or None,
-            tk, _cm("cm_vorher"), _cm("cm_nachher"))
+            tk, _cm("cm_vorher"), _cm("cm_nachher"), bool(daten.get("voll")))
     except ValueError as err:
         return jsonify({"fehler": str(err)}), 400
     store.save_state(state)
     # Beim Einmessen ändert die Lieferung die Einstellungen mit.
-    if eintrag.get("liter_pro_cm"):
-        store.update_einstellungen({"tank": {"liter_pro_cm": eintrag["liter_pro_cm"]}})
-        logbuch.eintragen("Öltank", "Eingemessen",
-                          f"{eintrag['liter_pro_cm']} Liter je Zentimeter", "", art="gut")
+    gelernt = {feld: eintrag[feld]
+               for feld in ("liter_pro_cm", "hoehe_voll_cm", "nullpunkt_cm")
+               if eintrag.get(feld) is not None}
+    if gelernt:
+        store.update_einstellungen({"tank": gelernt})
+        beschreibung = ", ".join(
+            f"{wert} {'l/cm' if feld == 'liter_pro_cm' else 'cm'}"
+            for feld, wert in gelernt.items())
+        logbuch.eintragen("Öltank", "Eingemessen", beschreibung, "", art="gut")
     logbuch.eintragen("Öltank", "Lieferung",
                       f"{eintrag['liter']:.0f} Liter verbucht", "", art="gut")
     _sofort_rechnen()
