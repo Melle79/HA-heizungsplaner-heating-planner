@@ -201,14 +201,16 @@ def _discovery_auffrischen() -> None:
     if _publisher is None or not _publisher.connected.is_set():
         return
     try:
-        raeume = store.load_config()["raeume"]
+        config = store.load_config()
+        raeume = config["raeume"]
+        tank_aktiv = bool((config["einstellungen"].get("tank") or {}).get("aktiv"))
         aktuell = _publisher.raum_schluessel(raeume)
         zustand = store.load_state()
         veraltet = [k for k in (zustand.get("veroeffentlichte_raeume") or [])
                     if k not in aktuell]
         if veraltet:
             _publisher.entferne_raeume(veraltet)
-        _publisher.publish_discovery(raeume)
+        _publisher.publish_discovery(raeume, tank_aktiv)
         zustand["veroeffentlichte_raeume"] = aktuell
         store.save_state(zustand)
     except Exception as err:  # noqa: BLE001
@@ -293,7 +295,9 @@ def api_raum(raum_id: str):
 def api_einstellungen():
     if request.method == "GET":
         return jsonify(store.load_config()["einstellungen"])
-    vorher = store.load_config()["einstellungen"].get("aussen_entity")
+    alt = store.load_config()["einstellungen"]
+    vorher = alt.get("aussen_entity")
+    tank_vorher = bool((alt.get("tank") or {}).get("aktiv"))
     try:
         einstellungen = store.update_einstellungen(request.get_json(force=True) or {})
     except store.ValidationError as err:
@@ -302,6 +306,10 @@ def api_einstellungen():
         # Andere Quelle, andere Vorgeschichte: Der geglättete Wert der alten
         # Entität würde sonst noch tagelang nachwirken.
         _anlauf_verwerfen()
+    if bool((einstellungen.get("tank") or {}).get("aktiv")) != tank_vorher:
+        # Ein- oder ausgeschaltet: Die Tank-Entitäten müssen jetzt entstehen
+        # oder verschwinden, nicht erst beim nächsten Neustart.
+        _discovery_auffrischen()
     _sofort_rechnen()
     return jsonify(einstellungen)
 

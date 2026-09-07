@@ -190,6 +190,45 @@ bericht = tank.takt(einstellungen(), state4)
 pruefe(bericht["warnung"] is True, "unter 800 Litern wird gewarnt")
 pruefe(bericht["prozent"] == 16, "700 von 4465 Litern sind 16 %")
 
+print("\n=== Verbrauchshistorie ===")
+# Tageswerte werden nach 60 Tagen weggeworfen, Monatssummen nie. Nur so
+# laesst sich eine Heizperiode mit der vorigen vergleichen.
+state_h = {}
+tank.stand_setzen(state_h, einstellungen()["tank"], 3000)
+_zustaende["sensor.brennerstunden"] = "0.0"
+tank.takt(einstellungen(), state_h)
+_zustaende["sensor.brennerstunden"] = "10.0"     # zehn Stunden = 24 Liter
+b = tank.takt(einstellungen(), state_h)
+pruefe(b["gesamt_liter"] == 24.0, "der Gesamtzaehler steht bei 24 Litern")
+pruefe(b["verbrauch_monat"] == 24.0, "die Monatssumme auch")
+pruefe(len(b["monate"]) == 1, "es gibt einen Monat in der Liste")
+
+_zustaende["sensor.brennerstunden"] = "20.0"
+b = tank.takt(einstellungen(), state_h)
+pruefe(b["gesamt_liter"] == 48.0, "der Gesamtzaehler waechst nur")
+
+# Alte Tageswerte fliegen raus, die Monatssummen bleiben
+t = state_h["tank"]
+t["verbrauch_tage"][(date.today() - timedelta(days=90)).isoformat()] = 99.0
+t["verbrauch_monate"]["2019-01"] = 500.0
+_zustaende["sensor.brennerstunden"] = "20.5"
+b = tank.takt(einstellungen(), state_h)
+pruefe(all(tag >= (date.today() - timedelta(days=61)).isoformat()
+           for tag in t["verbrauch_tage"]),
+       "Tageswerte aelter als 60 Tage sind fort")
+pruefe(t["verbrauch_monate"].get("2019-01") == 500.0,
+       "die Monatssumme von 2019 steht noch")
+
+print("\n=== Heizperiode ===")
+# Sie beginnt im Juli - ein Kalenderjahr zerschnitte den Winter in der Mitte.
+pruefe(tank.saison(date(2026, 9, 7)) == "2026/27", "September gehoert zu 2026/27")
+pruefe(tank.saison(date(2027, 2, 1)) == "2026/27", "Februar auch noch")
+pruefe(tank.saison(date(2027, 7, 1)) == "2027/28", "im Juli beginnt die naechste")
+monate = {"2026-08": 100.0, "2026-12": 400.0, "2027-03": 300.0,
+          "2027-08": 50.0, "2026-05": 200.0}
+pruefe(tank._saison_summe(monate, date(2027, 2, 1)) == 800.0,
+       "die Periode 2026/27 summiert nur ihre eigenen Monate")
+
 print("\n=== Leckage ===")
 state5 = {}
 _zustaende["binary_sensor.oelwanne"] = "on"

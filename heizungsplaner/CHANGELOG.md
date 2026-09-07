@@ -1,5 +1,26 @@
 # Änderungen
 
+## 1.20.0
+
+- **Neu: Der Ölverbrauch bekommt ein Gedächtnis.** Bisher hielt der Planer nur
+  60 Tagewerte – genug für die Reichweite, aber die Frage „wie viel war es
+  letzten Winter" konnte er nicht beantworten. Jetzt bleiben **Monatssummen
+  dauerhaft** erhalten, und der Reiter zeigt diesen Monat, die laufende
+  Heizperiode und den Gesamtverbrauch. Die Heizperiode beginnt im **Juli**;
+  ein Kalenderjahr zerschnitte den Winter in der Mitte.
+- **Neu: Der Tank kommt nach Home Assistant.** Fünf Entitäten, die nur
+  entstehen, wenn der Tankteil eingeschaltet ist – und wieder verschwinden,
+  wenn er abgeschaltet wird: erreichbare Menge, Menge im Tank, Reichweite,
+  Leckagemelder und der Gesamtverbrauch.
+- **„Heizöl verbraucht" trägt `state_class: total_increasing`.** Damit baut
+  Home Assistant von selbst eine Langzeitstatistik mit Tages-, Monats- und
+  Jahreswerten, die den Verlust der Add-on-Daten überlebt. Wer InfluxDB an
+  Home Assistant hängt, bekommt den Verlauf dort ohne weiteres Zutun.
+- Ein Tank ohne bekannten Stand meldet `unknown` statt null. Eine erfundene
+  Null landete sonst als echter Messwert in der Statistik.
+- Beim Ein- und Ausschalten des Tankteils wird die Discovery sofort erneuert,
+  nicht erst beim nächsten Neustart.
+
 ## 1.19.0
 
 - **Neu im Öltank: der Peilstab.** Wer den Stand am Tank in Zentimetern

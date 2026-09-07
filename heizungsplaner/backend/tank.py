@@ -59,7 +59,15 @@ def standard_zustand() -> dict:
         "stand_liter": None,      # None = noch nie gesetzt
         "laufzeit_h": None,       # letzter gesehener Zählerstand
         "lieferungen": [],        # [{"datum": "YYYY-MM-DD", "liter": 3000.0}]
-        "verbrauch_tage": {},     # {"YYYY-MM-DD": liter}
+        "verbrauch_tage": {},     # {"YYYY-MM-DD": liter} – nur die letzten 60 Tage
+        # Monatssummen bleiben für immer. Zwölf Zahlen im Jahr kosten nichts,
+        # und erst damit lässt sich eine Heizperiode mit der vorigen
+        # vergleichen – die Frage, um die es beim Heizöl eigentlich geht.
+        "verbrauch_monate": {},   # {"YYYY-MM": liter}
+        # Ein Zähler, der nur wächst. Home Assistant macht daraus mit
+        # state_class "total_increasing" eine Langzeitstatistik, die den
+        # Verlust dieser Datei überlebt.
+        "gesamt_liter": 0.0,
         "leck_seit": None,
     }
 
@@ -113,6 +121,10 @@ def _verbrauch_buchen(t: dict, liter: float, heute: str) -> None:
     verlauf = t["verbrauch_tage"]
     verlauf[heute] = round(verlauf.get(heute, 0.0) + liter, 3)
     _verlauf_kuerzen(verlauf)
+    monat = heute[:7]
+    t["verbrauch_monate"][monat] = round(
+        t["verbrauch_monate"].get(monat, 0.0) + liter, 2)
+    t["gesamt_liter"] = round(t.get("gesamt_liter", 0.0) + liter, 2)
 
 
 def _verlauf_kuerzen(verlauf: dict) -> None:
@@ -144,6 +156,31 @@ def _reichweite_tage(t: dict, stand: float | None) -> int | None:
     if schnitt <= 0.05:      # Sommer: der Tank reicht rechnerisch ewig
         return None
     return int(stand / schnitt)
+
+
+def saison(heute: date | None = None) -> str:
+    """Die laufende Heizperiode als "2026/27".
+
+    Sie beginnt im Juli, nicht im Januar: Ein Kalenderjahr zerschneidet den
+    Winter in der Mitte und macht jeden Vergleich wertlos.
+    """
+    heute = heute or date.today()
+    beginn = heute.year if heute.month >= 7 else heute.year - 1
+    return f"{beginn}/{str(beginn + 1)[-2:]}"
+
+
+def _saison_summe(monate: dict, heute: date | None = None) -> float:
+    heute = heute or date.today()
+    beginn = heute.year if heute.month >= 7 else heute.year - 1
+    summe = 0.0
+    for schluessel, liter in monate.items():
+        try:
+            jahr, monat = int(schluessel[:4]), int(schluessel[5:7])
+        except (ValueError, IndexError):
+            continue
+        if (jahr, monat) >= (beginn, 7) and (jahr, monat) <= (beginn + 1, 6):
+            summe += liter
+    return round(summe, 1)
 
 
 # ----------------------------------------------------------------- Takt ----
@@ -212,6 +249,13 @@ def takt(einstellungen: dict, state: dict) -> dict:
         "liter_pro_cm": round(liter_je_cm(tank), 2) or None,
         "eingemessen": bool(tank.get("liter_pro_cm")),
         "verbrauch_heute": round(t["verbrauch_tage"].get(heute, 0.0), 1),
+        "verbrauch_monat": round(t["verbrauch_monate"].get(heute[:7], 0.0), 1),
+        "verbrauch_saison": _saison_summe(t["verbrauch_monate"]),
+        "saison": saison(),
+        "gesamt_liter": round(t.get("gesamt_liter", 0.0), 1),
+        # Die jüngsten 24 Monate für die Oberfläche, neueste zuerst.
+        "monate": [{"monat": m, "liter": round(t["verbrauch_monate"][m], 1)}
+                   for m in sorted(t["verbrauch_monate"], reverse=True)[:24]],
         "reichweite_tage": _reichweite_tage(t, verfuegbar),
         "laufzeit_h": t["laufzeit_h"],
         "laufzeit_gekoppelt": bool(tank.get("brenner_entity")),

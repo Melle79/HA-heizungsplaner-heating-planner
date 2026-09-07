@@ -628,6 +628,37 @@ entered, the planner distinguishes:
 Warning threshold and days left then use the reachable quantity. A tank with
 250 litres “in it” can be empty as far as the burner is concerned.
 
+### Consumption and history
+
+The tab shows three spans: this month, the current heating season and
+everything since records began. The **heating season starts in July** – a
+calendar year would cut the winter in half and make every comparison
+worthless.
+
+Two things are kept: **daily values for 60 days** (that is all the days-left
+figure needs) and **monthly totals forever**. Twelve numbers a year cost
+nothing, and only they allow one season to be compared with the last.
+
+On top of that come the **MQTT entities**, as soon as the tank part is switched
+on:
+
+| Entity | |
+|---|---|
+| Heating oil reachable | above the suction foot |
+| Heating oil in tank | everything in there |
+| **Heating oil used** | a counter that only grows |
+| Heating oil days left | days |
+| Oil tank leak | the detector in the bund |
+
+“Heating oil used” carries `state_class: total_increasing`. Home Assistant
+turns that into **long-term statistics** with daily, monthly and yearly figures
+on its own – which survive the loss of the add-on's data. If you feed InfluxDB
+or another database from Home Assistant, the history lands there with no
+further effort.
+
+A tank with no known level reports `unknown`, not zero. An invented zero would
+otherwise end up in the statistics as a real measurement.
+
 ### Settings
 
 | Field | Meaning |

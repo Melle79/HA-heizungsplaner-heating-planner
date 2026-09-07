@@ -360,6 +360,13 @@ window.SPRACHEN.en = {
   "Füllstand (Liter)": "Level (litres)",
   "Übernehmen": "Apply",
   "Letzte Lieferungen": "Recent deliveries",
+  "Verbrauch": "Consumption",
+  "Dieser Monat": "This month",
+  "Heizperiode": "Heating season",
+  "Seit Beginn der Aufzeichnung": "Since records began",
+  "Noch kein Monat erfasst": "No month recorded yet",
+  "Die Monatssummen bleiben dauerhaft erhalten. In Home Assistant steht derselbe Verlauf zusätzlich als Sensor – dort führt die Langzeitstatistik ihn unabhängig von diesem Add-on weiter.":
+    "Monthly totals are kept indefinitely. The same history is also available as a sensor in Home Assistant, where long-term statistics carry it on independently of this add-on.",
   "Noch keine Lieferung eingetragen": "No delivery recorded yet",
   "Alles unauffällig.": "Nothing unusual.",
   "⚠ Der Leckagemelder hat angesprochen.": "⚠ The leak detector has triggered.",

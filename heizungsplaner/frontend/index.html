@@ -756,6 +756,22 @@
   </div>
 
   <div class="tafel">
+    <h2>Verbrauch</h2>
+    <div class="raster-felder eng">
+      <div class="feld"><label>Dieser Monat</label>
+        <div class="wert-gross" id="tank-monat">–</div></div>
+      <div class="feld"><label>Heizperiode <span id="tank-saison"></span></label>
+        <div class="wert-gross" id="tank-periode">–</div></div>
+      <div class="feld"><label>Seit Beginn der Aufzeichnung</label>
+        <div class="wert-gross" id="tank-gesamt">–</div></div>
+    </div>
+    <table style="margin-top:var(--l3)"><tbody id="tank-monate"></tbody></table>
+    <div class="notiz">Die Monatssummen bleiben dauerhaft erhalten. In Home
+      Assistant steht derselbe Verlauf zusätzlich als Sensor – dort führt die
+      Langzeitstatistik ihn unabhängig von diesem Add-on weiter.</div>
+  </div>
+
+  <div class="tafel">
     <h2>Letzte Lieferungen</h2>
     <table><tbody id="tank-lieferungen"></tbody></table>
   </div>
@@ -2591,6 +2607,22 @@ function tankZeichnen(t) {
   $('tank-quelle').textContent = t.laufzeit_gekoppelt
     ? `Verbrauch aus der Brennerlaufzeit (Zählerstand ${t.laufzeit_h ?? '–'} h).`
     : 'Kein Laufzeitzähler eingestellt – der Stand ändert sich nur durch Eingaben.';
+
+  $('tank-monat').textContent = `${(t.verbrauch_monat ?? 0).toFixed(0)} l`;
+  $('tank-periode').textContent = `${(t.verbrauch_saison ?? 0).toFixed(0)} l`;
+  $('tank-saison').textContent = t.saison || '';
+  $('tank-gesamt').textContent = `${(t.gesamt_liter ?? 0).toFixed(0)} l`;
+
+  const monate = $('tank-monate');
+  monate.innerHTML = '';
+  (t.monate || []).forEach(m => {
+    const zeile = document.createElement('tr');
+    zeile.innerHTML = `<td class="zeit">${m.monat}</td><td>${m.liter} l</td>`;
+    monate.appendChild(zeile);
+  });
+  if (!monate.children.length) {
+    monate.innerHTML = '<tr><td class="zeit">Noch kein Monat erfasst</td></tr>';
+  }
 
   const koerper = $('tank-lieferungen');
   koerper.innerHTML = '';

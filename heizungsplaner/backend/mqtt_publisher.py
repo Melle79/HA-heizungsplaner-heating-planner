@@ -41,6 +41,26 @@ GRUND_ENTITAETEN = [
      None, None),
 ]
 
+# Der Öltank ist optional und bekommt seine Entitäten nur, wenn er
+# eingeschaltet ist – sonst stünden in jeder Installation fünf leere Sensoren.
+# (component, key, Anzeigename, Icon, Einheit, device_class, state_class)
+#
+# "tank_verbrauch" ist der wichtigste Eintrag: Ein Zähler, der nur wächst.
+# Daraus baut Home Assistant von selbst eine Langzeitstatistik mit Tages-,
+# Monats- und Jahreswerten, die den Verlust der Add-on-Daten überlebt.
+TANK_ENTITAETEN = [
+    ("sensor", "tank_verfuegbar", "Heizöl erreichbar", "mdi:fuel",
+     "L", "volume_storage", "measurement"),
+    ("sensor", "tank_stand", "Heizöl im Tank", "mdi:barrel",
+     "L", "volume_storage", "measurement"),
+    ("sensor", "tank_verbrauch", "Heizöl verbraucht", "mdi:fire",
+     "L", "volume", "total_increasing"),
+    ("sensor", "tank_reichweite", "Heizöl Reichweite", "mdi:calendar-clock",
+     "d", "duration", None),
+    ("binary_sensor", "tank_leck", "Öltank Leckage", "mdi:water-alert",
+     None, "problem", None),
+]
+
 # Die Partytaste ist bewusst ein Schalter und kein Knopf: Man will sehen, ob
 # sie noch läuft, und sie vorzeitig wieder ausschalten können.
 PARTY = ("party", "Partytaste", "mdi:party-popper")
@@ -159,8 +179,33 @@ class Publisher:
         if schluessel:
             _LOGGER.info("Entfernt: %s", ", ".join(schluessel))
 
-    def publish_discovery(self, raeume: list[dict] | None = None) -> None:
+    def publish_discovery(self, raeume: list[dict] | None = None,
+                          tank_aktiv: bool = False) -> None:
         device = self._device()
+        for component, key, name, icon, mass, klasse, verlauf in TANK_ENTITAETEN:
+            pfad = f"{DISCOVERY_PREFIX}/{component}/{DEVICE_ID}/{key}/config"
+            if not tank_aktiv:
+                # Abgeschaltet: die Anmeldung zurücknehmen. Sie ist "retained"
+                # und bliebe sonst für immer stehen.
+                self._publish(pfad, "")
+                continue
+            payload = {
+                "name": name,
+                "unique_id": f"{DEVICE_ID}_{key}",
+                "default_entity_id": f"{component}.{DEVICE_ID}_{key}",
+                "state_topic": f"{BASE_TOPIC}/{key}/state",
+                "json_attributes_topic": f"{BASE_TOPIC}/{key}/attributes",
+                "availability_topic": AVAILABILITY_TOPIC,
+                "icon": icon,
+                "device": device,
+            }
+            if mass:
+                payload["unit_of_measurement"] = mass
+            if klasse:
+                payload["device_class"] = klasse
+            if verlauf:
+                payload["state_class"] = verlauf
+            self._publish(pfad, json.dumps(payload))
         for component, key, name, icon, mass, klasse in GRUND_ENTITAETEN:
             payload = {
                 "name": name,
@@ -313,6 +358,46 @@ class Publisher:
                 "naechstes_ziel": raum.get("naechstes_ziel"),
                 "thermostate": [t["entity_id"] for t in raum.get("thermostate", [])],
             })
+
+        self._tank_zustand(bericht.get("tank") or {})
+
+    def _tank_zustand(self, tank: dict) -> None:
+        """Die Tankwerte nach MQTT spiegeln – nur wenn es den Tank gibt."""
+        if not tank.get("aktiv") or tank.get("fehler"):
+            return
+
+        def zahl(wert):
+            # "unknown" statt einer erfundenen Null: Ein Tank ohne bekannten
+            # Stand ist nicht leer, er ist unbekannt. Eine Null würde in der
+            # Statistik als echter Messwert landen.
+            return "unknown" if wert is None else str(wert)
+
+        gemeinsam = {"saison": tank.get("saison"),
+                     "eingemessen": tank.get("eingemessen")}
+        self._zustand("tank_verfuegbar", zahl(tank.get("verfuegbar_liter")), {
+            **gemeinsam,
+            "im_tank_liter": tank.get("stand_liter"),
+            "stand_cm": tank.get("stand_cm"),
+            "unter_dem_saugfuss_liter": tank.get("reserve_liter"),
+            "unter_grenze": tank.get("unter_grenze"),
+            "warnung": tank.get("warnung"),
+        })
+        self._zustand("tank_stand", zahl(tank.get("stand_liter")), {
+            **gemeinsam,
+            "stand_cm": tank.get("stand_cm"),
+            "prozent": tank.get("prozent"),
+            "liter_pro_cm": tank.get("liter_pro_cm"),
+        })
+        self._zustand("tank_verbrauch", zahl(tank.get("gesamt_liter")), {
+            **gemeinsam,
+            "heute_liter": tank.get("verbrauch_heute"),
+            "monat_liter": tank.get("verbrauch_monat"),
+            "heizperiode_liter": tank.get("verbrauch_saison"),
+        })
+        self._zustand("tank_reichweite", zahl(tank.get("reichweite_tage")), gemeinsam)
+        self._zustand("tank_leck", "ON" if tank.get("leck") else "OFF",
+                      {**gemeinsam, "seit": tank.get("leck_seit"),
+                       "ueberwacht": tank.get("leckage_ueberwacht")})
 
     def _zustand(self, key: str, state: str, attributes: dict) -> None:
         self._publish(f"{BASE_TOPIC}/{key}/state", state)

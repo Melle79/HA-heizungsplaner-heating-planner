@@ -639,6 +639,36 @@ Untergrenze eingetragen, unterscheidet der Planer:
 Warnschwelle und Reichweite rechnen dann mit der erreichbaren Menge, nicht mit
 der gesamten. Ein Tank mit 250 Litern „drin" kann für den Brenner leer sein.
 
+### Verbrauch und Verlauf
+
+Drei Zeitspannen stehen im Reiter: dieser Monat, die laufende Heizperiode und
+alles seit Beginn der Aufzeichnung. Die **Heizperiode beginnt im Juli** – ein
+Kalenderjahr zerschnitte den Winter in der Mitte und machte jeden Vergleich
+wertlos.
+
+Aufbewahrt wird zweierlei: **Tageswerte 60 Tage lang** (mehr braucht die
+Reichweite nicht) und **Monatssummen für immer**. Zwölf Zahlen im Jahr kosten
+nichts, und erst damit lässt sich eine Heizperiode mit der vorigen vergleichen.
+
+Dazu kommen die **MQTT-Entitäten**, sobald der Tankteil eingeschaltet ist:
+
+| Entität | |
+|---|---|
+| Heizöl erreichbar | oberhalb des Saugfußes |
+| Heizöl im Tank | alles, was drin ist |
+| **Heizöl verbraucht** | ein Zähler, der nur wächst |
+| Heizöl Reichweite | Tage |
+| Öltank Leckage | der Melder im Auffangraum |
+
+„Heizöl verbraucht" trägt `state_class: total_increasing`. Damit baut Home
+Assistant daraus von selbst eine **Langzeitstatistik** mit Tages-, Monats- und
+Jahreswerten – die überlebt auch den Verlust der Add-on-Daten. Wer InfluxDB
+oder eine andere Datenbank an Home Assistant hängt, bekommt den Verlauf dort
+ohne weiteres Zutun mit.
+
+Ein Tank ohne bekannten Stand meldet `unknown`, nicht null. Eine erfundene Null
+landete sonst als echter Messwert in der Statistik.
+
 ### Einstellungen
 
 | Feld | Bedeutung |
