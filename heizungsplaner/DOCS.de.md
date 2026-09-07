@@ -607,13 +607,48 @@ einfach stehen, bis du eine Lieferung einträgst oder ihn von Hand setzt. Auch
 so ist die Anzeige brauchbar: Sie zeigt dann, was seit der letzten Lieferung
 noch übrig sein sollte.
 
+### Der Peilstab: einmessen statt schätzen
+
+Wer die Anzeige am Tank in Zentimetern abliest, kann drei zusätzliche Felder
+ausfüllen – *Anzeige bei vollem Tank*, *Untergrenze* und *Liter je Zentimeter*.
+Damit wird aus der Rechnung etwas Belastbares.
+
+**Das Einmessen macht die Lieferung selbst.** Notiere beim Tanken den Stand
+vorher und nachher und trag beides mit der Liefermenge ein. Der Planer rechnet:
+
+```
+Liter je Zentimeter = gelieferte Menge ÷ (cm nachher − cm vorher)
+```
+
+Das ist der genaueste Wert, den es über diesen Behälter je geben wird – er
+stammt aus einer geeichten Menge und dem Tank selbst, nicht aus einem
+Typenschild von 1965. Der Wert trägt sich in die Einstellungen ein, und ab
+dann rechnet der Planer zwischen Zentimetern und Litern hin und her: Der Stand
+lässt sich in Zentimetern setzen, und die Anzeige nennt beides.
+
+**Die Untergrenze ist die ehrlichere Zahl.** Der Saugfuß sitzt einige
+Zentimeter über dem Boden. Was darunter steht, gehört dir, hilft dem Brenner
+aber nicht mehr – der zieht dann Luft und geht auf Störung. Ist eine
+Untergrenze eingetragen, unterscheidet der Planer:
+
+| | |
+|---|---|
+| **im Tank** | alles, was drin ist |
+| **für den Brenner erreichbar** | alles oberhalb des Saugfußes |
+
+Warnschwelle und Reichweite rechnen dann mit der erreichbaren Menge, nicht mit
+der gesamten. Ein Tank mit 250 Litern „drin" kann für den Brenner leer sein.
+
 ### Einstellungen
 
 | Feld | Bedeutung |
 |---|---|
 | Tankinhalt | Nenninhalt laut Typenschild |
 | Füllgrenze | Wie viel hinein darf, meist 95 % |
-| Warnschwelle | Darunter gibt es eine Warnung |
+| Warnschwelle | Darunter gibt es eine Warnung, gerechnet auf die erreichbare Menge |
+| Anzeige bei vollem Tank | Was der Peilstab bei vollem Tank zeigt |
+| Untergrenze | Höhe des Saugfußes |
+| Liter je Zentimeter | Trägt sich beim Einmessen selbst ein |
 | Laufzeitzähler | Sensor mit der Brennerlaufzeit in Stunden |
 | Düsendurchsatz | Liter je Betriebsstunde |
 | Melder im Auffangraum | Für die Leckagewache |

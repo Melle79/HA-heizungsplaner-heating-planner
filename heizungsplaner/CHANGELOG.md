@@ -1,5 +1,30 @@
 # Änderungen
 
+## 1.19.0
+
+- **Neu im Öltank: der Peilstab.** Wer den Stand am Tank in Zentimetern
+  abliest, kann jetzt *Anzeige bei vollem Tank*, *Untergrenze* und *Liter je
+  Zentimeter* eintragen. Alles freiwillig – ohne diese Felder verhält sich der
+  Tankteil wie bisher.
+- **Einmessen statt schätzen.** Beim Eintragen einer Lieferung lassen sich der
+  Stand *vorher* und *nachher* in Zentimetern angeben. Daraus fällt die
+  Liter-je-Zentimeter heraus: gelieferte Menge geteilt durch den
+  Höhenunterschied. Das ist der genaueste Wert, den es über diesen Behälter je
+  geben wird – aus einer geeichten Menge und dem Tank selbst statt aus einem
+  Typenschild. Er trägt sich in die Einstellungen ein, und der abgelesene Stand
+  ersetzt danach die gerechnete Summe: Eine Messung schlägt eine
+  Fortschreibung.
+- **Die ehrliche Restmenge.** Der Saugfuß sitzt einige Zentimeter über dem
+  Boden; was darunter steht, hilft dem Brenner nicht mehr. Mit einer
+  Untergrenze zeigt der Reiter jetzt „für den Brenner erreichbar" als
+  Hauptzahl und „im Tank" klein darunter. Warnschwelle und Reichweite rechnen
+  mit der erreichbaren Menge. Fällt der Stand unter den Saugfuß, gibt es eine
+  eigene Meldung – der Brenner zieht dann Luft und geht auf Störung.
+- Der Füllstand lässt sich von Hand nun auch **in Zentimetern** setzen. Das ist
+  die Zahl, die am Tank steht.
+- Abgefangen: verdrehte Höhen (nachher unter vorher), Zentimeter ohne
+  Kalibrierung und eine Untergrenze über der Füllhöhe.
+
 ## 1.18.0
 
 - **Suche über den Auswahllisten.** Wer in einer gewachsenen Installation den

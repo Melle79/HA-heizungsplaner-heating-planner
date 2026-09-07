@@ -597,13 +597,47 @@ Without a sensor in the tank, from two figures that correct each other:
 The runtime counter is optional. If you do not configure one, the level simply
 stays put until you record a delivery or set it by hand.
 
+### The dipstick: measure instead of estimate
+
+If you read the level off the tank in centimetres, three extra fields become
+useful – *reading when full*, *lower limit* and *litres per centimetre*.
+
+**The delivery does the measuring.** Note the level before and after filling
+and enter both together with the delivered quantity. The planner works out:
+
+```
+litres per centimetre = delivered quantity ÷ (cm after − cm before)
+```
+
+That is the most accurate figure this vessel will ever produce – it comes from
+a calibrated quantity and the tank itself, not from a nameplate. The value is
+written into the settings, and from then on the planner converts between
+centimetres and litres: the level can be set in centimetres, and the display
+shows both.
+
+**The lower limit is the honest figure.** The suction foot sits a few
+centimetres above the bottom. Whatever is below it is yours, but no longer any
+help to the burner, which starts drawing air and faults out. With a lower limit
+entered, the planner distinguishes:
+
+| | |
+|---|---|
+| **in the tank** | everything that is in there |
+| **reachable for the burner** | everything above the suction foot |
+
+Warning threshold and days left then use the reachable quantity. A tank with
+250 litres “in it” can be empty as far as the burner is concerned.
+
 ### Settings
 
 | Field | Meaning |
 |---|---|
 | Tank capacity | Nominal capacity from the nameplate |
 | Fill limit | How much may go in, usually 95 % |
-| Warning threshold | Below this you get a warning |
+| Warning threshold | Below this you get a warning, based on the reachable quantity |
+| Reading when full | What the dipstick shows on a full tank |
+| Lower limit | Height of the suction foot |
+| Litres per centimetre | Fills itself in when the tank is measured |
 | Runtime counter | Sensor holding the burner hours |
 | Nozzle throughput | Litres per operating hour |
 | Detector in the bund | For the leak watch |

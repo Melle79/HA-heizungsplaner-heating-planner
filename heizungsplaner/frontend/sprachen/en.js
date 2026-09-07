@@ -329,6 +329,24 @@ window.SPRACHEN.en = {
   "Füllstand": "Tank level",
   "Wird geladen …": "Loading …",
   "Restmenge": "Remaining",
+  "Für den Brenner erreichbar": "Reachable for the burner",
+  "Stand vorher (cm)": "Level before (cm)",
+  "Stand nachher (cm)": "Level after (cm)",
+  "Die beiden Höhen sind freiwillig – aber wenn du sie notierst, misst diese Lieferung den Tank gleich mit ein: Liter je Zentimeter ist die gelieferte Menge geteilt durch den Höhenunterschied. Genauer geht es nicht, und es ersetzt jede Schätzung aus dem Typenschild.":
+    "Both heights are optional \u2013 but if you note them down, this delivery measures the tank at the same time: litres per centimetre is the delivered quantity divided by the difference in height. It does not get more accurate than that, and it replaces any estimate from the nameplate.",
+  "Füllstand (cm)": "Level (cm)",
+  "oder in Litern": "or in litres",
+  "Peilstab": "Dipstick",
+  "Freiwillig. Wer den Stand am Tank in Zentimetern abliest, bekommt damit die ehrliche Restmenge: Was unter dem Saugfuß steht, gehört dir, hilft dem Brenner aber nicht mehr.":
+    "Optional. If you read the level off the tank in centimetres, this gives you the honest remaining quantity: whatever sits below the suction foot is yours, but no longer any help to the burner.",
+  "Anzeige bei vollem Tank (cm)": "Reading when the tank is full (cm)",
+  "Untergrenze (cm)": "Lower limit (cm)",
+  "Höhe des Saugfußes. Darunter zieht der Brenner Luft.":
+    "Height of the suction foot. Below that the burner draws air.",
+  "Liter je Zentimeter": "Litres per centimetre",
+  "Trägt sich beim Einmessen selbst ein.": "Fills itself in when the tank is measured.",
+  "⚠ Der Stand liegt unter dem Saugfuß – der Brenner kann Luft ziehen.":
+    "\u26a0 The level is below the suction foot \u2013 the burner may draw air.",
   "Verbrauch heute": "Used today",
   "Reichweite": "Days left",
   "Lieferung eintragen": "Record a delivery",

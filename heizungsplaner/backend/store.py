@@ -155,6 +155,12 @@ STANDARD_EINSTELLUNGEN = {
         "inhalt_liter": 3000.0,       # Nenninhalt laut Typenschild
         "max_fuell_prozent": 95,      # so viel darf hinein (Behälterauflage)
         "warnschwelle_liter": 500.0,  # darunter gibt es eine Warnung
+        # Peilstab-Angaben, alle freiwillig. Sind Höhe und Liter je Zentimeter
+        # bekannt, rechnet der Planer zwischen beidem um – und kennt endlich
+        # den Unterschied zwischen "im Tank" und "für den Brenner erreichbar".
+        "hoehe_voll_cm": 0.0,         # Anzeige bei vollem Tank; 0 = unbekannt
+        "hoehe_min_cm": 0.0,          # darunter saugt der Brenner Luft
+        "liter_pro_cm": 0.0,          # 0 = noch nicht eingemessen
         "brenner_entity": "",         # Sensor mit der Brennerlaufzeit in Stunden
         "durchsatz_l_h": 2.4,         # Öldurchsatz der Düse
         "leckage_entity": "",         # Melder im Auffangraum, optional
@@ -546,6 +552,12 @@ def validate_einstellungen(roh: dict) -> dict:
     tk["max_fuell_prozent"] = int(_zahl(tk["max_fuell_prozent"], "Füllgrenze", 50, 100))
     tk["warnschwelle_liter"] = _zahl(tk["warnschwelle_liter"], "Warnschwelle", 0.0, 100000.0)
     tk["durchsatz_l_h"] = _zahl(tk["durchsatz_l_h"], "Düsendurchsatz", 0.0, 100.0)
+    tk["hoehe_voll_cm"] = _zahl(tk["hoehe_voll_cm"], "Höhe bei vollem Tank", 0.0, 1000.0)
+    tk["hoehe_min_cm"] = _zahl(tk["hoehe_min_cm"], "Untergrenze", 0.0, 1000.0)
+    tk["liter_pro_cm"] = _zahl(tk["liter_pro_cm"], "Liter je Zentimeter", 0.0, 1000.0)
+    if tk["hoehe_voll_cm"] and tk["hoehe_min_cm"] >= tk["hoehe_voll_cm"]:
+        raise ValidationError(
+            "Die Untergrenze muss unter der Höhe bei vollem Tank liegen")
     tk["brenner_entity"] = str(tk["brenner_entity"] or "").strip()
     tk["leckage_entity"] = str(tk["leckage_entity"] or "").strip()
     tk["melden_an"] = [str(d).strip() for d in (tk.get("melden_an") or []) if str(d).strip()]

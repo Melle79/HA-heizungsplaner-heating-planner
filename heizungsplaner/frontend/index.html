@@ -646,6 +646,23 @@
         <input type="number" id="e-tank-warn" min="0" max="100000" step="50"></div>
     </div>
     <div class="abschnitt">
+      <h3>Peilstab</h3>
+      <div class="notiz">Freiwillig. Wer den Stand am Tank in Zentimetern
+        abliest, bekommt damit die ehrliche Restmenge: Was unter dem Saugfuß
+        steht, gehört dir, hilft dem Brenner aber nicht mehr.</div>
+      <div class="raster-felder eng" style="margin-top:var(--l3)">
+        <div class="feld"><label>Anzeige bei vollem Tank (cm)</label>
+          <input type="number" id="e-tank-voll-cm" min="0" step="1"></div>
+        <div class="feld"><label>Untergrenze (cm)</label>
+          <input type="number" id="e-tank-min-cm" min="0" step="0.5">
+          <div class="notiz">Höhe des Saugfußes. Darunter zieht der Brenner
+            Luft.</div></div>
+        <div class="feld"><label>Liter je Zentimeter</label>
+          <input type="number" id="e-tank-l-cm" min="0" step="0.01">
+          <div class="notiz">Trägt sich beim Einmessen selbst ein.</div></div>
+      </div>
+    </div>
+    <div class="abschnitt">
       <h3>Verbrauch aus der Brennerlaufzeit</h3>
       <div class="notiz">Optional. Ohne diese Quelle bleibt der Stand stehen,
         bis jemand eine Lieferung einträgt.</div>
@@ -691,8 +708,9 @@
            transition:width .4s"></div>
     </div>
     <div class="raster-felder eng">
-      <div class="feld"><label>Restmenge</label>
-        <div class="wert-gross" id="tank-rest">–</div></div>
+      <div class="feld"><label>Für den Brenner erreichbar</label>
+        <div class="wert-gross" id="tank-verfuegbar">–</div>
+        <div class="notiz" id="tank-rest">–</div></div>
       <div class="feld"><label>Verbrauch heute</label>
         <div class="wert-gross" id="tank-heute">–</div></div>
       <div class="feld"><label>Reichweite</label>
@@ -710,14 +728,25 @@
         <input type="date" id="tank-datum"></div>
       <div class="feld"><label>Menge (Liter)</label>
         <input type="number" id="tank-liter" min="1" step="1"></div>
+      <div class="feld"><label>Stand vorher (cm)</label>
+        <input type="number" id="tank-cm-vorher" min="0" step="0.5"></div>
+      <div class="feld"><label>Stand nachher (cm)</label>
+        <input type="number" id="tank-cm-nachher" min="0" step="0.5"></div>
       <div class="feld" style="align-self:end">
         <button id="btn-tank-lieferung">Verbuchen</button></div>
     </div>
+    <div class="notiz">Die beiden Höhen sind freiwillig – aber wenn du sie
+      notierst, misst diese Lieferung den Tank gleich mit ein: Liter je
+      Zentimeter ist die gelieferte Menge geteilt durch den Höhenunterschied.
+      Genauer geht es nicht, und es ersetzt jede Schätzung aus dem
+      Typenschild.</div>
     <div class="abschnitt">
       <h3>Stand von Hand setzen</h3>
       <div class="notiz">Nach einem Blick auf den Zeiger am Tank.</div>
       <div class="raster-felder eng" style="margin-top:var(--l3)">
-        <div class="feld"><label>Füllstand (Liter)</label>
+        <div class="feld"><label>Füllstand (cm)</label>
+          <input type="number" id="tank-stand-cm" min="0" step="0.5"></div>
+        <div class="feld"><label>oder in Litern</label>
           <input type="number" id="tank-stand" min="0" step="10"></div>
         <div class="feld" style="align-self:end">
           <button class="leise" id="btn-tank-stand">Übernehmen</button></div>
@@ -2310,6 +2339,9 @@ function einstellungenZeichnen() {
   $('e-tank-grenze').value = tk.max_fuell_prozent;
   $('e-tank-warn').value = tk.warnschwelle_liter;
   $('e-tank-durchsatz').value = tk.durchsatz_l_h;
+  $('e-tank-voll-cm').value = tk.hoehe_voll_cm;
+  $('e-tank-min-cm').value = tk.hoehe_min_cm;
+  $('e-tank-l-cm').value = tk.liter_pro_cm;
   fuelleAuswahl($('e-tank-brenner'), entitaeten.zaehler || [], tk.brenner_entity, 'keiner');
   fuelleAuswahl($('e-tank-leck'), entitaeten.schalter || [], tk.leckage_entity, 'keiner');
   auswahlFuellen($('e-tank-melden'), entitaeten.meldewege || [],
@@ -2486,6 +2518,9 @@ $('btn-speichern-einst').onclick = async () => {
       max_fuell_prozent: parseInt($('e-tank-grenze').value, 10),
       warnschwelle_liter: parseFloat($('e-tank-warn').value),
       durchsatz_l_h: parseFloat($('e-tank-durchsatz').value),
+      hoehe_voll_cm: parseFloat($('e-tank-voll-cm').value),
+      hoehe_min_cm: parseFloat($('e-tank-min-cm').value),
+      liter_pro_cm: parseFloat($('e-tank-l-cm').value),
       brenner_entity: $('e-tank-brenner').value,
       leckage_entity: $('e-tank-leck').value,
       melden_an: gewaehlt($('e-tank-melden')),
@@ -2524,13 +2559,23 @@ function tankZeichnen(t) {
   const prozent = t.prozent === null || t.prozent === undefined ? 0 : t.prozent;
   $('tank-fuellung').style.width = Math.max(0, Math.min(100, prozent)) + '%';
   $('tank-fuellung').style.background = t.warnung ? 'var(--warnung, #c0392b)' : 'var(--warm)';
-  $('tank-rest').textContent = t.stand_liter === null || t.stand_liter === undefined
+  const imTank = t.stand_liter === null || t.stand_liter === undefined
     ? '–' : `${t.stand_liter} l`;
+  $('tank-verfuegbar').textContent =
+    t.verfuegbar_liter === null || t.verfuegbar_liter === undefined
+      ? imTank : `${t.verfuegbar_liter} l`;
+  // Darunter in klein: was insgesamt drin ist, und bei welcher Höhe.
+  const teile = [`im Tank ${imTank}`];
+  if (t.stand_cm !== null && t.stand_cm !== undefined) teile.push(`${t.stand_cm} cm`);
+  if (t.reserve_liter) teile.push(`unter dem Saugfuß ${t.reserve_liter} l`);
+  $('tank-rest').textContent = teile.join('  ·  ');
   $('tank-heute').textContent = `${(t.verbrauch_heute ?? 0).toFixed(1)} l`;
   $('tank-reichweite').textContent = t.reichweite_tage ? `${t.reichweite_tage} Tage` : '–';
 
   const lage = [];
   if (t.leck) lage.push('⚠ Der Leckagemelder hat angesprochen.');
+  else if (t.unter_grenze) lage.push('⚠ Der Stand liegt unter dem Saugfuß – '
+    + 'der Brenner kann Luft ziehen.');
   else if (t.warnung) lage.push('Der Vorrat wird knapp.');
   if (t.stand_liter === null || t.stand_liter === undefined) {
     lage.push('Noch kein Füllstand bekannt – trag eine Lieferung ein oder setz '
@@ -2538,6 +2583,11 @@ function tankZeichnen(t) {
   }
   $('tank-lage').textContent = lage.join(' ') || 'Alles unauffällig.';
 
+  if (t.liter_pro_cm) {
+    $('tank-lage').title = t.eingemessen
+      ? `Eingemessen: ${t.liter_pro_cm} Liter je Zentimeter`
+      : `Geschätzt aus dem Tankinhalt: ${t.liter_pro_cm} Liter je Zentimeter`;
+  }
   $('tank-quelle').textContent = t.laufzeit_gekoppelt
     ? `Verbrauch aus der Brennerlaufzeit (Zählerstand ${t.laufzeit_h ?? '–'} h).`
     : 'Kein Laufzeitzähler eingestellt – der Stand ändert sich nur durch Eingaben.';
@@ -2546,7 +2596,11 @@ function tankZeichnen(t) {
   koerper.innerHTML = '';
   (t.lieferungen || []).forEach(l => {
     const zeile = document.createElement('tr');
-    zeile.innerHTML = `<td class="zeit">${l.datum}</td><td>${l.liter} l</td>`;
+    const zusatz = l.liter_pro_cm
+      ? `<td class="zeit">${l.cm_vorher} → ${l.cm_nachher} cm  ·  `
+        + `${l.liter_pro_cm} l/cm</td>`
+      : '<td></td>';
+    zeile.innerHTML = `<td class="zeit">${l.datum}</td><td>${l.liter} l</td>${zusatz}`;
     koerper.appendChild(zeile);
   });
   if (!koerper.children.length) {
@@ -2564,19 +2618,28 @@ $('btn-tank-lieferung').onclick = async () => {
   const liter = parseFloat($('tank-liter').value);
   if (!liter || liter <= 0) return meldung('m-tank', 'Bitte eine Menge angeben');
   try {
-    await sendeJSON('tank/lieferung', 'POST',
-                    { liter, datum: $('tank-datum').value || null });
+    await sendeJSON('tank/lieferung', 'POST', {
+      liter, datum: $('tank-datum').value || null,
+      cm_vorher: $('tank-cm-vorher').value || null,
+      cm_nachher: $('tank-cm-nachher').value || null });
     $('tank-liter').value = '';
+    $('tank-cm-vorher').value = '';
+    $('tank-cm-nachher').value = '';
     meldung('m-tank', 'Lieferung verbucht', true);
     tankLaden();
   } catch (err) { meldung('m-tank', err.message); }
 };
 
 $('btn-tank-stand').onclick = async () => {
-  const liter = parseFloat($('tank-stand').value);
-  if (isNaN(liter) || liter < 0) return meldung('m-tank', 'Bitte einen Füllstand angeben');
+  const cm = $('tank-stand-cm').value;
+  const liter = $('tank-stand').value;
+  if (cm === '' && liter === '') {
+    return meldung('m-tank', 'Bitte einen Füllstand angeben');
+  }
   try {
-    await sendeJSON('tank/stand', 'PUT', { liter });
+    await sendeJSON('tank/stand', 'PUT',
+                    cm !== '' ? { cm: parseFloat(cm) } : { liter: parseFloat(liter) });
+    $('tank-stand-cm').value = '';
     $('tank-stand').value = '';
     meldung('m-tank', 'Stand übernommen', true);
     tankLaden();

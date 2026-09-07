@@ -78,7 +78,7 @@ pruefe(tank.nutzbar_liter(einstellungen()["tank"]) == 4465.0,
 print("\n=== Der erste Zählerstand ist kein Verbrauch ===")
 state = {}
 _zustaende["sensor.brennerstunden"] = "1234.0"
-tank.stand_setzen(state, 3000, 4465.0)
+tank.stand_setzen(state, einstellungen()['tank'], 3000)
 bericht = tank.takt(einstellungen(), state)
 pruefe(bericht["stand_liter"] == 3000,
        "der Anfangsbestand überlebt den ersten Takt unverändert")
@@ -108,28 +108,83 @@ pruefe(bericht["stand_liter"] == 2995,
 print("\n=== Ohne Laufzeitzähler passiert nichts ===")
 ohne = einstellungen(brenner_entity="")
 state2 = {}
-tank.stand_setzen(state2, 1000, 4465.0)
+tank.stand_setzen(state2, ohne['tank'], 1000)
 bericht = tank.takt(ohne, state2)
 pruefe(bericht["stand_liter"] == 1000, "der Stand bleibt stehen")
 pruefe(bericht["laufzeit_gekoppelt"] is False, "die Oberfläche erfährt davon")
 
 print("\n=== Lieferungen ===")
 state3 = {}
-tank.stand_setzen(state3, 500, 4465.0)
-tank.lieferung_eintragen(state3, 2000, "2026-09-07", 4465.0)
+tank.stand_setzen(state3, einstellungen()['tank'], 500)
+tank.lieferung_eintragen(state3, 2000, '2026-09-07', einstellungen()['tank'])
 pruefe(state3["tank"]["stand_liter"] == 2500.0, "2000 Liter kommen dazu")
-tank.lieferung_eintragen(state3, 9000, None, 4465.0)
+tank.lieferung_eintragen(state3, 9000, None, einstellungen()['tank'])
 pruefe(state3["tank"]["stand_liter"] == 4465.0,
        "mehr als voll geht nicht – der Deckel greift")
 try:
-    tank.lieferung_eintragen(state3, 0, None, 4465.0)
+    tank.lieferung_eintragen(state3, 0, None, einstellungen()['tank'])
     pruefe(False, "eine Lieferung über null Liter wird abgelehnt")
 except ValueError:
     pruefe(True, "eine Lieferung über null Liter wird abgelehnt")
 
+print("\n=== Einmessen ueber eine Lieferung ===")
+# Der eigentliche Gewinn: Aus geeichter Liefermenge und zwei Peilstab-Werten
+# faellt die Liter-je-Zentimeter heraus - genauer als jede Rechnung aus dem
+# Typenschild von 1965.
+tk = einstellungen()["tank"]
+state_m = {}
+eintrag = tank.lieferung_eintragen(state_m, 3000, "2026-09-07", tk,
+                                   cm_vorher=30.0, cm_nachher=126.0)
+pruefe(eintrag["liter_pro_cm"] == 31.25,
+       "3000 Liter auf 96 cm ergeben 31,25 Liter je Zentimeter")
+pruefe(tk["liter_pro_cm"] == 31.25, "der Wert landet in den Einstellungen")
+pruefe(state_m["tank"]["stand_liter"] == 3937.5,
+       "der Stand kommt aus der gemessenen Hoehe, nicht aus der Summe")
+
+# Verdrehte Eingabe: nachher tiefer als vorher
+try:
+    tank.lieferung_eintragen({}, 3000, None, dict(tk), cm_vorher=100.0, cm_nachher=40.0)
+    pruefe(False, "nachher unter vorher wird abgelehnt")
+except ValueError:
+    pruefe(True, "nachher unter vorher wird abgelehnt")
+
+print("\n=== Was der Brenner wirklich erreicht ===")
+tk2 = einstellungen()["tank"]
+tk2.update({"liter_pro_cm": 31.25, "hoehe_voll_cm": 142.0, "hoehe_min_cm": 8.0})
+state_v = {}
+tank.stand_setzen(state_v, tk2, cm=20.0)
+pruefe(state_v["tank"]["stand_liter"] == 625.0, "20 cm sind 625 Liter im Tank")
+_zustaende["sensor.brennerstunden"] = "0.0"
+b = tank.takt({"tank": tk2}, state_v)
+pruefe(b["reserve_liter"] == 250, "unter dem Saugfuss stehen 250 Liter")
+pruefe(b["verfuegbar_liter"] == 375, "erreichbar sind nur 375 Liter")
+pruefe(b["stand_cm"] == 20.0, "die Hoehe wird zurueckgerechnet")
+pruefe(b["unter_grenze"] is False, "ueber der Grenze gibt es keine Meldung")
+
+tank.stand_setzen(state_v, tk2, cm=6.0)
+b = tank.takt({"tank": tk2}, state_v)
+pruefe(b["verfuegbar_liter"] == 0, "unter dem Saugfuss ist nichts mehr erreichbar")
+pruefe(b["unter_grenze"] is True, "und das wird gemeldet")
+pruefe(len(tank.meldungen(b, state_v)) >= 1, "es gibt eine Meldung dazu")
+
+print("\n=== Zentimeter ohne Einmessung ===")
+tk3 = einstellungen()["tank"]      # ohne hoehe_voll_cm und liter_pro_cm
+try:
+    tank.stand_setzen({}, tk3, cm=50.0)
+    pruefe(False, "Zentimeter ohne Kalibrierung werden abgelehnt")
+except ValueError:
+    pruefe(True, "Zentimeter ohne Kalibrierung werden abgelehnt")
+
+print("\n=== Untergrenze ueber der Fuellhoehe ===")
+try:
+    store.validate_einstellungen({"tank": {"hoehe_voll_cm": 100, "hoehe_min_cm": 120}})
+    pruefe(False, "eine Untergrenze ueber der Fuellhoehe wird abgelehnt")
+except store.ValidationError:
+    pruefe(True, "eine Untergrenze ueber der Fuellhoehe wird abgelehnt")
+
 print("\n=== Warnschwelle ===")
 state4 = {}
-tank.stand_setzen(state4, 700, 4465.0)
+tank.stand_setzen(state4, einstellungen()['tank'], 700)
 _zustaende["sensor.brennerstunden"] = "0.0"
 bericht = tank.takt(einstellungen(), state4)
 pruefe(bericht["warnung"] is True, "unter 800 Litern wird gewarnt")
@@ -152,7 +207,7 @@ pruefe(state5["tank"]["leck_seit"] is None, "Entwarnung setzt den Zeitpunkt zur�
 
 print("\n=== Reichweite ===")
 state6 = {}
-tank.stand_setzen(state6, 1000, 4465.0)
+tank.stand_setzen(state6, einstellungen()['tank'], 1000)
 t = state6["tank"]
 for i in range(5):
     tag = (date.today() - timedelta(days=i)).isoformat()

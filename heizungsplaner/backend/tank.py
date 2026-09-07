@@ -17,6 +17,18 @@ die sich gegenseitig korrigieren:
 Fehlt die Laufzeit (etwa weil noch keine Kesselanbindung existiert), bleibt der
 Stand einfach stehen, bis jemand ihn von Hand korrigiert. Das Modul ist also
 auch für sich allein brauchbar.
+
+Wer die Anzeige am Tank in Zentimetern abliest, kann zusätzlich mit dem
+Peilstab arbeiten. Zwei Dinge werden damit möglich:
+
+* **Einmessen statt schätzen.** Wer bei einer Lieferung den Stand vorher und
+  nachher notiert, bekommt die Liter je Zentimeter geschenkt: gelieferte Menge
+  geteilt durch den Höhenunterschied. Das ist genauer als jede Rechnung aus dem
+  Typenschild, weil es den Tank misst, wie er wirklich ist.
+* **Die ehrliche Restmenge.** Der Saugfuß sitzt einige Zentimeter über dem
+  Boden. Was darunter steht, gehört dem Besitzer, aber nicht mehr dem Brenner –
+  der zieht dann Luft und geht auf Störung. Mit einer Untergrenze unterscheidet
+  der Planer zwischen "im Tank" und "für den Brenner erreichbar".
 """
 from __future__ import annotations
 
@@ -57,6 +69,32 @@ def _zustand(state: dict) -> dict:
     for schluessel, wert in standard_zustand().items():
         t.setdefault(schluessel, wert)
     return t
+
+
+def liter_je_cm(tank: dict) -> float:
+    """Liter je Zentimeter – eingemessen, sonst aus dem Typenschild geschätzt."""
+    gemessen = float(tank.get("liter_pro_cm") or 0.0)
+    if gemessen > 0:
+        return gemessen
+    hoehe = float(tank.get("hoehe_voll_cm") or 0.0)
+    if hoehe > 0:
+        return nutzbar_liter(tank) / hoehe
+    return 0.0
+
+
+def cm_zu_liter(tank: dict, cm: float) -> float | None:
+    je_cm = liter_je_cm(tank)
+    return None if je_cm <= 0 else round(cm * je_cm, 1)
+
+
+def liter_zu_cm(tank: dict, liter: float | None) -> float | None:
+    je_cm = liter_je_cm(tank)
+    return None if (je_cm <= 0 or liter is None) else round(liter / je_cm, 1)
+
+
+def reserve_liter(tank: dict) -> float:
+    """Was unter dem Saugfuß steht und dem Brenner nicht mehr hilft."""
+    return cm_zu_liter(tank, float(tank.get("hoehe_min_cm") or 0.0)) or 0.0
 
 
 def nutzbar_liter(tank: dict) -> float:
@@ -157,6 +195,10 @@ def takt(einstellungen: dict, state: dict) -> dict:
     stand = t["stand_liter"]
     nutzbar = nutzbar_liter(tank)
     warnschwelle = float(tank.get("warnschwelle_liter") or 0.0)
+    reserve = reserve_liter(tank)
+    # Das ist die Zahl, die zählt: Was unter dem Saugfuß steht, kann der
+    # Brenner nicht holen. Ein Tank mit 200 Litern "drin" kann leer sein.
+    verfuegbar = None if stand is None else max(0.0, stand - reserve)
 
     return {
         "aktiv": True,
@@ -164,15 +206,23 @@ def takt(einstellungen: dict, state: dict) -> dict:
         "nutzbar_liter": round(nutzbar),
         "prozent": None if (stand is None or nutzbar <= 0)
                    else round(stand / nutzbar * 100),
+        "stand_cm": liter_zu_cm(tank, stand),
+        "verfuegbar_liter": None if verfuegbar is None else round(verfuegbar),
+        "reserve_liter": round(reserve) if reserve else 0,
+        "liter_pro_cm": round(liter_je_cm(tank), 2) or None,
+        "eingemessen": bool(tank.get("liter_pro_cm")),
         "verbrauch_heute": round(t["verbrauch_tage"].get(heute, 0.0), 1),
-        "reichweite_tage": _reichweite_tage(t, stand),
+        "reichweite_tage": _reichweite_tage(t, verfuegbar),
         "laufzeit_h": t["laufzeit_h"],
         "laufzeit_gekoppelt": bool(tank.get("brenner_entity")),
         "verbrauch_takt": round(verbrauch_takt, 3),
         "leck": leck,
         "leck_seit": t["leck_seit"],
         "leckage_ueberwacht": bool(leck_entity),
-        "warnung": stand is not None and warnschwelle > 0 and stand < warnschwelle,
+        "warnung": (verfuegbar is not None and warnschwelle > 0
+                    and verfuegbar < warnschwelle),
+        # Unter dem Saugfuß zieht der Brenner Luft und geht auf Störung.
+        "unter_grenze": verfuegbar is not None and reserve > 0 and verfuegbar <= 0,
         "lieferungen": list(reversed(t["lieferungen"]))[:12],
     }
 
@@ -193,8 +243,12 @@ def meldungen(bericht: dict, state: dict) -> list[tuple[str, str]]:
     for schluessel, aktiv, titel, text in (
         ("leck", bericht.get("leck"), "Leckage am Öltank",
          "Der Melder im Auffangraum hat angesprochen. Bitte sofort nachsehen."),
+        ("unter_grenze", bericht.get("unter_grenze"), "Heizöl unter der Grenze",
+         "Der Stand liegt unter dem Saugfuß – der Brenner kann Luft ziehen und "
+         "auf Störung gehen."),
         ("warnung", bericht.get("warnung"), "Heizöl wird knapp",
-         f"Restmenge etwa {bericht.get('stand_liter')} Liter."),
+         f"Für den Brenner erreichbar sind noch etwa "
+         f"{bericht.get('verfuegbar_liter')} Liter."),
     ):
         if aktiv and not gemerkt.get(schluessel):
             raus.append((titel, text))
@@ -207,26 +261,72 @@ def meldungen(bericht: dict, state: dict) -> list[tuple[str, str]]:
 # ------------------------------------------------------------- Eingaben ----
 
 def lieferung_eintragen(state: dict, liter: float, datum: str | None,
-                        nutzbar: float) -> dict:
-    """Eine Tanklieferung verbuchen und den Stand entsprechend anheben."""
+                        tank: dict, cm_vorher: float | None = None,
+                        cm_nachher: float | None = None) -> dict:
+    """Eine Tanklieferung verbuchen und den Stand entsprechend anheben.
+
+    Sind der Stand **vorher und nachher** in Zentimetern dabei, misst diese
+    Lieferung den Tank gleich mit ein: Liter je Zentimeter ist die gelieferte
+    Menge geteilt durch den Höhenunterschied. Das ist der genaueste Wert, den
+    es über diesen Behälter je geben wird – er stammt aus einer geeichten
+    Menge und dem Tank selbst, nicht aus einem Typenschild von 1965.
+
+    Der eingemessene Wert wird in die Einstellungen zurückgeschrieben; der
+    Aufrufer speichert sie.
+    """
     if liter <= 0:
         raise ValueError("Liefermenge muss größer als null sein")
     t = _zustand(state)
-    eintrag = {"datum": datum or date.today().isoformat(), "liter": round(float(liter), 1)}
+    eintrag = {"datum": datum or date.today().isoformat(),
+               "liter": round(float(liter), 1)}
+
+    # ── Einmessen, wenn beide Höhen dabei sind
+    if cm_vorher is not None and cm_nachher is not None:
+        differenz = float(cm_nachher) - float(cm_vorher)
+        if differenz <= 0:
+            raise ValueError("Der Stand nachher muss über dem Stand vorher liegen")
+        eintrag["cm_vorher"] = round(float(cm_vorher), 1)
+        eintrag["cm_nachher"] = round(float(cm_nachher), 1)
+        eintrag["liter_pro_cm"] = round(float(liter) / differenz, 2)
+        tank["liter_pro_cm"] = eintrag["liter_pro_cm"]
+        _LOGGER.info("Tank eingemessen: %.1f l auf %.1f cm = %.2f l/cm",
+                     liter, differenz, eintrag["liter_pro_cm"])
+
     t["lieferungen"].append(eintrag)
     t["lieferungen"] = t["lieferungen"][-60:]
-    vorher = t["stand_liter"] or 0.0
-    # Mehr als voll geht nicht – wer sich vertippt, bekommt den Deckel, nicht
-    # einen Tank mit 6000 Litern in einem 4700-Liter-Behälter.
-    t["stand_liter"] = round(min(vorher + eintrag["liter"], nutzbar), 1) if nutzbar > 0 \
-        else round(vorher + eintrag["liter"], 1)
+
+    nutzbar = nutzbar_liter(tank)
+    if cm_nachher is not None and liter_je_cm(tank) > 0:
+        # Die abgelesene Höhe ist eine Messung, die gerechnete Summe nur eine
+        # Fortschreibung. Die Messung gewinnt.
+        t["stand_liter"] = cm_zu_liter(tank, float(cm_nachher))
+    else:
+        vorher = t["stand_liter"] or 0.0
+        # Mehr als voll geht nicht – wer sich vertippt, bekommt den Deckel,
+        # nicht einen Tank mit 6000 Litern in einem 4700-Liter-Behälter.
+        t["stand_liter"] = round(min(vorher + eintrag["liter"], nutzbar), 1) \
+            if nutzbar > 0 else round(vorher + eintrag["liter"], 1)
     return eintrag
 
 
-def stand_setzen(state: dict, liter: float, nutzbar: float) -> float:
-    """Den Stand von Hand korrigieren – etwa nach einem Blick auf den Zeiger."""
-    if liter < 0:
+def stand_setzen(state: dict, tank: dict, liter: float | None = None,
+                 cm: float | None = None) -> float:
+    """Den Stand von Hand korrigieren – in Litern oder in Zentimetern.
+
+    Zentimeter sind der natürlichere Weg: Das ist die Zahl, die am Tank steht.
+    Sie setzt allerdings voraus, dass Liter je Zentimeter bekannt sind.
+    """
+    if cm is not None:
+        if cm < 0:
+            raise ValueError("Der Füllstand kann nicht negativ sein")
+        liter = cm_zu_liter(tank, float(cm))
+        if liter is None:
+            raise ValueError("Für Zentimeter fehlen die Liter je Zentimeter – "
+                             "trag sie ein oder miss den Tank bei der nächsten "
+                             "Lieferung ein")
+    if liter is None or liter < 0:
         raise ValueError("Der Füllstand kann nicht negativ sein")
+    nutzbar = nutzbar_liter(tank)
     t = _zustand(state)
     t["stand_liter"] = round(min(float(liter), nutzbar) if nutzbar > 0 else float(liter), 1)
     return t["stand_liter"]

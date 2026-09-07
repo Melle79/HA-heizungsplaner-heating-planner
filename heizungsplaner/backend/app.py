@@ -484,14 +484,28 @@ def api_tank_lieferung():
         liter = float(daten.get("liter"))
     except (TypeError, ValueError):
         return jsonify({"fehler": "Bitte eine Liefermenge in Litern angeben"}), 400
+    def _cm(name):
+        wert = daten.get(name)
+        if wert in (None, ""):
+            return None
+        try:
+            return float(wert)
+        except (TypeError, ValueError):
+            raise ValueError(f"{name}: Bitte eine Höhe in Zentimetern angeben")
+
     state = store.load_state()
     try:
         eintrag = tank.lieferung_eintragen(
             state, liter, str(daten.get("datum") or "").strip() or None,
-            tank.nutzbar_liter(tk))
+            tk, _cm("cm_vorher"), _cm("cm_nachher"))
     except ValueError as err:
         return jsonify({"fehler": str(err)}), 400
     store.save_state(state)
+    # Beim Einmessen ändert die Lieferung die Einstellungen mit.
+    if eintrag.get("liter_pro_cm"):
+        store.update_einstellungen({"tank": {"liter_pro_cm": eintrag["liter_pro_cm"]}})
+        logbuch.eintragen("Öltank", "Eingemessen",
+                          f"{eintrag['liter_pro_cm']} Liter je Zentimeter", "", art="gut")
     logbuch.eintragen("Öltank", "Lieferung",
                       f"{eintrag['liter']:.0f} Liter verbucht", "", art="gut")
     _sofort_rechnen()
@@ -505,13 +519,22 @@ def api_tank_stand():
     if tk is None:
         return jsonify({"fehler": "Der Tankteil ist nicht eingeschaltet"}), 404
     daten = request.get_json(force=True) or {}
+    # Entweder Liter oder Zentimeter – Zentimeter sind die Zahl, die am Tank
+    # steht, und deshalb der natürlichere Weg.
+    liter = cm = None
     try:
-        liter = float(daten.get("liter"))
+        if daten.get("cm") not in (None, ""):
+            cm = float(daten["cm"])
+        elif daten.get("liter") not in (None, ""):
+            liter = float(daten["liter"])
+        else:
+            raise ValueError
     except (TypeError, ValueError):
-        return jsonify({"fehler": "Bitte einen Füllstand in Litern angeben"}), 400
+        return jsonify({"fehler": "Bitte einen Füllstand in Litern "
+                                  "oder Zentimetern angeben"}), 400
     state = store.load_state()
     try:
-        stand = tank.stand_setzen(state, liter, tank.nutzbar_liter(tk))
+        stand = tank.stand_setzen(state, tk, liter, cm)
     except ValueError as err:
         return jsonify({"fehler": str(err)}), 400
     store.save_state(state)
