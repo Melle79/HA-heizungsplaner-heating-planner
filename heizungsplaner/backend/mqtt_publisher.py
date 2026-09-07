@@ -14,6 +14,7 @@ import threading
 import paho.mqtt.client as mqtt
 
 from version import VERSION
+import einheit
 import texte
 
 _LOGGER = logging.getLogger(__name__)

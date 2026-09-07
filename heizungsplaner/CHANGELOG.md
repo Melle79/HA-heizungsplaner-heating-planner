@@ -1,5 +1,17 @@
 # Änderungen
 
+## 1.17.1
+
+- **Behoben: Die MQTT-Auto-Discovery war seit v1.15.0 tot.** `mqtt_publisher`
+  rief `einheit.einheit()` auf, ohne das Modul zu importieren. Der Aufruf
+  steckt im Discovery-Pfad, der seinen Fehler nur in den Log schreibt – die
+  Statusentitäten des Planers wurden also sechs Tage lang stillschweigend nicht
+  mehr angemeldet. Im Log stand `Discovery fehlgeschlagen: name 'einheit' is
+  not defined`.
+- Der Prüflauf fängt jetzt die ganze Fehlerklasse: Er liest jedes Modul im
+  Backend und meldet jedes `modul.funktion()`, dessen Modul nicht importiert
+  ist. Gegen den ursprünglichen Fehler gegengeprüft.
+
 ## 1.17.0
 
 - **Neu: Werktag und arbeitsfrei im Zeitplan.** Bisher kannte ein

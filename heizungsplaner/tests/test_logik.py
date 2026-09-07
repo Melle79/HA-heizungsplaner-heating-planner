@@ -164,6 +164,43 @@ alle = dict(store.STANDARD_RAUM, name="Wohnzimmer", personen=[])
 besetzt, _ = anwesenheit.raum_besetzt(alle, {}, personen)
 pruefe(besetzt, "Raum ohne Personenzuordnung folgt der ganzen Familie")
 
+print("\n=== Modulverweise ===")
+# Der Anlass: mqtt_publisher rief seit v1.15.0 `einheit.einheit()` auf, ohne
+# das Modul zu importieren. Auffallen konnte das nicht, weil der Aufruf im
+# Discovery-Pfad steckt, der seinen Fehler nur in den Log schreibt - die
+# MQTT-Entitaeten fehlten sechs Tage lang stillschweigend.
+#
+# Diese Pruefung faengt die ganze Fehlerklasse: Wer `modul.funktion()` schreibt,
+# muss `modul` auch importiert haben.
+import ast as _ast
+import pathlib as _pl
+
+_be = _pl.Path(__file__).resolve().parent.parent / "backend"
+_module = {d.stem for d in _be.glob("*.py")}
+_fehlend = []
+for _datei in sorted(_be.glob("*.py")):
+    _baum = _ast.parse(_datei.read_text(encoding="utf-8"))
+    _bekannt, _zugewiesen = set(), set()
+    for _k in _ast.walk(_baum):
+        if isinstance(_k, _ast.Import):
+            _bekannt.update((a.asname or a.name).split(".")[0] for a in _k.names)
+        elif isinstance(_k, _ast.ImportFrom):
+            _bekannt.update(a.asname or a.name for a in _k.names)
+        elif isinstance(_k, _ast.Name) and isinstance(_k.ctx, _ast.Store):
+            _zugewiesen.add(_k.id)
+        elif isinstance(_k, _ast.arg):
+            _zugewiesen.add(_k.arg)
+    for _k in _ast.walk(_baum):
+        # Nur `modul.attribut` zaehlt, und nur wenn der Name nirgends im
+        # Modul zugewiesen wird - sonst meldet eine gleichnamige Variable.
+        if (isinstance(_k, _ast.Attribute) and isinstance(_k.value, _ast.Name)
+                and _k.value.id in _module and _k.value.id != _datei.stem
+                and _k.value.id not in _bekannt and _k.value.id not in _zugewiesen):
+            _fehlend.append(f"{_datei.name}:{_k.lineno} benutzt "
+                            f"{_k.value.id}.{_k.attr}, importiert {_k.value.id} aber nicht")
+pruefe(not _fehlend, "jedes benutzte Modul ist auch importiert"
+       + ("" if not _fehlend else " -> " + "; ".join(_fehlend[:3])))
+
 print("\n=== Werktag und arbeitsfrei ===")
 # Finn arbeitet: In den Schulferien hat er Dienst, an einem Feiertag nicht.
 # Das Wochenende steckt schon in den Wochentag-Haken, hier zaehlt nur der
