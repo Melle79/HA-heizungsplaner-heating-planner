@@ -1,5 +1,33 @@
 # Änderungen
 
+## 1.27.0
+
+- **Die Kesselregelung läuft jetzt über die Schaltzeiten statt über die
+  Betriebsart.** Der Grund ist gemessen: Svens Weishaupt nimmt eine gestellte
+  Betriebsart an, quittiert sie – und stellt zehn Minuten später wieder ihre
+  eigene her. Sie gehört dem Schalter am Gerät. Schaltzeiten dagegen bleiben
+  stehen, nachgeprüft über mehrere Lesezyklen.
+- Es ist ohnehin der bessere Hebel: Das Wochenprogramm schaltet zwischen
+  **Komfort-** und **Reduziertsollwert** um, nicht zwischen ein und aus –
+  genau die Unterscheidung, die der Planer für jeden Raum trifft.
+- **Geschrieben wird die Hüllkurve**: die Vereinigung aller Komfortzeiten über
+  alle Räume, je Wochentag. Weil der Planer seinen Plan im Voraus kennt,
+  schaltet die Regelung auf die Minute mit ihm – **ohne Versatz**. Nur was
+  kein Zeitplan vorhersieht, die Partytaste und greifende
+  Übersteuerungsregeln, wird nachgetragen; dort kann es eine Taktlänge dauern.
+- **Der vorgefundene Wochenplan wird gesichert** – vor der ersten Anmeldung,
+  danach wäre es zu spät – und beim Abschalten oder Aufheben der Übernahme
+  zurückgeschrieben. Geht das Gedächtnis verloren, sagt der Planer, dass es
+  keinen Weg zurück mehr gibt, statt einen vorzutäuschen.
+- **Schreibbremse:** höchstens ein Dutzend Änderungen je Wochentag und Tag.
+  Nicht aus Sparsamkeit, sondern damit ein Fehler – zwei Regeln, die einander
+  umschalten – nicht im Takt in den Speicher des Reglers schreibt.
+- Räume in „nur absenken“ und abgeschaltete Räume spannen die Hüllkurve nicht
+  auf. Tage, deren Tagesart noch offen ist, werden beidseitig gerechnet: eher
+  zu früh bereit als zu spät.
+- Die Rechnung steckt in `huellkurve.py` und ist ohne Anlage prüfbar – rund
+  40 neue Prüfungen decken sie und die Anbindung ab.
+
 ## 1.26.0
 
 - **Behoben: Der Planer glaubte einer Regelung, die ihn belog.** Er schrieb

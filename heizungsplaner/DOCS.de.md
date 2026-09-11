@@ -591,86 +591,112 @@ Auch dieser Baustein ist **ab Werk aus**, und zwar mit Bedacht: Er greift über
 ein zweites Add-on in die Heizungsregelung selbst.
 
 Der Planer stellt Thermostatventile – aber ein Ventil kann nur verteilen, was
-der Kessel liefert. Läuft dessen Regelung nach ihrem eigenen Zeitprogramm,
+der Kessel liefert. Läuft dessen Regelung nach ihrem eigenen Wochenprogramm,
 arbeiten beide gegeneinander: Der Planer heizt morgens um halb sechs vor,
-während der Kessel noch absenkt, und abends um zehn hält der Kessel Vorlauf
+während die Regelung noch absenkt, und abends um zehn hält sie Vorlauf
 bereit, den kein Raum mehr will. Man merkt das nicht am Thermometer, sondern
 am Ölverbrauch.
 
 ### Was dafür gebraucht wird
 
-Das Add-on **Heizungsanlagenmanager**, verbunden mit der Regelung (bei einer
-Siemens-Albatros-Regelung über BSB-LAN). Dort muss einmal der
-Parameterkatalog aufgebaut und unter *Einstellungen* das Stellen freigegeben
-sein – beides ist dort ebenfalls ab Werk aus.
+Das Add-on **Heizungsanlagenmanager** ab Fassung 1.16.0, verbunden mit der
+Regelung (bei einer Siemens-Albatros-Regelung über BSB-LAN). Dort muss einmal
+der Parameterkatalog aufgebaut und unter *Einstellungen* das Stellen
+freigegeben sein – beides ist dort ebenfalls ab Werk aus.
 
 Danach genügt im Planer ein Haken unter *Einstellungen → Kesselregelung*. Die
 Adresse bleibt leer: Der Anlagenmanager sagt beim Start über MQTT an, unter
-welchem Namen er zu erreichen ist, und der Planer hört darauf. Raten ließe
-sich der Name nicht – er trägt den Hash des Repositorys, aus dem das Add-on
-stammt. Dafür braucht es dort mindestens Fassung 1.16.0.
+welchem Namen er zu erreichen ist.
 
-### Was der Planer stellt
+### Warum die Schaltzeiten und nicht die Betriebsart
 
-Genau **einen** Parameter: die Programmwahl. Was dort hineingeschrieben wird,
-leitet sich aus dem ab, was der Planer für die Räume ohnehin entschieden hat:
+Naheliegend wäre, der Regelung einfach zu sagen „jetzt Nennbetrieb“. Das geht
+bei vielen Anlagen **nicht**: Die Betriebsart eines Siemens-Albatros-Reglers
+gehört dem Schalter am Gerät. Über den Bus lässt sie sich setzen, der Regler
+quittiert es sogar – und stellt Minuten später seinen eigenen Stand wieder
+her.
 
-| Lage im Haus | Programmwahl |
-|---|---|
-| irgendein Raum auf Komfort, Party oder Heimkehr | **Nenn** |
-| nur Sparwerte – Eco, Nacht, abwesend, Urlaub | **Reduziert** |
-| Sommerbetrieb des Planers | **Sommer** |
-| kein Raum wird geregelt (alle aus, gesperrt, Fenster offen) | **Standby** |
+Die **Schaltzeiten** dagegen bleiben stehen. Und sie sind ohnehin der bessere
+Hebel: Das Wochenprogramm schaltet zwischen **Komfort-** und
+**Reduziertsollwert** um, nicht zwischen ein und aus. Außerhalb der Phasen
+heizt die Anlage weiter, nur schwächer – genau die Unterscheidung, die der
+Planer für jeden Raum trifft.
 
-„Standby“ ist dabei nicht „aus“: Der Frostschutz der Regelung bleibt darunter
-aktiv, und das Warmwasser hängt an einem eigenen Parameter, den der Planer
-nicht anrührt.
+### Was der Planer schreibt
 
-Ein Raum in der Betriebsart **„nur absenken“** zählt als Komfort. Der Planer
-kennt den Wert nicht, den eine Hand dort eingestellt hat – und zu wenig
-Vorlauf ist eine kalte Wohnung, zu viel nur ein wenig Öl.
+Die **Hüllkurve**: die Vereinigung aller Komfortzeiten über alle Räume, je
+Wochentag.
 
-Geschrieben wird **auf Flanke**: Steht die Betriebsart schon richtig, geht
-kein Telegramm über den Bus. Bei ausgeschalteter Automatik und im Trockenlauf
-stellt der Planer den Kessel so wenig wie ein Thermostat.
+Will das Bad um 5:30 Uhr warm werden und das Büro erst um 6:00, beginnt die
+Phase um 5:30 – der Kessel liefert einen Vorlauf für das ganze Haus,
+verteilen tun die Ventile. Und wo *kein* Raum mehr Komfort will, senkt die
+Regelung ab, statt weiter bereitzustehen.
 
-### Wenn die Regelung den Wert nicht annimmt
+Weil der Planer seinen Plan im Voraus kennt, entsteht dabei **kein Versatz**:
+Die Regelung schaltet auf die Minute mit ihm. Geschrieben wird selten – nur
+wenn sich der Plan tatsächlich ändert.
 
-**Nicht jede Heizungsregelung lässt ihre Betriebsart vom Bus stellen.** Bei
-einem Siemens-Albatros-Regler etwa gehört sie dem Schalter am Gerät: Das
-Telegramm wird angenommen und sogar quittiert, Minuten später steht wieder
-der alte Wert da.
+Drei Dinge fließen **nicht** in die Hüllkurve ein:
 
-Der Planer prüft deshalb nach. Springt der Wert dreimal zurück, gibt er die
-Führung auf, gibt die Übernahme zurück und schreibt in Protokoll und Kachel,
-was er vorgefunden hat. Das ist Absicht: Ein Planer, der weiter gegen die
-Anlage anschreibt, erzeugt nur Bustelegramme – und einer, der stillschweigend
-„Nennbetrieb“ anzeigt, während die Anlage ihr eigenes Programm fährt, wäre
-schlimmer als gar keiner.
+* Räume, die abgeschaltet sind.
+* Räume in der Betriebsart **„nur absenken“** – für die weiß der Planer nicht,
+  wann jemand sie warm haben will; er spannte die Hüllkurve sonst über den
+  ganzen Tag.
+* **Übersteuerungsregeln und die Partytaste.** Deren Bedingungen lassen sich
+  nicht vorhersagen. Sie werden nachgetragen, sobald sie greifen – und *hier*
+  entsteht der einzige Versatz des Verfahrens: bis zu einer Taktlänge.
 
-Was in dem Fall bleibt, ist das Stellen der **Sollwerte** statt der
-Betriebsart. Die nehmen dieselben Regler in aller Regel an.
+Für Tage, deren Tagesart noch nicht feststeht – ob übernächste Woche Ferien
+sind, weiß heute niemand –, rechnet der Planer **beide** Fälle und vereinigt
+sie. Die Anlage steht dann eher zu früh bereit als zu spät; am Tag selbst
+schreibt er den richtigen Stand darüber.
+
+Ein Regler führt **drei Phasen je Tag**. Kommen mehr zusammen, werden die
+Blöcke mit der *kleinsten* Lücke zusammengelegt: Zwei Blöcke mit zwanzig
+Minuten Abstand zu verschmelzen kostet zwanzig Minuten Komfortbetrieb, die
+Mittagspause von fünf Stunden bleibt erhalten.
+
+### Die Schreibbremse
+
+Wochenprogramme liegen im nichtflüchtigen Speicher des Reglers, und der hat
+endlich viele Schreibzyklen. Ein Plan am Morgen und ein paar Nachträge am Tag
+sind davon weit entfernt. Gefährlich wäre nur ein Fehler – zwei Regeln etwa,
+die einander umschalten –, bei dem der Planer im Takt schriebe.
+
+Darum zählt er mit: **höchstens ein Dutzend Änderungen je Wochentag und Tag.**
+Darüber hinaus wird gemeldet statt geschrieben, und am nächsten Tag geht es
+normal weiter.
 
 ### Wer das letzte Wort hat
 
-Solange die Übernahme steht, ist der Parameter im Anlagenmanager
-ausgeblendet – dort kann ihn niemand aus Versehen gegen den Planer stellen.
-Der Knopf **„Übernahme aufheben“** gibt ihn jederzeit zurück.
+Solange die Übernahme steht, sind die Schaltzeiten im Anlagenmanager
+ausgeblendet – dort kann sie niemand aus Versehen gegen den Planer stellen.
+Der Knopf **„Übernahme aufheben“** gibt sie jederzeit zurück.
 
 Und dann bleibt es dabei. Der Planer meldet sich **nicht** stillschweigend neu
-an: Er schaltet die Kesselregelung von selbst ab, schreibt es ins Protokoll
-und wartet, bis jemand den Haken hier wieder setzt. Ein Knopf, den ein
-Programm zwei Minuten später wieder aushebelt, wäre eine Attrappe.
+an: Er schreibt den Wochenplan zurück, den er vorgefunden hat, schaltet die
+Kesselregelung ab und vermerkt es im Protokoll. Dasselbe geschieht, wenn der
+Haken hier ausgeschaltet wird.
 
-Führt bereits ein anderes Add-on die Programmwahl, lässt der Planer sie in
-Ruhe und sagt in der Übersicht, wer sie hält.
+Der vorgefundene Plan wird **vor** der ersten Anmeldung gesichert – danach
+wäre es zu spät, denn dann stünde der eigene darin. Geht dieses Gedächtnis
+verloren, etwa bei einer Neuinstallation, sagt der Planer das: Er führt weiter,
+weist aber darauf hin, dass es keinen Weg zurück mehr gibt.
+
+### Wenn die Regelung die Zeiten nicht behält
+
+Auch hier wird nachgesehen statt vertraut. Nimmt die Anlage die Schaltzeiten
+an und stellt sie danach wieder her, gibt der Planer nach drei Versuchen auf,
+schreibt zurück und meldet es – statt weiter dagegen anzuschreiben und dabei
+etwas anzuzeigen, das nicht stimmt.
 
 ### Was man davon sieht
 
-Auf der Übersicht steht eine Kachel **Kessel** mit der Betriebsart im
-Klartext. Dieselbe Angabe gibt es als `sensor.heizungsplaner_kessel` – mit
-Parameternummer, rohem Wert und Hinweistext als Attribute. Die Entität
-erscheint nur bei eingeschalteter Führung.
+Auf der Übersicht steht eine Kachel **Kessel**: „Komfort bis 22:00 Uhr“ oder
+„Reduziert bis 17:00 Uhr“, darunter die heutigen Schaltzeiten. Dieselbe Angabe
+gibt es als `sensor.heizungsplaner_kessel` – mit Wochenprogramm, heutigen
+Zeiten und Hinweistext als Attribute. Die Entität erscheint nur bei
+eingeschalteter Führung.
 
 Antwortet der Anlagenmanager gerade nicht – etwa während seines eigenen
 Neustarts –, sagt die Kachel das und der Takt läuft weiter. Die Räume sind zu

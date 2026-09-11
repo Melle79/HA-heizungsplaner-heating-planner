@@ -975,8 +975,10 @@ def takt(config: dict, state: dict, protokoll) -> dict:
     if automatik:
         try:
             kessel_lage = kessel.fuehren(
-                {"sommerbetrieb": sommer, "raeume": ergebnisse},
-                einst, state, protokoll)
+                {"zeit": _iso(jetzt), "sommerbetrieb": sommer,
+                 "schulfrei": schulfrei, "arbeitstag": arbeitstag,
+                 "raeume": ergebnisse},
+                config, state, protokoll)
         except Exception as err:  # noqa: BLE001
             # Der Anlagenmanager ist ein zweites Add-on. Ist es gerade beim
             # Neustart, darf das nicht den ganzen Takt kosten – die Räume sind

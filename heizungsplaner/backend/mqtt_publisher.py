@@ -50,7 +50,7 @@ GRUND_ENTITAETEN = [
 # Eine eigene Störmeldung bekommt er nicht – ein nicht erreichbarer
 # Anlagenmanager ist kein Heizungsfehler, und die Kachel sagt es im Klartext.
 KESSEL_ENTITAETEN = [
-    ("sensor", "kessel", "Kessel Betriebsart", "mdi:water-boiler", None, None),
+    ("sensor", "kessel", "Kessel Wochenprogramm", "mdi:water-boiler", None, None),
 ]
 
 # Der Öltank ist optional und bekommt seine Entitäten nur, wenn er
@@ -415,11 +415,12 @@ class Publisher:
         self._kessel_zustand(bericht.get("kessel") or {})
 
     def _kessel_zustand(self, kessel: dict) -> None:
-        """Die Betriebsart als Zustand, die Begründung als Attribut.
+        """Was die Regelung gerade fährt – als Satz, nicht als Schaltzeile.
 
-        Auf der Kachel soll „Nennbetrieb“ stehen, nicht die 4, die über den
-        Bus geht. Der rohe Wert bleibt als Attribut daneben – für den Fall,
-        dass jemand nachrechnen will, was der Planer der Anlage geschickt hat.
+        Auf der Kachel soll „Komfort bis 22:00 Uhr“ stehen, nicht
+        „05:30-08:00 17:00-22:00 ##:##-##:##“. Der geschriebene Wochentag
+        bleibt als Attribut daneben, für den Fall, dass jemand nachsehen will,
+        was der Planer der Anlage geschickt hat.
         """
         if not kessel.get("aktiv"):
             return
@@ -430,9 +431,11 @@ class Publisher:
         else:
             zustand = kessel.get("anzeige") or "unknown"
         self._zustand("kessel", zustand, {
-            "parameter": kessel.get("parameter"),
-            "wert": kessel.get("wert"),
+            "programm": kessel.get("programm"),
+            "heute": kessel.get("heute"),
+            "erweitert": bool(kessel.get("erweitert")),
             "uebernommen": bool(kessel.get("uebernommen")),
+            "gestellt": kessel.get("geschrieben") or [],
             "hinweis": kessel.get("hinweis") or kessel.get("fehler") or "",
         })
 

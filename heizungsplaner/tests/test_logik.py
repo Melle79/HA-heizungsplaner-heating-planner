@@ -1492,76 +1492,114 @@ pruefe(texte.sprache_setzen("fr-CA") == "en", "unbekannte Sprache faellt auf Eng
 pruefe(texte.sprache_setzen("de-AT") == "de", "de-AT bleibt Deutsch")
 texte.sprache_setzen("de")
 
+print("\n=== Huellkurve ===")
+import huellkurve as hk
+
+# Ein Raum mit zwei Komfortbloecken und einer Mittagsluecke.
+buero = {"name": "Buero", "aktiv": True, "zeitplan": [
+    {"start": "06:00", "modus": "komfort", "gilt": "immer", "tage": zp.TAGE},
+    {"start": "08:00", "modus": "eco", "gilt": "immer", "tage": zp.TAGE},
+    {"start": "17:00", "modus": "komfort", "gilt": "immer", "tage": zp.TAGE},
+    {"start": "22:00", "modus": "nacht", "gilt": "immer", "tage": zp.TAGE}]}
+bad = {"name": "Bad", "aktiv": True, "zeitplan": [
+    {"start": "05:30", "modus": "komfort", "gilt": "immer", "tage": zp.TAGE},
+    {"start": "07:00", "modus": "eco", "gilt": "immer", "tage": zp.TAGE}]}
+
+pruefe(hk.raum_fenster(buero, "mon", None, None) == [(360, 480), (1020, 1320)],
+       "Schaltpunkte werden zu Komfortfenstern")
+pruefe(hk.als_text(hk.fuer_tag([buero, bad], "mon", None, None))
+       == "05:30-08:00 17:00-22:00 ##:##-##:##",
+       "die Huellkurve vereinigt ueber die Raeume (Bad zieht den Morgen vor)")
+
+# Die Mittagsluecke bleibt, die kleine Luecke wird geschlossen.
+viele = [(360, 480), (500, 540), (1020, 1320), (1350, 1400)]
+pruefe(hk.eindampfen(viele, 3) == [(360, 540), (1020, 1320), (1350, 1400)],
+       "eingedampft wird an der kleinsten Luecke, nicht an der ersten")
+pruefe(hk.eindampfen(viele, 2) == [(360, 540), (1020, 1400)],
+       "und weiter, bis die Phasen passen")
+pruefe(all(e - b > 0 for b, e in hk.eindampfen(viele, 1)),
+       "auch eine einzige Phase bleibt wohlgeformt")
+
+pruefe(hk.als_text([]) == "##:##-##:## ##:##-##:## ##:##-##:##",
+       "kein Komfortbedarf ergibt einen leeren Tag")
+pruefe(hk.aus_text("06:00-22:00 ##:##-##:## ##:##-##:##") == [(360, 1320)],
+       "Zurueckgelesen wird nur, was belegt ist")
+pruefe(hk.aus_text(hk.als_text([(360, 480), (1020, 1320)]))
+       == [(360, 480), (1020, 1320)],
+       "hin und zurueck ergibt dasselbe")
+
+# Ein Raum in "nur absenken" spannt die Huellkurve nicht auf – sonst waere
+# sie 24 Stunden breit und die ganze Uebung sinnlos.
+hand = {"name": "Hand", "aktiv": True, "betriebsart": "nur_absenken",
+        "zeitplan": [{"start": "00:00", "modus": "komfort", "gilt": "immer",
+                      "tage": zp.TAGE}]}
+pruefe(hk.fuer_tag([hand], "mon", None, None) == [],
+       "ein handgefuehrter Raum spannt die Huellkurve nicht auf")
+aus = dict(buero, aktiv=False)
+pruefe(hk.fuer_tag([aus], "mon", None, None) == [],
+       "ein abgeschalteter Raum auch nicht")
+
+# Unbekannte Tagesart: beide Faelle, nicht geraten.
+schule = {"name": "Kind", "aktiv": True, "zeitplan": [
+    {"start": "06:00", "modus": "komfort", "gilt": "schultag", "tage": zp.TAGE},
+    {"start": "07:30", "modus": "eco", "gilt": "schultag", "tage": zp.TAGE},
+    {"start": "09:00", "modus": "komfort", "gilt": "schulfrei", "tage": zp.TAGE},
+    {"start": "11:00", "modus": "eco", "gilt": "schulfrei", "tage": zp.TAGE}]}
+pruefe(hk.als_text(hk.fuer_tag([schule], "mon", False, None)).startswith("06:00-07:30"),
+       "am Schultag gilt der Schultag-Zweig")
+pruefe(hk.als_text(hk.fuer_tag([schule], "mon", True, None)).startswith("09:00-11:00"),
+       "am schulfreien Tag der andere")
+beide = hk.fuer_tag([schule], "mon", None, None)
+pruefe(beide == [(360, 450), (540, 660)],
+       "ist die Tagesart unbekannt, gelten beide – nicht geraten wird nicht")
+
+# Die Erweiterung fuer das, was kein Zeitplan vorhersieht.
+mittag = datetime(2026, 9, 11, 12, 0)
+pruefe(hk.erweitern("06:00-08:00 ##:##-##:## ##:##-##:##", 14 * 60, mittag)
+       == "06:00-08:00 12:00-14:00 ##:##-##:##",
+       "die Partytaste bekommt ein eigenes Fenster")
+pruefe(hk.erweitern("06:00-22:00 ##:##-##:## ##:##-##:##", 14 * 60, mittag) is None,
+       "laeuft schon Komfort, wird nicht geschrieben")
+pruefe(hk.erweitern("06:00-13:00 ##:##-##:## ##:##-##:##", 14 * 60, mittag)
+       == "06:00-14:00 ##:##-##:## ##:##-##:##",
+       "ein laufendes Fenster wird verlaengert statt gestueckelt")
+pruefe(hk.erweitern("06:00-08:00 ##:##-##:## ##:##-##:##", 11 * 60, mittag) is None,
+       "was in der Vergangenheit endet, wird nicht geschrieben")
+
 print("\n=== Kesselregelung ===")
 import kessel
 
-def _raeume(*zustaende):
-    return {"raeume": [{"zustand": z} for z in zustaende]}
+WOCHENTAGE = ["11", "11.1", "11.2", "11.3", "11.4", "11.5", "11.6"]
+SVENS_PLAN = {nr: ("06:00-22:00 ##:##-##:## ##:##-##:##" if i < 5
+                   else "08:00-22:00 ##:##-##:## ##:##-##:##")
+              for i, nr in enumerate(WOCHENTAGE)}
 
-pruefe(kessel.gewuenschte_wahl(_raeume("komfort", "nacht")) == "nenn",
-       "ein Komfortraum genuegt fuer Nennbetrieb")
-pruefe(kessel.gewuenschte_wahl(_raeume("eco", "nacht", "abwesend")) == "reduziert",
-       "lauter Sparwerte ergeben Reduziert")
-pruefe(kessel.gewuenschte_wahl(_raeume("aus", "gesperrt", "fenster")) == "standby",
-       "geschlossene Raeume ergeben Standby")
-pruefe(kessel.gewuenschte_wahl({"sommerbetrieb": True,
-                                "raeume": [{"zustand": "komfort"}]}) == "sommer",
-       "der Sommerbetrieb geht allem vor")
-pruefe(kessel.gewuenschte_wahl({"raeume": []}) == "standby",
-       "ohne Raeume wird nichts verlangt")
 
-# Der Fehler, der beim Bauen beinahe stehen geblieben waere: „uebersteuert“
-# klingt nach einer greifenden Regel, entsteht aber nur, wenn eine Regel auf
-# „aus“ steht – der Raum ist dann zu, nicht warm.
-pruefe(kessel.gewuenschte_wahl(_raeume("uebersteuert")) == "standby",
-       "„uebersteuert“ heisst zu, nicht warm")
-pruefe("uebersteuert" not in kessel.KOMFORT_ZUSTAENDE,
-       "„uebersteuert“ zaehlt nicht als Waermebedarf")
-
-# Jeder Zustand, den regelung.py vergeben kann, muss hier eingeordnet sein –
-# sonst faellt ein neuer Sonderzustand stillschweigend auf Standby.
-import re as _re
-_quelle = open(os.path.join(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__))), "backend", "regelung.py"),
-    encoding="utf-8").read()
-_zustaende = set(_re.findall(r'ergebnis\("([a-z_]+)"', _quelle))
-_zustaende |= set(_re.findall(r'zustand = "([a-z_]+)"', _quelle))
-_zustaende |= {"komfort", "eco", "nacht", "aus"}       # aus dem Zeitplan
-_unbekannt = _zustaende - kessel.KOMFORT_ZUSTAENDE - kessel.SPAR_ZUSTAENDE - {
-    "aus", "gesperrt", "fenster", "sommer", "uebersteuert"}
-pruefe(not _unbekannt, f"alle {len(_zustaende)} Raumzustaende sind eingeordnet "
-       f"({sorted(_unbekannt) or 'keine Luecke'})")
-
-AUSWAHL = [{"wert": "0", "text": "Standby"}, {"wert": "1", "text": "Programm 3"},
-           {"wert": "2", "text": "Programm 2"}, {"wert": "3", "text": "Programm 1"},
-           {"wert": "4", "text": "Nenn"}, {"wert": "5", "text": "Reduziert"},
-           {"wert": "6", "text": "Sommer"}]
-pruefe(kessel.wert_zu("nenn", AUSWAHL) == "4", "Nenn traegt bei Sven die 4")
-pruefe(kessel.wert_zu("reduziert", AUSWAHL) == "5", "Reduziert traegt die 5")
-pruefe(kessel.wert_zu("sommer", AUSWAHL) == "6", "Sommer traegt die 6")
-pruefe(kessel.wert_zu("standby", AUSWAHL) == "0", "Standby traegt die 0")
-pruefe(kessel.wert_zu("nenn", [{"wert": "1", "text": "Programm 1"}]) is None,
-       "eine Regelung ohne Nennbetrieb liefert nichts statt zu raten")
-
-# --- Das Zusammenspiel, mit einem erfundenen Anlagenmanager --------------
 class Anlage:
-    """Ein Anlagenmanager auf dem Papier – zaehlt, was ihm zugerufen wird."""
+    """Ein Anlagenmanager auf dem Papier – merkt sich, was ihm gesagt wird."""
 
-    def __init__(self, uebernommen=False, antwort=None):
+    def __init__(self, uebernommen=False, antwort=None, stur=False):
+        self.werte = dict(SVENS_PLAN)
+        self.werte["70"] = "3"            # Programm 1
         self.uebernommen = uebernommen
-        self.antwort = antwort            # None = einverstanden
+        self.antwort = antwort
+        self.stur = stur                  # nimmt an, behaelt aber das Seine
         self.gesetzt = []
         self.anmeldungen = 0
         self.abmeldungen = 0
 
     def __call__(self, methode, adresse, nutzlast=None, zeit=20.0):
         if adresse.endswith("/api/katalog"):
-            return {"programmwahl": {"nr": "70", "name": "Programmwahl",
-                                     "schreibbar": True, "werte": AUSWAHL}}
+            return {"programmwahl": {"nr": "70", "werte": [], "zu": {"1": "3"}},
+                    "zeitprogramme": {"1": {"name": "Zeitschaltprogramm 1",
+                                            "tage": WOCHENTAGE}}}
+        if adresse.endswith("/api/werte"):
+            return {"werte": {nr: {"value": v, "error": 0}
+                              for nr, v in self.werte.items()}}
         if adresse.endswith("/api/uebernahme") and methode == "GET":
+            eintrag = {"quelle": "heizungsplaner", "name": "Heizungsplaner"}
             return {"quellen": {}, "parameter":
-                    {"70": {"quelle": "heizungsplaner", "name": "Heizungsplaner"}}
-                    if self.uebernommen else {}}
+                    {nr: eintrag for nr in WOCHENTAGE} if self.uebernommen else {}}
         if adresse.endswith("/api/uebernahme"):
             self.anmeldungen += 1
             self.uebernommen = True
@@ -1570,117 +1608,149 @@ class Anlage:
             self.abmeldungen += 1
             self.uebernommen = False
             return {}
-        if adresse.endswith("/api/werte"):
-            # Was in der Regelung steht: der zuletzt gestellte Wert.
-            return {"werte": {"70": {"value": self.gesetzt[-1] if self.gesetzt
-                                     else "3", "error": 0}}}
         if adresse.endswith("/api/setzen"):
             if self.antwort:
                 raise self.antwort
-            self.gesetzt.append(nutzlast["wert"])
+            self.gesetzt.append((nutzlast["nr"], nutzlast["wert"]))
+            if not self.stur:
+                self.werte[nutzlast["nr"]] = nutzlast["wert"]
             return {"gesetzt": True}
         raise AssertionError(adresse)
 
 
-def _lauf(anlage, bericht, einst, state):
+def _lauf(anlage, bericht, config, state):
     alt, kessel._json = kessel._json, anlage
     try:
-        return kessel.fuehren(bericht, einst, state, lambda *a, **k: None)
+        return kessel.fuehren(bericht, config, state, lambda *a, **k: None)
     finally:
         kessel._json = alt
 
 
-def EIN(**extra):
-    # Bewusst eine Funktion: EIN() waere eine flache Kopie, und der
+def CONFIG(raeume=None, **extra):
+    # Bewusst eine Funktion: dict(...) waere eine flache Kopie, und der
     # verschachtelte Kessel-Block bliebe zwischen den Pruefungen derselbe.
-    return {"kessel": {"aktiv": True, "adresse": "http://anlage:8099"}, **extra}
-warm = {"sommerbetrieb": False, "raeume": [{"zustand": "komfort"}]}
-kalt = {"sommerbetrieb": False, "raeume": [{"zustand": "nacht"}]}
+    return {"einstellungen": {"kessel": {"aktiv": True,
+                                         "adresse": "http://anlage:8099"},
+                              **extra},
+            "raeume": raeume if raeume is not None else [buero, bad]}
+
+
+FREITAG = datetime(2026, 9, 11, 12, 0)
+
+
+def BERICHT(zustand="eco", wechsel=None):
+    return {"zeit": FREITAG.isoformat(), "sommerbetrieb": False,
+            "schulfrei": False, "arbeitstag": True,
+            "raeume": [{"name": "Buero", "zustand": zustand,
+                        "naechster_wechsel": wechsel}]}
+
 
 anlage, zustand = Anlage(), {}
-lage = _lauf(anlage, warm, EIN(), zustand)
-pruefe(anlage.anmeldungen == 1, "beim ersten Lauf wird die Uebernahme angemeldet")
-pruefe(anlage.gesetzt == ["4"], "danach steht die Programmwahl auf Nenn")
-pruefe(lage["anzeige"] == "Nennbetrieb", "die Lage nennt die Betriebsart im Klartext")
+lage = _lauf(anlage, BERICHT(), CONFIG(), zustand)
+pruefe(anlage.anmeldungen == 1, "beim ersten Lauf werden alle 7 Tage uebernommen")
+pruefe(zustand["kessel"]["original"] == SVENS_PLAN,
+       "und Svens vorgefundener Plan wird zuerst gesichert")
+pruefe(all(w == "05:30-08:00 17:00-22:00 ##:##-##:##"
+           for _, w in anlage.gesetzt), "geschrieben wird die Huellkurve")
+pruefe(len(anlage.gesetzt) == 7, "einmal je Wochentag")
 
-_lauf(anlage, warm, EIN(), zustand)
-pruefe(anlage.gesetzt == ["4"], "derselbe Bedarf schreibt kein zweites Mal")
-
-_lauf(anlage, kalt, EIN(), zustand)
-pruefe(anlage.gesetzt == ["4", "5"], "erst die Flanke schreibt wieder")
-
-# Der Mensch hebt die Uebernahme im Anlagenmanager auf.
-anlage.uebernommen = False
-einst = EIN()
-lage = _lauf(anlage, warm, einst, zustand)
-pruefe(anlage.anmeldungen == 1, "nach dem Aufheben wird nicht neu angemeldet")
-pruefe(einst["kessel"]["aktiv"] is False, "der Planer schaltet die Fuehrung selbst ab")
-pruefe(lage.get("abgegeben"), "und sagt es in der Lage")
-
-# Ausgeschaltet: die Uebernahme zurueckgeben, statt sie liegen zu lassen.
-anlage2, zustand2 = Anlage(), {}
-_lauf(anlage2, warm, EIN(), zustand2)
-_lauf(anlage2, warm, {"kessel": {"aktiv": False, "adresse": "http://anlage:8099"}},
-      zustand2)
-pruefe(anlage2.abmeldungen == 1, "beim Abschalten wird die Uebernahme zurueckgegeben")
+vorher = len(anlage.gesetzt)
+_lauf(anlage, BERICHT(), CONFIG(), zustand)
+pruefe(len(anlage.gesetzt) == vorher,
+       "beim zweiten Lauf geht kein einziges Telegramm mehr raus")
 
 # Trockenlauf: rechnen ja, stellen nein.
-anlage3, zustand3 = Anlage(uebernommen=True), {}
-lage = _lauf(anlage3, warm, EIN(trockenlauf=True), zustand3)
-pruefe(anlage3.gesetzt == [] and lage.get("trocken"),
+trocken, ztr = Anlage(uebernommen=True), {}
+lage = _lauf(trocken, BERICHT(), CONFIG(trockenlauf=True), ztr)
+pruefe(trocken.gesetzt == [] and lage.get("trocken"),
        "im Trockenlauf wird nichts gestellt")
 
-# 403 heisst „im Anlagenmanager noch gesperrt“ – und der Satz muss das sagen.
-anlage4 = Anlage(uebernommen=True,
-                 antwort=kessel.Abgelehnt(403, "noch nicht freigegeben"))
-lage = _lauf(anlage4, warm, EIN(), {})
-pruefe("Heizungsanlagenmanager" in (lage.get("fehler") or ""),
-       "eine Sperre verweist auf den Anlagenmanager")
+# Aussserplanmaessiger Bedarf – die Partytaste um 12 Uhr bis 15 Uhr.
+party, zp2 = Anlage(uebernommen=True), {}
+_lauf(party, BERICHT(), CONFIG(), zp2)          # erst den Grundplan setzen
+party.gesetzt.clear()
+lage = _lauf(party, BERICHT("party", "2026-09-11T15:00:00"), CONFIG(), zp2)
+pruefe(lage.get("erweitert"), "die Partytaste erweitert den heutigen Tag")
+pruefe(any(nr == "11.4" and "12:00-15:00" in w for nr, w in party.gesetzt),
+       f"und zwar nur den Freitag ({party.gesetzt})")
 
-# Fuehrt ein anderes Add-on den Parameter, wird nicht darum gerangelt.
+# Die Schreibbremse.
+bremse, zb = Anlage(uebernommen=True), {}
+_lauf(bremse, BERICHT(), CONFIG(), zb)
+zaehler = zb["kessel"]["schreibzaehler"]
+zaehler["11.4"] = kessel.SCHREIBGRENZE
+bremse.gesetzt.clear()
+bremse.werte["11.4"] = "00:00-01:00 ##:##-##:## ##:##-##:##"   # jemand verstellt
+lage = _lauf(bremse, BERICHT(), CONFIG(), zb)
+pruefe(bremse.gesetzt == [], "ueber der Tagesgrenze wird nicht mehr geschrieben")
+pruefe("fri" in (lage.get("gebremst") or []) and lage.get("hinweis"),
+       "und die Lage sagt, welcher Tag gebremst wurde")
+
+# Wenn die Regelung die Schaltzeiten nicht behaelt.
+stur, zs, cfg = Anlage(stur=True), {}, CONFIG()
+for _ in range(kessel.VERWORFEN_GRENZE + 1):
+    lage = _lauf(stur, BERICHT(), cfg, zs)
+pruefe(cfg["einstellungen"]["kessel"]["aktiv"] is False,
+       "behaelt die Regelung die Zeiten nicht, gibt der Planer auf")
+pruefe(stur.abmeldungen == 1, "die Uebernahme wird zurueckgegeben")
+pruefe(any(w == SVENS_PLAN[nr] for nr, w in stur.gesetzt),
+       "und Svens Plan wieder hineingeschrieben")
+
+# Abschalten von Hand: genauso.
+aus, za = Anlage(), {}
+_lauf(aus, BERICHT(), CONFIG(), za)
+aus.gesetzt.clear()
+_lauf(aus, BERICHT(), CONFIG(**{}) | {"einstellungen": {"kessel": {"aktiv": False,
+      "adresse": "http://anlage:8099"}}}, za)
+pruefe(aus.abmeldungen == 1, "beim Abschalten wird die Uebernahme zurueckgegeben")
+pruefe(sorted(nr for nr, _ in aus.gesetzt) == sorted(WOCHENTAGE),
+       "und alle sieben Tage auf den vorgefundenen Stand gebracht")
+
+# Der Mensch hebt die Uebernahme im Anlagenmanager auf.
+mensch, zm, cfg2 = Anlage(), {}, CONFIG()
+_lauf(mensch, BERICHT(), cfg2, zm)
+mensch.uebernommen = False
+mensch.gesetzt.clear()
+lage = _lauf(mensch, BERICHT(), cfg2, zm)
+pruefe(mensch.anmeldungen == 1, "nach dem Aufheben wird nicht neu angemeldet")
+pruefe(cfg2["einstellungen"]["kessel"]["aktiv"] is False,
+       "der Planer schaltet die Fuehrung selbst ab")
+pruefe(sorted(nr for nr, _ in mensch.gesetzt) == sorted(WOCHENTAGE),
+       "und gibt Svens Plan zurueck")
+
+# Uebernahme steht, aber das Gedaechtnis ist weg – nach einer Neuinstallation.
+# Gefuehrt wird weiter, aber der fehlende Weg zurueck muss gesagt werden.
+ohne, zo = Anlage(uebernommen=True), {}
+lage = _lauf(ohne, BERICHT(), CONFIG(), zo)
+pruefe("nicht mehr bekannt" in (lage.get("hinweis") or ""),
+       "ohne gesicherten Plan wird auf den fehlenden Weg zurueck hingewiesen")
+ohne.gesetzt.clear()
+lage = _lauf(ohne, BERICHT(), {"einstellungen": {"kessel": {"aktiv": False,
+             "adresse": "http://anlage:8099"}}, "raeume": []}, zo)
+pruefe(ohne.gesetzt == [] and lage.get("hinweis"),
+       "und beim Abschalten wird nichts erfunden, sondern gemeldet")
+
+# Fuehrt ein anderes Add-on den Plan, wird nicht darum gerangelt.
 class Fremd(Anlage):
     def __call__(self, methode, adresse, nutzlast=None, zeit=20.0):
         if adresse.endswith("/api/uebernahme") and methode == "GET":
             return {"quellen": {}, "parameter":
-                    {"70": {"quelle": "anderes", "name": "Ein anderes Add-on"}}}
+                    {"11": {"quelle": "anderes", "name": "Ein anderes Add-on"}}}
         return Anlage.__call__(self, methode, adresse, nutzlast, zeit)
 
 fremd = Fremd()
-lage = _lauf(fremd, warm, EIN(), {})
+lage = _lauf(fremd, BERICHT(), CONFIG(), {})
 pruefe(fremd.gesetzt == [] and fremd.anmeldungen == 0,
-       "ein fremd gefuehrter Parameter wird in Ruhe gelassen")
+       "ein fremd gefuehrter Plan wird in Ruhe gelassen")
 pruefe("Ein anderes Add-on" in (lage.get("hinweis") or ""),
        "und die Lage nennt den, der ihn haelt")
 
-# --- Wenn die Regelung den Wert wieder verwirft ---------------------------
-#
-# Genau das ist am 11.09.2026 an Svens Weishaupt passiert: Parameter 70
-# wurde angenommen (status 1), stand zehn Minuten spaeter aber wieder auf
-# "Programm 1". Die Betriebsart gehoert dort dem Schalter am Geraet.
-class Sturkopf(Anlage):
-    """Nimmt jedes Telegramm an – und behaelt doch seinen eigenen Stand."""
-
-    def __call__(self, methode, adresse, nutzlast=None, zeit=20.0):
-        if adresse.endswith("/api/werte"):
-            return {"werte": {"70": {"value": "3", "error": 0}}}
-        return Anlage.__call__(self, methode, adresse, nutzlast, zeit)
-
-
-stur, zustand5, einst5 = Sturkopf(uebernommen=True), {}, EIN()
-lagen = [_lauf(stur, warm, einst5, zustand5) for _ in range(5)]
-pruefe(einst5["kessel"]["aktiv"] is False,
-       "nach wiederholtem Zurueckspringen gibt der Planer die Fuehrung auf")
-pruefe(len(stur.gesetzt) <= kessel.VERWORFEN_GRENZE,
-       f"und schreibt nicht endlos dagegen an ({len(stur.gesetzt)} Versuche)")
-pruefe(any("Schalter" in (l.get("hinweis") or "") for l in lagen),
-       "der Hinweis nennt den Schalter am Geraet als Ursache")
-pruefe(stur.abmeldungen == 1, "die Uebernahme wird dabei zurueckgegeben")
-
-folgsam, zustand6 = Anlage(uebernommen=True), {}
-for _ in range(4):
-    lage = _lauf(folgsam, warm, EIN(), zustand6)
-pruefe(folgsam.gesetzt == ["4"] and lage.get("aktiv"),
-       "haelt der Wert, bleibt es bei einem einzigen Telegramm")
+# 403 heisst "im Anlagenmanager noch gesperrt".
+gesperrt = Anlage(uebernommen=True,
+                  antwort=kessel.Abgelehnt(403, "noch nicht freigegeben"))
+lage = _lauf(gesperrt, BERICHT(), CONFIG(), {})
+pruefe("Heizungsanlagenmanager" in (lage.get("fehler") or ""),
+       "eine Sperre verweist auf den Anlagenmanager")
 
 # Die Anschrift kommt vom Anlagenmanager selbst, per MQTT.
 kessel._gefunden = ""

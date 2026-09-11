@@ -328,12 +328,14 @@ window.SPRACHEN.en = {
   // Kesselregelung
   "Kesselregelung": "Boiler control",
   "Kessel": "Boiler",
-  "Die Programmwahl der Heizungsregelung mitführen":
-    "Also set the controller's program selection",
-  "Braucht das Add-on Heizungsanlagenmanager. Der Planer meldet dort die Programmwahl zur Übernahme an und stellt sie nach dem Wärmebedarf der Räume: Nennbetrieb, sobald ein Raum Komfort will – Reduziert, wenn alle abgesenkt sind – Sommer im Sommerbetrieb. Damit fährt die Anlage nicht mehr ihr eigenes Zeitprogramm gegen den Plan.":
-    "Requires the Heizungsanlagenmanager add-on. The planner registers the program selection there for takeover and sets it according to the rooms' demand for heat: nominal as soon as a room wants comfort – reduced when all are set back – summer in summer mode. That stops the system running its own time program against the plan.",
-  "Solange die Übernahme steht, ist der Parameter im Anlagenmanager ausgeblendet. Der Knopf „Übernahme aufheben“ dort gibt ihn jederzeit zurück – der Planer schaltet sich dann hier von selbst ab und meldet es im Protokoll.":
-    "While the takeover is in place, the parameter is hidden in the system manager. The Release takeover button there hands it back at any time – the planner then switches itself off here and says so in the log.",
+  "Das Wochenprogramm der Heizungsregelung mitführen":
+    "Also set the controller's weekly program",
+  "Braucht das Add-on Heizungsanlagenmanager. Der Planer schreibt die Schaltzeiten, die die Regelung ohnehin fährt: die Vereinigung aller Komfortzeiten über alle Räume. Damit senkt die Anlage ab, wenn kein Raum mehr Wärme will, und steht bereit, wenn der erste Raum sie braucht – statt ihr eigenes Zeitprogramm gegen den Plan zu fahren.":
+    "Requires the Heizungsanlagenmanager add-on. The planner writes the switching times the controller runs anyway: the union of all comfort periods across all rooms. The system then sets back once no room wants heat any more, and stands ready when the first room needs it – instead of running its own time program against the plan.",
+  "Weil der Planer seinen Plan im Voraus kennt, entsteht dabei kein Versatz. Nur was kein Zeitplan vorhersieht – die Partytaste, eine greifende Übersteuerungsregel – wird nachgetragen, und das kann eine Taktlänge dauern.":
+    "Because the planner knows its schedule in advance, there is no offset. Only what no schedule foresees – the party button, an override rule that takes effect – is added afterwards, and that can take one cycle.",
+  "Solange die Übernahme steht, sind die Schaltzeiten im Anlagenmanager ausgeblendet. Der Knopf „Übernahme aufheben“ dort gibt sie jederzeit zurück – der Planer schreibt dann den vorgefundenen Wochenplan zurück, schaltet sich ab und meldet es im Protokoll.":
+    "While the takeover is in place, the switching times are hidden in the system manager. The “Release takeover” button there hands them back at any time – the planner then writes back the weekly program it found, switches itself off and says so in the log.",
   "Adresse des Anlagenmanagers": "Address of the system manager",
   "Leer lassen: Der Planer findet das Add-on von selbst. Nur eintragen, wenn der Anlagenmanager woanders läuft.":
     "Leave empty: the planner finds the add-on by itself. Only fill this in if the system manager runs elsewhere.",
@@ -342,6 +344,7 @@ window.SPRACHEN.en = {
   "wartet": "waiting",
   "Anlagenmanager nicht erreichbar": "System manager not reachable",
   "Trockenlauf – nicht gestellt": "Dry run – not set",
+  "heute verlängert": "extended today",
   "Öltank": "Oil tank",
   "Füllstand": "Tank level",
   "Wird geladen …": "Loading …",
@@ -485,8 +488,9 @@ window.SPRACHEN.en = {
   [/^(\d+) Melder$/, "$1 sensors"],
   [/^(\d+) Kontakt(e)?$/, "$1 window contact$2"],
   [/^Parameter (\d+)$/, "Parameter $1"],
-  [/^Übernommen: Parameter (\d+) steht auf „(.+)“\.$/,
-   "Taken over: parameter $1 is set to “$2”."],
+  [/^Übernommen: (.+), heute (.+)\.$/, "Taken over: $1, today $2."],
+  [/^Komfort bis (\d\d:\d\d) Uhr$/, "comfort until $1"],
+  [/^Reduziert bis (\d\d:\d\d) Uhr$/, "reduced until $1"],
   [/^Der Heizungsanlagenmanager antwortet gerade nicht: (.*)$/,
    "The heating system manager is not answering right now: $1"],
   ],

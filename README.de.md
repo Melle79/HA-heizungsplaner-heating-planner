@@ -60,12 +60,14 @@ komfort um 12:30 Uhr (50 Minuten Vorlauf) · Heizkurve +0,6 K“.
   Wohnzimmer auf Komfort, statt es vormittags abzusenken. Als Bedingung taugt
   alles, was an oder aus sein kann – Schalter, Melder, Kalender und Personen.
 
-* **Kesselregelung** *(optional, ab Werk aus)* – der Planer kann auch die
-  Programmwahl der Heizungsregelung stellen, damit die Anlage nicht mehr ihr
-  eigenes Zeitprogramm gegen den Plan fährt: Nenn, sobald ein Raum Komfort
-  will, Reduziert, wenn alle abgesenkt sind, Sommer im Sommerbetrieb. Braucht
-  das Add-on *Heizungsanlagenmanager*. Wer die Übernahme dort aufhebt, behält
-  sie aufgehoben – der Planer meldet sich nicht von selbst neu an.
+* **Kesselregelung** *(optional, ab Werk aus)* – der Planer kann das
+  Wochenprogramm der Heizungsregelung mitführen, damit die Anlage nicht mehr
+  ihr eigenes Zeitprogramm gegen den Plan fährt. Geschrieben wird die
+  Hüllkurve aller Komfortzeiten über alle Räume; weil der Planer seinen Plan
+  im Voraus kennt, entsteht dabei kein Versatz. Braucht das Add-on
+  *Heizungsanlagenmanager*. Wer die Übernahme dort aufhebt, behält sie
+  aufgehoben – der Planer schreibt den vorgefundenen Plan zurück und meldet
+  sich nicht von selbst neu an.
 
 * **Öltank** *(optional, ab Werk aus)* – Restmenge, Tagesverbrauch,
   Reichweite und eine Leckagewache. Der Füllstand kommt ohne Sensor im Tank
@@ -161,7 +163,7 @@ Die ausführliche Anleitung steht in [DOCS.md](heizungsplaner/DOCS.md).
 | `switch.heizungsplaner_party` | Partytaste, mit Restzeit als Attribut |
 | `binary_sensor.heizungsplaner_stoerung` | ein Thermostat meldet sich nicht mehr; Meldungen nach Schwere getrennt als Attribute |
 | `sensor.heizungsplaner_stoerungen` | Zahl der ausgefallenen Thermostate |
-| `sensor.heizungsplaner_kessel` | Betriebsart der Regelung, solange die Kesselregelung läuft |
+| `sensor.heizungsplaner_kessel` | was die Regelung gerade fährt, solange die Kesselregelung läuft |
 
 ## Karten fürs Dashboard
 

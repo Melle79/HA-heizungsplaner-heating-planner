@@ -583,86 +583,110 @@ This part, too, is **off by default**, and deliberately so: it reaches through
 a second add-on into the heating controller itself.
 
 The planner sets radiator valves – but a valve can only distribute what the
-boiler delivers. If the controller runs its own time program, the two work
-against each other: the planner preheats at half past five while the boiler is
-still setting back, and at ten in the evening the boiler keeps flow
+boiler delivers. If the controller runs its own weekly program, the two work
+against each other: the planner preheats at half past five while the
+controller is still setting back, and at ten in the evening it keeps flow
 temperature ready that no room wants any more. You do not notice that on the
 thermometer, you notice it on the oil bill.
 
 ### What it needs
 
-The **Heizungsanlagenmanager** add-on, connected to the controller (over
-BSB-LAN for a Siemens Albatros controller). There, the parameter catalogue has
-to be built once and setting has to be released under *Settings* – both are
-off by default there as well.
+The **Heizungsanlagenmanager** add-on from version 1.16.0, connected to the
+controller (over BSB-LAN for a Siemens Albatros controller). There, the
+parameter catalogue has to be built once and setting has to be released under
+*Settings* – both are off by default there as well.
 
 After that a single tick under *Settings → Boiler control* is enough in the
-planner. Leave the address empty: when it starts, the system manager announces
-over MQTT under which name it can be reached, and the planner listens for
-that. The name could not be guessed – it carries the hash of the repository
-the add-on came from. This needs at least version 1.16.0 over there.
+planner. Leave the address empty: the system manager announces over MQTT under
+which name it can be reached.
 
-### What the planner sets
+### Why the switching times and not the operating mode
 
-Exactly **one** parameter: the program selection. What goes into it follows
-from what the planner has decided for the rooms anyway:
+The obvious approach would be to tell the controller “nominal mode now”. On
+many systems that does **not** work: the operating mode of a Siemens Albatros
+controller belongs to the switch on the device. It can be set over the bus,
+the controller even acknowledges it – and restores its own state minutes
+later.
 
-| Situation in the house | Program selection |
-|---|---|
-| any room at comfort, party or coming home | **nominal** |
-| setback values only – eco, night, away, holiday | **reduced** |
-| the planner is in summer mode | **summer** |
-| no room is being controlled (all off, blocked, window open) | **standby** |
+The **switching times**, by contrast, stay put. And they are the better lever
+anyway: the weekly program switches between the **comfort** and **reduced**
+setpoints, not between on and off. Outside the phases the system keeps
+heating, just more weakly – exactly the distinction the planner makes for
+every room.
 
-“Standby” is not “off”: the controller's frost protection stays active below
-it, and domestic hot water hangs on a separate parameter that the planner does
-not touch.
+### What the planner writes
 
-A room in the **“setback only”** mode counts as comfort. The planner does not
-know the value a hand has set there – and too little flow temperature is a
-cold flat, while too much is only a little oil.
+The **envelope**: the union of all comfort periods across all rooms, per
+weekday.
 
-Writing happens **on edges**: if the operating mode is already right, no
-telegram goes over the bus. With the automatic switched off and during a dry
-run the planner leaves the boiler alone, just as it leaves the thermostats
-alone.
+If the bathroom wants to be warm at 5:30 and the office only at 6:00, the
+phase starts at 5:30 – the boiler delivers one flow temperature for the whole
+house, and the valves do the distributing. And where *no* room wants comfort
+any more, the controller sets back instead of standing ready.
 
-### When the controller does not accept the value
+Because the planner knows its schedule in advance, there is **no offset**: the
+controller switches to the minute with it. Writing is rare – only when the
+schedule actually changes.
 
-**Not every controller lets its operating mode be set from the bus.** On a
-Siemens Albatros controller, for instance, it belongs to the switch on the
-device: the telegram is accepted and even acknowledged, and minutes later the
-old value is back.
+Three things do **not** enter the envelope:
 
-The planner therefore checks. If the value springs back three times, it gives
-up the control, hands the takeover back and writes what it found into the log
-and onto the tile. That is deliberate: a planner that keeps writing against
-the system only produces bus telegrams – and one that quietly displays
-“nominal” while the system runs its own program would be worse than none.
+* Rooms that are switched off.
+* Rooms in **“setback only”** mode – the planner does not know when somebody
+  wants those warm; it would otherwise stretch the envelope across the whole
+  day.
+* **Override rules and the party button.** Their conditions cannot be
+  predicted. They are added once they take effect – and *this* is where the
+  only offset of the method arises: up to one cycle.
 
-What remains in that case is setting the **setpoints** instead of the
-operating mode. Most such controllers do accept those.
+For days whose day type is not settled yet – nobody knows today whether the
+week after next is a school holiday – the planner computes **both** cases and
+merges them. The system then stands ready too early rather than too late; on
+the day itself the planner writes the correct state over it.
+
+A controller holds **three phases per day**. If more accumulate, the blocks
+with the *smallest* gap are merged: joining two blocks twenty minutes apart
+costs twenty minutes of comfort operation, while the five-hour lunch break is
+preserved.
+
+### The write brake
+
+Weekly programs live in the controller's non-volatile memory, which has a
+finite number of write cycles. One schedule in the morning and a few additions
+during the day are nowhere near it. The danger would be a fault – two rules
+switching each other, say – that made the planner write on every cycle.
+
+So it counts: **at most a dozen changes per weekday and day.** Beyond that it
+reports instead of writing, and the next day things carry on normally.
 
 ### Who has the last word
 
-While the takeover is in place the parameter is hidden in the system manager –
-nobody can set it against the planner there by accident. The **“Release
-takeover”** button hands it back at any time.
+While the takeover is in place, the switching times are hidden in the system
+manager – nobody can set them against the planner there by accident. The
+**“Release takeover”** button hands them back at any time.
 
 And then it stays that way. The planner does **not** register again quietly:
-it switches the boiler control off by itself, writes it into the log and waits
-until somebody ticks the box here again. A button that a program overrides two
-minutes later would be a sham.
+it writes back the weekly program it found, switches boiler control off and
+notes it in the log. The same happens when the tick here is switched off.
 
-If another add-on already holds the program selection, the planner leaves it
-alone and says in the overview who holds it.
+The program found there is saved **before** the first registration – afterwards
+it would be too late, because the planner's own would be in it. If that memory
+is lost, after a reinstallation for instance, the planner says so: it carries
+on, but points out that there is no way back any more.
+
+### When the controller does not keep the times
+
+Here, too, it checks rather than trusts. If the system accepts the switching
+times and then restores its own, the planner gives up after three attempts,
+writes back and reports it – instead of writing against the system and
+displaying something that is not true.
 
 ### What you see of it
 
-The overview carries a **Boiler** tile with the operating mode in plain words.
-The same information is available as `sensor.heizungsplaner_kessel` – with the
-parameter number, the raw value and any note as attributes. The entity only
-appears while the control is switched on.
+The overview carries a **Boiler** tile: “comfort until 22:00” or “reduced
+until 17:00”, with today's switching times below. The same information is
+available as `sensor.heizungsplaner_kessel` – with the weekly program, today's
+times and any note as attributes. The entity only appears while the control is
+switched on.
 
 If the system manager does not answer – during its own restart, say – the tile
 says so and the cycle carries on. The rooms have long been set by then.

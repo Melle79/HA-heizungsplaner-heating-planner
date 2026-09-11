@@ -463,29 +463,83 @@ TEXTE: dict[str, dict[str, str]] = {
 
     # Kesselregelung
     "kessel_hinweis": {
-        "de": "Der Heizungsplaner führt die Programmwahl nach dem Wärmebedarf "
+        "de": "Der Heizungsplaner führt das Wochenprogramm nach den Zeitplänen "
               "der Räume.",
-        "en": "The heating planner sets the program selection according to the "
-              "rooms' demand for heat."},
-    "kessel_wahl_nenn": {"de": "Nennbetrieb", "en": "nominal"},
-    "kessel_wahl_reduziert": {"de": "Reduziert", "en": "reduced"},
-    "kessel_wahl_sommer": {"de": "Sommerbetrieb", "en": "summer"},
-    "kessel_wahl_standby": {"de": "Standby", "en": "standby"},
-    "kessel_gestellt": {"de": "Kessel auf {wahl}", "en": "Boiler to {wahl}"},
+        "en": "The heating planner sets the weekly program from the rooms' "
+              "schedules."},
+    "kessel_komfort_bis": {"de": "Komfort bis {uhrzeit} Uhr",
+                           "en": "comfort until {uhrzeit}"},
+    "kessel_reduziert_bis": {"de": "Reduziert bis {uhrzeit} Uhr",
+                             "en": "reduced until {uhrzeit}"},
+    "kessel_reduziert": {"de": "Reduziert", "en": "reduced"},
+    "kessel_gestellt": {"de": "Wochenprogramm: {anzahl} Tage gestellt",
+                        "en": "Weekly program: {anzahl} days set"},
     "kessel_gestellt_warum": {
-        "de": "Die Programmwahl der Regelung steht jetzt auf {wahl} – so weit "
-              "reicht der Wärmebedarf der Räume.",
-        "en": "The controller's program selection is now {wahl} – that is as "
-              "far as the rooms' demand for heat goes."},
-    "kessel_freigegeben": {"de": "Kessel wieder freigegeben",
-                           "en": "Boiler released again"},
+        "de": "Die Heizungsregelung fährt heute Komfort in {plan} – so weit "
+              "reichen die Zeitpläne der Räume.",
+        "en": "The controller runs comfort today during {plan} – that is as "
+              "far as the rooms' schedules go."},
+    "kessel_freigegeben": {"de": "Kesselregelung wieder freigegeben",
+                           "en": "Boiler control released again"},
     "kessel_freigegeben_warum": {
         "de": "Die Übernahme wurde im Heizungsanlagenmanager aufgehoben. Der "
-              "Planer stellt die Programmwahl nicht mehr; einschalten lässt "
-              "sie sich hier unter Einstellungen.",
+              "vorgefundene Wochenplan ist zurückgeschrieben; einschalten "
+              "lässt sich die Führung hier unter Einstellungen.",
         "en": "The takeover was released in the heating system manager. The "
-              "planner no longer sets the program selection; you can switch "
-              "it on again here under Settings."},
+              "weekly program found there has been written back; the control "
+              "can be switched on again here under Settings."},
+    "kessel_verworfen": {"de": "Kesselregelung aufgegeben",
+                         "en": "Boiler control given up"},
+    "kessel_verworfen_warum": {
+        "de": "Die Heizungsregelung behält die Schaltzeiten nicht: Geschrieben "
+              "war {soll}, kurz darauf stand wieder {ist} da. Der vorgefundene "
+              "Wochenplan ist zurückgeschrieben, die Führung abgeschaltet.",
+        "en": "The controller does not keep the switching times: {soll} was "
+              "written, and shortly after it read {ist} again. The weekly "
+              "program found there has been written back and the control "
+              "switched off."},
+    "kessel_kein_original": {"de": "Ursprünglicher Wochenplan unbekannt",
+                             "en": "Original weekly program unknown"},
+    "kessel_kein_original_warum": {
+        "de": "Der Planer hat den Wochenplan übernommen, bevor sein Gedächtnis "
+              "verloren ging – der Stand von vorher ist nicht mehr bekannt. "
+              "Beim Abschalten bleiben die Schaltzeiten deshalb so, wie er sie "
+              "zuletzt gesetzt hat. Wer den alten Plan zurückwill, trägt ihn "
+              "im Heizungsanlagenmanager von Hand ein.",
+        "en": "The planner took the weekly program over before its memory was "
+              "lost – the earlier state is no longer known. When switched off, "
+              "the switching times therefore stay as it last set them. To get "
+              "the old program back, enter it by hand in the heating system "
+              "manager."},
+    "kessel_kein_programm": {
+        "de": "Der Heizungsanlagenmanager findet in dieser Regelung kein "
+              "Wochenprogramm zur laufenden Programmwahl. Erst den "
+              "Parameterkatalog aufbauen.",
+        "en": "The heating system manager finds no weekly program for the "
+              "current program selection. Build the parameter catalogue "
+              "first."},
+    "kessel_unvollstaendig": {
+        "de": "Der Wochenplan der Regelung ist noch nicht vollständig "
+              "eingelesen. Der Planer wartet damit, statt ihn auf halber "
+              "Kenntnis zu überschreiben.",
+        "en": "The controller's weekly program has not been read completely "
+              "yet. The planner waits rather than overwrite it on partial "
+              "knowledge."},
+    "kessel_gebremst": {
+        "de": "Heute wurde schon {grenze}-mal umgeschrieben – weitere "
+              "Änderungen warten bis morgen. Das schützt den Speicher der "
+              "Regelung vor einer Regel, die im Kreis schaltet.",
+        "en": "The program has already been rewritten {grenze} times today – "
+              "further changes wait until tomorrow. This protects the "
+              "controller's memory from a rule that switches in circles."},
+    "kessel_gesperrt": {
+        "de": "Der Heizungsanlagenmanager lässt das Stellen noch nicht zu. "
+              "Dort unter Einstellungen freigeben.",
+        "en": "The heating system manager does not permit setting yet. "
+              "Release it there under Settings."},
+    "kessel_fremd": {
+        "de": "Das Wochenprogramm wird bereits von {quelle} geführt.",
+        "en": "The weekly program is already held by {quelle}."},
     "kessel_nicht_gefunden": {
         "de": "Der Heizungsanlagenmanager hat sich noch nicht gemeldet. Er "
               "sagt seine Anschrift beim Start über MQTT an – einmal starten "
@@ -493,31 +547,4 @@ TEXTE: dict[str, dict[str, str]] = {
         "en": "The heating system manager has not announced itself yet. It "
               "publishes its address over MQTT when it starts – starting it "
               "once is enough. If it runs elsewhere, enter the address here."},
-    "kessel_verworfen": {"de": "Kesselregelung aufgegeben",
-                         "en": "Boiler control given up"},
-    "kessel_verworfen_warum": {
-        "de": "Die Heizungsregelung nimmt die Programmwahl nicht vom Bus an: "
-              "Gestellt war {soll}, kurz darauf stand wieder {ist}. Bei vielen "
-              "Reglern gehört die Betriebsart dem Schalter am Gerät. Die "
-              "Kesselregelung ist deshalb abgeschaltet.",
-        "en": "The controller does not accept the program selection from the "
-              "bus: {soll} was set, and shortly after it read {ist} again. On "
-              "many controllers the operating mode belongs to the switch on "
-              "the device. Boiler control has therefore been switched off."},
-    "kessel_keine_wahl": {
-        "de": "Der Heizungsanlagenmanager hat in dieser Regelung keine "
-              "Programmwahl gefunden. Erst den Parameterkatalog aufbauen.",
-        "en": "The heating system manager found no program selection in this "
-              "controller. Build the parameter catalogue first."},
-    "kessel_unbekannt": {
-        "de": "Diese Regelung kennt keinen passenden Wert für {wahl}.",
-        "en": "This controller has no matching value for {wahl}."},
-    "kessel_gesperrt": {
-        "de": "Der Heizungsanlagenmanager lässt das Stellen noch nicht zu. "
-              "Dort unter Einstellungen freigeben.",
-        "en": "The heating system manager does not permit setting yet. "
-              "Release it there under Settings."},
-    "kessel_fremd": {
-        "de": "Die Programmwahl wird bereits von {quelle} geführt.",
-        "en": "The program selection is already held by {quelle}."},
 }

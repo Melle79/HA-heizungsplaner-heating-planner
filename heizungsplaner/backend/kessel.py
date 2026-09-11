@@ -1,32 +1,45 @@
-"""Die Kesselregelung dem Raumbedarf folgen lassen.
+"""Die Heizungsregelung dem Plan des Hauses folgen lassen.
 
 Der Planer stellt Thermostatventile – aber ein Ventil kann nur verteilen, was
-der Kessel liefert. Läuft dessen Regelung nach eigenem Zeitprogramm, arbeiten
-beide gegeneinander: Der Planer heizt morgens vor, während der Kessel noch
-absenkt, und abends hält der Kessel Vorlauf bereit, den kein Raum mehr will.
+der Kessel liefert. Läuft dessen Regelung nach eigenem Wochenprogramm,
+arbeiten beide gegeneinander: Der Planer heizt morgens um halb sechs vor,
+während die Regelung noch absenkt, und abends um zehn hält sie Vorlauf
+bereit, den kein Raum mehr will. Man merkt das nicht am Thermometer, sondern
+am Ölverbrauch.
 
-Dieses Modul löst die Doppelung auf. Es führt genau **einen** Parameter der
-Regelung – die Programmwahl – und leitet ihn aus dem ab, was der Planer
-ohnehin für jeden Raum entschieden hat:
+Dieses Modul löst die Doppelung auf – und zwar über die **Schaltzeiten**,
+nicht über die Betriebsart. Das hat einen handfesten Grund: Die Betriebsart
+eines Siemens-Albatros-Reglers gehört dem Schalter am Gerät. Sie lässt sich
+über den Bus setzen, der Regler quittiert das sogar – und stellt Minuten
+später seinen eigenen Stand wieder her. Schaltzeiten dagegen bleiben stehen.
 
-* irgendein Raum auf Komfortniveau  → **Nenn**
-* nur Sparwerte, aber Wärmebedarf   → **Reduziert**
-* Sommerbetrieb des Planers         → **Sommer**
-* kein Raum verlangt Wärme          → **Standby**
+Der Planer schreibt also das Wochenprogramm, das die Regelung ohnehin fährt.
+Darin schaltet sie zwischen **Komfort-** und **Reduziertsollwert** um, nicht
+zwischen ein und aus; außerhalb der Phasen heizt sie weiter, nur schwächer.
+Das ist genau die Unterscheidung, die der Planer für jeden Raum trifft. Die
+Vereinigung aller Komfortzeiten – die Hüllkurve, gerechnet in
+``huellkurve.py`` – ist das, was hineingeschrieben wird.
+
+Weil der Planer seinen Plan im Voraus kennt, entsteht dabei **kein Versatz**:
+Die Regelung schaltet auf die Minute mit ihm. Nur was kein Zeitplan
+vorhersieht – die Partytaste, eine greifende Übersteuerungsregel – wird
+nachgetragen, und dort kann es eine Taktlänge dauern.
 
 Gesprochen wird mit dem Add-on *Heizungsanlagenmanager* über dessen
-Übernahme-Schnittstelle. Zwei Dinge macht sie richtig, und daran hält sich
-dieses Modul:
+Übernahme-Schnittstelle. Drei Dinge macht dieses Modul dabei zur Bedingung:
 
 * **Ohne Anmeldung ändert sich nichts.** Ab Werk ist hier nichts eingerichtet.
 * **Der Mensch davor behält das letzte Wort.** Hebt jemand die Übernahme dort
-  auf, meldet sich der Planer *nicht* stillschweigend neu an. Ein Knopf, den
-  ein Programm sofort wieder aushebelt, wäre eine Attrappe.
+  auf, meldet sich der Planer *nicht* stillschweigend neu an, und er schreibt
+  den vorgefundenen Wochenplan zurück. Ein Knopf, den ein Programm sofort
+  wieder aushebelt, wäre eine Attrappe.
+* **Es wird nachgesehen, ob das Geschriebene hält.** Auf Flanke zu schreiben
+  genügt nicht, wenn die Gegenseite den Wert stillschweigend verwirft.
 
-Geschrieben wird auf Flanke, wie überall im Planer: Der zuletzt gestellte Wert
-steht im Laufzeitzustand, und solange die Regelung ihn führt, geht kein Befehl
-über den Bus. Ein Heizkreis, der alle fünf Minuten dieselbe Betriebsart
-zugerufen bekommt, hat nichts davon außer Bustelegrammen.
+Wochenprogramme liegen im nichtflüchtigen Speicher des Reglers, und der hat
+endlich viele Schreibzyklen. Einmal am Tag je Wochentag ist davon weit
+entfernt; ein Fehler, der zwei Regeln gegeneinander schalten lässt, wäre es
+nicht. Darum die Tagesgrenze in ``SCHREIBGRENZE``.
 """
 from __future__ import annotations
 
@@ -34,9 +47,12 @@ import json
 import logging
 import urllib.error
 import urllib.request
+from datetime import datetime
 
+import huellkurve
 import store
 import texte
+import zeitplan
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,17 +63,15 @@ QUELLE = "heizungsplaner"
 # Verwalterrechten heraus, und die braucht ein Heizungsplaner nicht.
 _gefunden = ""
 
-# Welcher Raumzustand wie viel Wärme verlangt.
-#
-# Die Zustandsnamen sind hier mit Bedacht einzeln aufgeführt und nicht über
-# den Sollwert erraten: Ein Raum auf 20 °C kann im Komfortbetrieb stehen oder
-# per Hand so eingestellt sein, und beides heißt für den Kessel etwas anderes.
+# Zustände, in denen ein Raum wirklich Komfort verlangt – also mehr, als der
+# Reduziertsollwert der Regelung hergibt. Sie lösen eine Erweiterung des
+# laufenden Fensters aus, wenn der Wochenplan sie nicht schon abdeckt.
 #
 # Eine Falle steckt in „uebersteuert“: Diesen Zustand vergibt `regelung.py`
 # **nur**, wenn eine Übersteuerungsregel auf „aus“ steht. Greift eine Regel
-# mit Komfort oder Absenkung, trägt der Raum den Namen des Modus („komfort“,
-# „eco“, „nacht“). „uebersteuert“ gehört deshalb zu den geschlossenen Räumen,
-# nicht zu den warmen – genau andersherum, als der Name vermuten lässt.
+# mit Komfort, trägt der Raum den Namen des Modus („komfort“). „uebersteuert“
+# gehört deshalb zu den geschlossenen Räumen, nicht zu den warmen – genau
+# andersherum, als der Name vermuten lässt.
 KOMFORT_ZUSTAENDE = frozenset({
     "komfort",     # Zeitplan oder eine Regel verlangt Komfort
     "party",       # Partytaste
@@ -66,25 +80,18 @@ KOMFORT_ZUSTAENDE = frozenset({
                    # gehen auf die sichere Seite – zu wenig Vorlauf ist eine
                    # kalte Wohnung, zu viel nur ein bisschen Öl.
 })
-SPAR_ZUSTAENDE = frozenset({
-    "eco", "nacht",   # geplante Absenkung
-    "abwesend",       # niemand da, aber der Raum wird gehalten
-    "absenkung",      # „nur absenken“: der planmäßige Eingriff
-    "urlaub",         # Urlaubstemperatur – niedrig, aber sie will Vorlauf
-})
-# Alles Übrige – aus, gesperrt, fenster, sommer, uebersteuert – verlangt
-# nichts. Fehlt ein Zustand in beiden Listen, zählt er ebenso als kein Bedarf;
-# neu hinzukommende Sonderzustände sind im Planer immer Abschaltungen gewesen.
 
-# Was in der Programmwahl steht, hängt an der Regelung. Erkannt wird über den
-# Text der Auswahl, nicht über die Zahl: Die Nummern unterscheiden sich
-# zwischen BSB, LPB und PPS, die Bezeichnungen der Siemens-Regler nicht.
-WAHL_WORTE = {
-    "nenn": ("nenn", "komfort", "comfort", "dauerbetrieb"),
-    "reduziert": ("reduziert", "reduced", "spar"),
-    "sommer": ("sommer", "summer"),
-    "standby": ("standby", "schutz", "frost"),
-}
+# So oft darf der Planer einen Wochentag an einem Tag neu schreiben. Die
+# Grenze ist kein Sparzwang, sondern eine Bremse: Zwei Regeln, die einander
+# umschalten, schrieben sonst im Takt des Planers in den Speicher des
+# Reglers. Ein Dutzend deckt jeden gewollten Fall ab – Plan am Morgen,
+# Partytaste, eine Regel, die kommt und geht.
+SCHREIBGRENZE = 12
+
+# So oft darf ein Wert zurückspringen, bevor der Planer die Führung aufgibt.
+# Einmal kann ein Lesefehler sein oder ein Telegramm, das sich mit dem
+# Lesezyklus überschnitten hat. Dreimal ist eine Antwort.
+VERWORFEN_GRENZE = 3
 
 
 class Abgelehnt(Exception):
@@ -143,76 +150,135 @@ def basis(einstellungen: dict) -> str | None:
     return _gefunden or None
 
 
-def gewuenschte_wahl(bericht: dict) -> str:
-    """Welche Betriebsart die Regelung fahren soll – aus dem Raumbedarf.
+def bedarf_bis(bericht: dict) -> int | None:
+    """Bis wann ein Raum Komfort verlangt, den kein Wochenplan vorhersieht.
 
-    Der Sommerbetrieb des Planers hat Vorrang: Sind die Ventile ohnehin zu,
-    muss der Kessel für die Heizung nicht bereitstehen. Das Warmwasser bleibt
-    davon unberührt, es hängt an einem eigenen Parameter.
+    Zurück kommt die Minute des Tages, oder ``None``, wenn niemand etwas
+    Außerplanmäßiges will. Maßgeblich ist der späteste anstehende Wechsel
+    unter den Räumen, die gerade Komfort fahren – bei der Partytaste also ihr
+    Ende, bei einer Übersteuerungsregel das Ende ihres Zeitfensters.
+
+    Findet sich kein Zeitpunkt, wird eine Stunde angesetzt. Das ist keine
+    Schätzung des Bedarfs, sondern eine Frist: Beim nächsten Takt wird ohnehin
+    neu gerechnet, und ein Fenster, das zu kurz war, wächst dann weiter.
     """
-    if bericht.get("sommerbetrieb"):
-        return "sommer"
+    spaeteste = None
+    for raum in bericht.get("raeume") or []:
+        if raum.get("zustand") not in KOMFORT_ZUSTAENDE:
+            continue
+        wechsel = raum.get("naechster_wechsel")
+        minute = None
+        if wechsel:
+            try:
+                zeit = datetime.fromisoformat(str(wechsel))
+                minute = zeit.hour * 60 + zeit.minute
+                if zeit.date() != _jetzt_datum(bericht):
+                    minute = 24 * 60      # reicht über den Tag hinaus
+            except ValueError:
+                minute = None
+        if minute is None:
+            minute = _jetzt_minute(bericht) + 60
+        spaeteste = minute if spaeteste is None else max(spaeteste, minute)
+    return spaeteste
 
-    zustaende = {r.get("zustand") for r in bericht.get("raeume") or []}
-    if zustaende & KOMFORT_ZUSTAENDE:
-        return "nenn"
-    if zustaende & SPAR_ZUSTAENDE:
-        return "reduziert"
-    # Alle Räume abgeschaltet, gesperrt oder am offenen Fenster. Standby ist
-    # nicht „aus“: Der Frostschutz der Regelung bleibt darunter aktiv.
-    return "standby"
+
+def _jetzt(bericht: dict) -> datetime:
+    try:
+        return datetime.fromisoformat(str(bericht.get("zeit")))
+    except (TypeError, ValueError):
+        return datetime.now()
 
 
-def wert_zu(wahl: str, auswahl: list[dict]) -> str | None:
-    """Den Zahlenwert finden, den diese Regelung für die Betriebsart führt."""
-    worte = WAHL_WORTE.get(wahl) or ()
-    for eintrag in auswahl or []:
-        text = str(eintrag.get("text") or "").strip().lower()
-        if any(text.startswith(wort) for wort in worte):
-            return str(eintrag.get("wert"))
-    return None
+def _jetzt_datum(bericht: dict):
+    return _jetzt(bericht).date()
+
+
+def _jetzt_minute(bericht: dict) -> int:
+    jetzt = _jetzt(bericht)
+    return jetzt.hour * 60 + jetzt.minute
+
+
+def _tagesart(bericht: dict):
+    """Welche Tagesart für welchen Tag gilt.
+
+    Für **heute** weiß der Planer es: Die Schalter für schulfrei und
+    Arbeitstag stehen im Bericht. Für jeden anderen Tag weiß er es nicht –
+    Ferien beginnen, Feiertage fallen an –, und dann kommt ``None`` zurück.
+    Die Hüllkurve rechnet solche Tage beidseitig und steht lieber zu früh
+    bereit als zu spät; am Tag selbst schreibt der Planer den richtigen Stand
+    darüber.
+    """
+    heute = _jetzt_datum(bericht)
+    schulfrei = bericht.get("schulfrei")
+    arbeitstag = bericht.get("arbeitstag")
+
+    def fuer(tag):
+        if tag.date() == heute:
+            return schulfrei, arbeitstag
+        return None, None
+    return fuer
 
 
 def lage(einstellungen: dict) -> dict:
-    """Was der Anlagenmanager gerade meldet – und wer die Programmwahl führt."""
+    """Was der Anlagenmanager meldet: Programm, Parameter und was darin steht."""
     adresse = basis(einstellungen)
     if not adresse:
         return {"erreichbar": False, "fehler": texte.t("kessel_nicht_gefunden")}
     try:
         katalog = _json("GET", f"{adresse}/api/katalog")
         uebernahme = _json("GET", f"{adresse}/api/uebernahme")
+        werte = _json("GET", f"{adresse}/api/werte")
     except (Abgelehnt, urllib.error.URLError, OSError, ValueError) as fehler:
         return {"erreichbar": False, "fehler": str(fehler)}
+    werte = werte.get("werte") or werte
 
+    # Welches der Wochenprogramme fährt die Regelung gerade? Das sagt die
+    # Programmwahl – der einzige Parameter, den dieses Modul noch liest. Sie
+    # zu *stellen* haben wir aufgegeben; sie zu lesen ist die Voraussetzung
+    # dafür, das richtige Programm zu beschreiben.
     wahl = katalog.get("programmwahl") or {}
-    nr = str(wahl.get("nr") or "")
-    fuehrt = (uebernahme.get("parameter") or {}).get(nr)
+    ist_wahl = str((werte.get(str(wahl.get("nr") or "")) or {}).get("value") or "")
+    nummer = next((p for p, w in (wahl.get("zu") or {}).items() if w == ist_wahl), None)
 
-    # Was in der Regelung *wirklich* steht. Ohne diesen Blick wüsste der
-    # Planer nur, dass sein Telegramm angenommen wurde – nicht, ob der Wert
-    # danach noch da ist.
-    ist = None
-    try:
-        werte = _json("GET", f"{adresse}/api/werte")
-        eintrag = (werte.get("werte") or werte).get(nr) or {}
-        if not eintrag.get("error"):
-            ist = str(eintrag.get("value"))
-    except (Abgelehnt, urllib.error.URLError, OSError, ValueError):
-        pass
+    programme = katalog.get("zeitprogramme") or {}
+    programm = programme.get(str(nummer)) if nummer else None
+    if not programm:
+        return {"erreichbar": True, "fehler": texte.t("kessel_kein_programm")}
+
+    tage = list(programm.get("tage") or [])
+    if len(tage) != 7:
+        return {"erreichbar": True, "fehler": texte.t("kessel_kein_programm")}
+
+    # Die Parameter stehen in der Reihenfolge Montag … Sonntag.
+    zuordnung = dict(zip(zeitplan.TAGE, (str(t) for t in tage)))
+    inhalt, fehlend = {}, []
+    for tag, nr in zuordnung.items():
+        eintrag = werte.get(nr) or {}
+        if eintrag.get("error") or eintrag.get("value") in (None, ""):
+            fehlend.append(nr)
+        else:
+            inhalt[tag] = str(eintrag["value"])
+
+    gefuehrt = uebernahme.get("parameter") or {}
+    meine = [nr for nr in zuordnung.values()
+             if (gefuehrt.get(nr) or {}).get("quelle") == QUELLE]
+    fremde = {nr: e.get("name") for nr, e in gefuehrt.items()
+              if nr in set(zuordnung.values()) and e.get("quelle") != QUELLE}
+
     return {
         "erreichbar": True,
-        "parameter": nr,
-        "ist": ist,
-        "name": wahl.get("name") or "",
-        "auswahl": wahl.get("werte") or [],
-        "schreibbar": bool(wahl.get("schreibbar")),
-        "uebernommen": bool(fuehrt) and fuehrt.get("quelle") == QUELLE,
-        "fremd": (fuehrt or {}).get("name") if fuehrt
-                 and fuehrt.get("quelle") != QUELLE else None,
+        "programm": str(nummer),
+        "name": programm.get("name") or "",
+        "parameter": zuordnung,
+        "inhalt": inhalt,
+        "fehlend": fehlend,
+        "uebernommen": len(meine) == 7,
+        "teilweise": 0 < len(meine) < 7,
+        "fremd": next(iter(fremde.values()), None) if fremde else None,
     }
 
 
-def anmelden(einstellungen: dict, parameter: str) -> bool:
+def anmelden(einstellungen: dict, parameter: list[str]) -> bool:
     adresse = basis(einstellungen)
     if not adresse:
         return False
@@ -221,9 +287,9 @@ def anmelden(einstellungen: dict, parameter: str) -> bool:
             "quelle": QUELLE,
             "name": "Heizungsplaner",
             "hinweis": texte.t("kessel_hinweis"),
-            "parameter": [parameter],
+            "parameter": list(parameter),
         })
-        _LOGGER.info("Programmwahl %s übernommen", parameter)
+        _LOGGER.info("Wochenprogramm übernommen: %s", ", ".join(parameter))
         return True
     except (Abgelehnt, urllib.error.URLError, OSError, ValueError) as fehler:
         _LOGGER.warning("Übernahme fehlgeschlagen: %s", fehler)
@@ -231,11 +297,11 @@ def anmelden(einstellungen: dict, parameter: str) -> bool:
 
 
 def abmelden(einstellungen: dict) -> bool:
-    """Die Programmwahl zurückgeben – beim Abschalten der Kesselführung.
+    """Die Übernahme zurückgeben.
 
-    Ohne diesen Schritt bliebe der Parameter im Anlagenmanager ausgeblendet,
-    obwohl ihn niemand mehr führt: eine Kachel, die für immer verschwunden
-    ist, weil ein Schalter woanders umgelegt wurde.
+    Ohne diesen Schritt bliebe der Wochenplan im Anlagenmanager ausgeblendet,
+    obwohl ihn niemand mehr führt: sieben Kacheln, die für immer verschwunden
+    sind, weil ein Schalter woanders umgelegt wurde.
     """
     adresse = basis(einstellungen)
     if not adresse:
@@ -248,53 +314,106 @@ def abmelden(einstellungen: dict) -> bool:
         return False
 
 
-# So oft darf ein Wert zurückspringen, bevor der Planer die Führung aufgibt.
-# Einmal kann ein Lesefehler sein oder ein Telegramm, das sich mit dem
-# Lesezyklus überschnitten hat. Dreimal ist eine Antwort.
-VERWORFEN_GRENZE = 3
+def schreiben(einstellungen: dict, nr: str, text: str) -> None:
+    """Einen Wochentag stellen. Wirft ``Abgelehnt``, wenn die Anlage nein sagt."""
+    _json("POST", f"{basis(einstellungen)}/api/setzen",
+          {"nr": nr, "wert": text, "quelle": QUELLE})
 
 
-def _verworfen(merker: dict, wert: str, ist: str | None, einstellungen: dict,
-               ergebnis: dict, protokoll):
-    """Hat die Regelung den zuletzt gestellten Wert wieder verworfen?
+def zurueckgeben(einstellungen: dict, merker: dict) -> int:
+    """Den vorgefundenen Wochenplan wiederherstellen.
+
+    Das ist die eigentliche Bedingung dafür, hier überhaupt hineinschreiben zu
+    dürfen: Was der Planer vorgefunden hat, war Svens Einstellung – 06:00 bis
+    22:00 unter der Woche, 08:00 bis 22:00 am Wochenende. Sie nach dem
+    Abschalten stehen zu lassen hieße, jemandem seinen Heizungsplan
+    wegzunehmen, ohne es zu sagen.
+    """
+    original = merker.get("original") or {}
+    if not original:
+        # Kein gesicherter Stand. Das passiert, wenn die Übernahme drüben noch
+        # steht, das Gedächtnis hier aber weg ist – nach einer Neuinstallation
+        # etwa. Dann gibt es keinen Weg zurück, und das muss gesagt werden:
+        # Stillschweigend nichts zu tun hieße, jemanden im Glauben zu lassen,
+        # sein alter Plan käme wieder.
+        _LOGGER.warning("Kein gesicherter Wochenplan – nichts zurückzustellen")
+        return 0
+    zurueck = 0
+    for nr, text in original.items():
+        try:
+            schreiben(einstellungen, nr, text)
+            zurueck += 1
+        except (Abgelehnt, urllib.error.URLError, OSError, ValueError) as fehler:
+            _LOGGER.warning("Wochentag %s nicht zurückgestellt: %s", nr, fehler)
+    if zurueck:
+        _LOGGER.info("%d Wochentage auf den vorgefundenen Stand gebracht", zurueck)
+    return zurueck
+
+
+def _darf_schreiben(merker: dict, nr: str, heute: str) -> bool:
+    """Die Tagesbremse: wie oft dieser Wochentag heute schon geschrieben wurde.
+
+    Nicht aus Sparsamkeit – ein Dutzend Schreibvorgänge tun keinem Speicher
+    weh. Sondern damit ein Fehler nicht zum Dauerfeuer wird: Zwei Regeln, die
+    einander umschalten, schrieben sonst im Takt des Planers in den EEPROM des
+    Reglers, und das hält er keine Saison lang aus.
+    """
+    zaehler = merker.setdefault("schreibzaehler", {})
+    if zaehler.get("tag") != heute:
+        zaehler.clear()
+        zaehler["tag"] = heute
+    return int(zaehler.get(nr, 0)) < SCHREIBGRENZE
+
+
+def _gezaehlt(merker: dict, nr: str) -> int:
+    zaehler = merker.setdefault("schreibzaehler", {})
+    zaehler[nr] = int(zaehler.get(nr, 0)) + 1
+    return zaehler[nr]
+
+
+def _verworfen(merker: dict, soll: dict, ist: dict, einstellungen: dict,
+               protokoll) -> dict | None:
+    """Hat die Regelung zurückgenommen, was der Planer geschrieben hat?
 
     Ein Telegramm anzunehmen und ein Telegramm zu befolgen sind zweierlei.
-    Bei einem Siemens-Albatros-Regler etwa gehört die Betriebsart dem Schalter
-    am Gerät: Der Bus darf sie setzen, der Regler stellt Sekunden später seinen
-    eigenen Stand wieder her. Wer nur auf Flanke schreibt, merkt davon nichts –
-    der zuletzt gestellte Wert steht im Gedächtnis, eine Flanke kommt nie
-    wieder, und die Oberfläche behauptet monatelang etwas Falsches.
+    Die Betriebsart dieses Reglers etwa gehört dem Schalter am Gerät: Der Bus
+    darf sie setzen, der Regler stellt Sekunden später seinen eigenen Stand
+    wieder her. Bei den Schaltzeiten ist das nachgemessen anders – aber
+    darauf zu *vertrauen*, wäre derselbe Fehler noch einmal.
 
-    Deshalb wird verglichen. Springt der Wert wiederholt zurück, gibt der
-    Planer die Führung auf, statt weiter gegen die Anlage anzuschreiben.
-    Zurück kommt dann die Lage, sonst ``None`` – dann geht es normal weiter.
+    Wer nur auf Flanke schreibt, merkt davon nichts: Der zuletzt geschriebene
+    Wert steht im Gedächtnis, eine Flanke kommt nie wieder, und die Oberfläche
+    behauptet monatelang etwas Falsches. Springt der Stand wiederholt zurück,
+    gibt der Planer die Führung auf.
     """
-    if merker.get("gesetzt") is None or ist is None:
+    geschrieben = merker.get("geschrieben") or {}
+    if not geschrieben:
         return None
-    if merker["gesetzt"] != wert:
-        merker.pop("verworfen", None)   # anderer Bedarf: neuer Versuch
-        return None
-    if ist == wert:
-        merker.pop("verworfen", None)   # sitzt
+    abweichung = [nr for nr, text in geschrieben.items()
+                  if nr in ist and soll.get(nr) == text
+                  and huellkurve.aus_text(ist[nr]) != huellkurve.aus_text(text)]
+    if not abweichung:
+        merker.pop("verworfen", None)
         return None
 
     zahl = int(merker.get("verworfen", 0)) + 1
     merker["verworfen"] = zahl
-    ergebnis["verworfen"] = zahl
     if zahl < VERWORFEN_GRENZE:
-        merker.pop("gesetzt", None)     # noch einmal versuchen
+        for nr in abweichung:
+            geschrieben.pop(nr, None)      # noch einmal versuchen
         return None
 
-    # Erst zurückgeben, dann abschalten: Sonst bliebe der Parameter im
-    # Anlagenmanager ausgeblendet, weil ihn dort noch jemand zu führen scheint.
+    nr = abweichung[0]
+    hinweis = texte.t("kessel_verworfen_warum", ist=ist.get(nr, "—"),
+                      soll=geschrieben.get(nr, "—"))
+    zurueckgeben(einstellungen, merker)
     abmelden(einstellungen)
     _abschalten(einstellungen)
     merker.clear()
     protokoll(texte.t("log_alle_raeume"), texte.t("kessel_verworfen"),
-              texte.t("kessel_verworfen_warum", ist=ist, soll=wert),
-              art="warnung")
+              hinweis, art="warnung")
     return {"aktiv": False, "erreichbar": True, "verworfen": zahl,
-            "hinweis": texte.t("kessel_verworfen_warum", ist=ist, soll=wert)}
+            "hinweis": hinweis}
 
 
 def _abschalten(einstellungen: dict) -> None:
@@ -314,102 +433,162 @@ def _abschalten(einstellungen: dict) -> None:
         _LOGGER.warning("Kesselführung ließ sich nicht abschalten: %s", fehler)
 
 
-def fuehren(bericht: dict, einstellungen: dict, state: dict, protokoll) -> dict:
-    """Die Regelung nachführen – einmal je Takt, nur auf Flanke.
+def fuehren(bericht: dict, config: dict, state: dict, protokoll) -> dict:
+    """Das Wochenprogramm der Regelung nachführen – einmal je Takt.
 
     Zurück kommt die Lage für Oberfläche und MQTT, auch wenn nichts
     geschrieben wurde: Wer sehen will, was der Planer der Anlage zumutet, soll
     das nicht aus dem Protokoll zusammensuchen müssen.
     """
+    einstellungen = config["einstellungen"]
     kessel = einstellungen.get("kessel") or {}
     merker = state.setdefault("kessel", {})
 
     if not kessel.get("aktiv"):
-        # Gerade ausgeschaltet? Dann die Übernahme zurückgeben, solange wir
-        # noch wissen, dass wir sie hatten.
+        # Gerade ausgeschaltet? Dann den vorgefundenen Plan zurückschreiben
+        # und die Übernahme zurückgeben, solange wir noch wissen, dass wir sie
+        # hatten.
         if merker.pop("angemeldet", False):
+            zurueck = zurueckgeben(einstellungen, merker)
             abmelden(einstellungen)
-            merker.pop("gesetzt", None)
+            ohne = not (merker.get("original") or {})
+            merker.clear()
+            if ohne:
+                protokoll(texte.t("log_alle_raeume"),
+                          texte.t("kessel_kein_original"),
+                          texte.t("kessel_kein_original_warum"), art="warnung")
+            return {"aktiv": False, "zurueckgestellt": zurueck,
+                    "hinweis": texte.t("kessel_kein_original_warum") if ohne else ""}
         return {"aktiv": False}
 
     stand = lage(einstellungen)
     if not stand["erreichbar"]:
         return {"aktiv": True, "erreichbar": False, "fehler": stand["fehler"]}
-
-    parameter = stand["parameter"]
-    if not parameter or not stand["auswahl"]:
-        return {"aktiv": True, "erreichbar": True,
-                "hinweis": texte.t("kessel_keine_wahl")}
+    if stand.get("fehler"):
+        return {"aktiv": True, "erreichbar": True, "hinweis": stand["fehler"]}
     if stand["fremd"]:
         return {"aktiv": True, "erreichbar": True, "uebernommen": False,
                 "hinweis": texte.t("kessel_fremd", quelle=stand["fremd"])}
 
-    # Hat jemand die Übernahme drüben aufgehoben? Dann bleibt sie aufgehoben,
-    # bis sie hier wieder eingeschaltet wird. Alles andere machte den Knopf
-    # dort zur Attrappe.
+    parameter = stand["parameter"]            # {"mon": "11", "tue": "11.1", …}
+    inhalt = stand["inhalt"]                  # {"mon": "06:00-22:00 …", …}
+    if len(inhalt) < 7:
+        # Noch nicht alles gelesen. Lieber einen Takt warten als einen
+        # Wochenplan auf halber Kenntnis überschreiben.
+        return {"aktiv": True, "erreichbar": True,
+                "hinweis": texte.t("kessel_unvollstaendig")}
+
+    # -- Übernahme ----------------------------------------------------------
+    #
+    # Hat jemand sie drüben aufgehoben? Dann bleibt sie aufgehoben, bis sie
+    # hier wieder eingeschaltet wird. Alles andere machte den Knopf dort zur
+    # Attrappe.
     if not stand["uebernommen"]:
         if merker.get("angemeldet"):
-            merker["angemeldet"] = False
-            merker.pop("gesetzt", None)
+            zurueckgeben(einstellungen, merker)
             _abschalten(einstellungen)
-            protokoll(texte.t("log_alle_raeume"),
-                      texte.t("kessel_freigegeben"),
+            merker.clear()
+            protokoll(texte.t("log_alle_raeume"), texte.t("kessel_freigegeben"),
                       texte.t("kessel_freigegeben_warum"), art="warnung")
             return {"aktiv": False, "erreichbar": True, "abgegeben": True}
-        if not anmelden(einstellungen, parameter):
+        # Erstanmeldung: Vorher sichern, was dort steht. Danach ist es zu spät –
+        # der eigene Plan stünde darin, und der Weg zurück wäre verloren.
+        if not merker.get("original"):
+            merker["original"] = {parameter[tag]: text
+                                  for tag, text in inhalt.items()}
+            _LOGGER.info("Vorgefundener Wochenplan gesichert")
+        if not anmelden(einstellungen, list(parameter.values())):
             return {"aktiv": True, "erreichbar": True, "uebernommen": False}
     merker["angemeldet"] = True
 
-    stand_ist = stand.get("ist")
-    wahl = gewuenschte_wahl(bericht)
-    wert = wert_zu(wahl, stand["auswahl"])
-    if wert is None:
-        return {"aktiv": True, "erreichbar": True, "uebernommen": True,
-                "wahl": wahl,
-                "hinweis": texte.t("kessel_unbekannt",
-                                   wahl=texte.t("kessel_wahl_" + wahl))}
+    # Übernahme steht, aber wir haben nie gesichert? Dann ist das Gedächtnis
+    # verloren gegangen. Geführt wird weiter – aber der Weg zurück fehlt, und
+    # darauf muss die Oberfläche hinweisen, statt einen vorzutäuschen.
+    ohne_original = not (merker.get("original") or {})
+
+    # -- Hat gehalten, was wir geschrieben haben? ---------------------------
+    nach_nr = {parameter[tag]: text for tag, text in inhalt.items()}
+    aufgegeben = _verworfen(merker, merker.get("geschrieben") or {},
+                            nach_nr, einstellungen, protokoll)
+    if aufgegeben is not None:
+        return aufgegeben
+
+    # -- Was hineingehört ---------------------------------------------------
+    jetzt = _jetzt(bericht)
+    plan = huellkurve.woche(config.get("raeume") or [], jetzt,
+                            _tagesart(bericht))
+
+    # Außerplanmäßiger Bedarf – Partytaste, eine greifende Regel, jemand auf
+    # dem Heimweg. Nur für heute, und nur wenn der Wochenplan ihn nicht schon
+    # abdeckt. Hier entsteht der einzige Versatz des ganzen Verfahrens: bis zu
+    # einer Taktlänge.
+    heute = zeitplan.TAGE[jetzt.weekday()]
+    bis = bedarf_bis(bericht)
+    erweitert = False
+    if bis is not None:
+        breiter = huellkurve.erweitern(plan[heute], bis, jetzt)
+        if breiter:
+            plan[heute] = breiter
+            erweitert = True
 
     ergebnis = {"aktiv": True, "erreichbar": True, "uebernommen": True,
-                "parameter": parameter, "wahl": wahl, "wert": wert,
-                "ist": stand_ist, "anzeige": texte.t("kessel_wahl_" + wahl)}
+                "programm": stand["name"], "heute": plan[heute],
+                "erweitert": erweitert,
+                "anzeige": _anzeige(plan[heute], jetzt)}
+    if ohne_original:
+        ergebnis["hinweis"] = texte.t("kessel_kein_original_warum")
 
-    # Die Flanke allein genügt nicht. Manche Regelungen nehmen ein Telegramm
-    # an, quittieren es sogar – und stellen den eigenen Stand kurz darauf
-    # wieder her. Die Betriebsart eines Albatros-Reglers etwa gehört dem
-    # Schalter am Gerät, nicht dem Bus. Ohne diesen Vergleich zeigte der
-    # Planer monatelang „Nennbetrieb“, während die Anlage ihr eigenes
-    # Programm fährt: eine Lüge, die niemandem auffällt.
-    verworfen = _verworfen(merker, wert, stand_ist, einstellungen,
-                           ergebnis, protokoll)
-    if verworfen is not None:
-        return verworfen
-
-    if merker.get("gesetzt") == wert:
-        return ergebnis                      # steht schon so – kein Telegramm
     if einstellungen.get("trockenlauf"):
         ergebnis["trocken"] = True
         return ergebnis
 
-    try:
-        _json("POST", f"{basis(einstellungen)}/api/setzen",
-              {"nr": parameter, "wert": wert, "quelle": QUELLE})
-    except Abgelehnt as fehler:
-        # 403 heißt: Im Anlagenmanager ist das Stellen noch gesperrt. Das ist
-        # kein Störfall, sondern ein vergessener Schalter – und der Satz muss
-        # sagen, wo er sitzt, sonst sucht man ihn im Planer.
-        ergebnis["fehler"] = (texte.t("kessel_gesperrt") if fehler.code == 403
-                              else fehler.text)
-        _LOGGER.warning("Programmwahl abgelehnt (%s): %s",
-                        fehler.code, fehler.text)
-        return ergebnis
-    except (urllib.error.URLError, OSError, ValueError) as fehler:
-        ergebnis["fehler"] = str(fehler)
-        _LOGGER.warning("Programmwahl setzen fehlgeschlagen: %s", fehler)
-        return ergebnis
+    # -- Schreiben, wo es abweicht -----------------------------------------
+    datum = jetzt.date().isoformat()
+    geschrieben, gebremst = [], []
+    for tag, nr in parameter.items():
+        soll = plan.get(tag)
+        if soll is None:
+            continue
+        if huellkurve.aus_text(inhalt.get(tag, "")) == huellkurve.aus_text(soll):
+            continue                       # steht schon so – kein Telegramm
+        if not _darf_schreiben(merker, nr, datum):
+            gebremst.append(tag)
+            continue
+        try:
+            schreiben(einstellungen, nr, soll)
+        except Abgelehnt as fehler:
+            ergebnis["fehler"] = (texte.t("kessel_gesperrt")
+                                  if fehler.code == 403 else fehler.text)
+            _LOGGER.warning("Wochentag %s abgelehnt (%s): %s",
+                            nr, fehler.code, fehler.text)
+            return ergebnis
+        except (urllib.error.URLError, OSError, ValueError) as fehler:
+            ergebnis["fehler"] = str(fehler)
+            return ergebnis
+        _gezaehlt(merker, nr)
+        merker.setdefault("geschrieben", {})[nr] = soll
+        geschrieben.append(tag)
 
-    merker["gesetzt"] = wert
-    protokoll(texte.t("log_alle_raeume"),
-              texte.t("kessel_gestellt", wahl=ergebnis["anzeige"]),
-              texte.t("kessel_gestellt_warum", wahl=ergebnis["anzeige"]))
-    ergebnis["geschrieben"] = True
+    if geschrieben:
+        ergebnis["geschrieben"] = geschrieben
+        protokoll(texte.t("log_alle_raeume"),
+                  texte.t("kessel_gestellt", anzahl=len(geschrieben)),
+                  texte.t("kessel_gestellt_warum", plan=plan[heute]))
+    if gebremst:
+        ergebnis["gebremst"] = gebremst
+        ergebnis["hinweis"] = texte.t("kessel_gebremst", grenze=SCHREIBGRENZE)
+        _LOGGER.warning("Schreibbremse greift für: %s", ", ".join(gebremst))
     return ergebnis
+
+
+def _anzeige(text: str, jetzt: datetime) -> str:
+    """Was auf der Kachel steht: fährt die Regelung gerade Komfort oder nicht."""
+    minute = jetzt.hour * 60 + jetzt.minute
+    for beginn, ende in huellkurve.aus_text(text):
+        if beginn <= minute < ende:
+            return texte.t("kessel_komfort_bis", uhrzeit=huellkurve._uhr(ende))
+    kommend = [b for b, _ in huellkurve.aus_text(text) if b > minute]
+    if kommend:
+        return texte.t("kessel_reduziert_bis",
+                       uhrzeit=huellkurve._uhr(min(kommend)))
+    return texte.t("kessel_reduziert")

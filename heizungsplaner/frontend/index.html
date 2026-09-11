@@ -633,16 +633,21 @@
   <div class="tafel">
     <h2>Kesselregelung</h2>
     <label class="haken"><input type="checkbox" id="e-kessel-aktiv">
-      <span>Die Programmwahl der Heizungsregelung mitführen</span></label>
-    <div class="notiz">Braucht das Add-on Heizungsanlagenmanager. Der
-      Planer meldet dort die Programmwahl zur Übernahme an und stellt sie nach
-      dem Wärmebedarf der Räume: Nennbetrieb, sobald ein Raum Komfort will –
-      Reduziert, wenn alle abgesenkt sind – Sommer im Sommerbetrieb. Damit
-      fährt die Anlage nicht mehr ihr eigenes Zeitprogramm gegen den Plan.</div>
-    <div class="notiz">Solange die Übernahme steht, ist der Parameter im
-      Anlagenmanager ausgeblendet. Der Knopf „Übernahme aufheben“ dort
-      gibt ihn jederzeit zurück – der Planer schaltet sich dann hier von
-      selbst ab und meldet es im Protokoll.</div>
+      <span>Das Wochenprogramm der Heizungsregelung mitführen</span></label>
+    <div class="notiz">Braucht das Add-on Heizungsanlagenmanager. Der Planer
+      schreibt die Schaltzeiten, die die Regelung ohnehin fährt: die
+      Vereinigung aller Komfortzeiten über alle Räume. Damit senkt die Anlage
+      ab, wenn kein Raum mehr Wärme will, und steht bereit, wenn der erste
+      Raum sie braucht – statt ihr eigenes Zeitprogramm gegen den Plan zu
+      fahren.</div>
+    <div class="notiz">Weil der Planer seinen Plan im Voraus kennt, entsteht
+      dabei kein Versatz. Nur was kein Zeitplan vorhersieht – die Partytaste,
+      eine greifende Übersteuerungsregel – wird nachgetragen, und das kann
+      eine Taktlänge dauern.</div>
+    <div class="notiz">Solange die Übernahme steht, sind die Schaltzeiten im
+      Anlagenmanager ausgeblendet. Der Knopf „Übernahme aufheben“ dort gibt
+      sie jederzeit zurück – der Planer schreibt dann den vorgefundenen
+      Wochenplan zurück, schaltet sich ab und meldet es im Protokoll.</div>
     <div class="raster-felder eng" style="margin-top:var(--l3)">
       <div class="feld"><label>Adresse des Anlagenmanagers</label>
         <input type="text" id="e-kessel-adresse"
@@ -1589,11 +1594,12 @@ function lageZeichnen(bericht) {
   if (ke.aktiv) {
     const lage = ke.erreichbar === false
       ? {wert:'?', zusatz:'Anlagenmanager nicht erreichbar'}
-      : ke.hinweis ? {wert:'wartet', zusatz: ke.hinweis}
       : ke.fehler ? {wert: ke.anzeige || '?', zusatz: ke.fehler}
+      : !ke.uebernommen ? {wert:'wartet', zusatz: ke.hinweis || ''}
       : {wert: ke.anzeige || '–',
          zusatz: ke.trocken ? 'Trockenlauf – nicht gestellt'
-                            : `Parameter ${ke.parameter}`};
+               : ke.erweitert ? 'heute verlängert'
+               : (ke.heute || '')};
     posten.push({marke:'Kessel', wert: lage.wert, zusatz: lage.zusatz,
                  klein:true});
   }
@@ -1611,7 +1617,7 @@ function lageZeichnen(bericht) {
         ? 'Der Heizungsanlagenmanager antwortet gerade nicht: ' + (ke.fehler || '')
       : ke.hinweis ? ke.hinweis
       : ke.uebernommen
-        ? `Übernommen: Parameter ${ke.parameter} steht auf „${ke.anzeige}“.`
+        ? `Übernommen: ${ke.programm || 'Wochenprogramm'}, heute ${ke.heute}.`
         : 'Die Übernahme ist noch nicht angemeldet.';
   }
 
