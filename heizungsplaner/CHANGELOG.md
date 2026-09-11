@@ -1,5 +1,11 @@
 # Änderungen
 
+## 1.25.4
+
+- Aufräumen: Der Versuch, die Add-on-Liste beim Supervisor zu holen, ist aus
+  dem Code verschwunden. Ohne `hassio_api` konnte er nie gelingen – und Code,
+  der aussieht, als täte er etwas, ist schlimmer als keiner.
+
 ## 1.25.3
 
 - **Der Planer findet den Heizungsanlagenmanager jetzt von selbst.** Der

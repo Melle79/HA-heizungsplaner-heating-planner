@@ -42,15 +42,10 @@ _LOGGER = logging.getLogger(__name__)
 
 QUELLE = "heizungsplaner"
 
-# Der Name des Anlagenmanagers im Docker-Netz von Home Assistant ist nicht zu
-# raten: Er lautet „<repo-hash>-heizungsanlage“, und der Hash hängt daran, aus
-# welchem Repository das Add-on stammt. Bei Sven ist es 95552f8b, bei jemand
-# anderem etwas anderes. Deshalb fragen wir den Supervisor, statt eine
-# Vorgabe hinzuschreiben, die nur hier stimmt.
-ANLAGE_SLUG = "heizungsanlage"
-ANLAGE_PORT = 8099
-_gefunden = ""        # vom Anlagenmanager angesagt oder gefunden
-_gesucht = False      # der Supervisor-Versuch, einmal je Lauf
+# Vom Anlagenmanager über MQTT angesagt. Nachschlagen kann der Planer die
+# Anschrift nicht: Die Add-on-Liste gibt der Supervisor nur mit
+# Verwalterrechten heraus, und die braucht ein Heizungsplaner nicht.
+_gefunden = ""
 
 # Welcher Raumzustand wie viel Wärme verlangt.
 #
@@ -140,63 +135,11 @@ def anschrift_merken(adresse: str | None) -> None:
     _gefunden = adresse
 
 
-# Die Liste der Add-ons liegt beim Supervisor – der gibt sie einem Add-on mit
-# der Rolle „default“ aber nicht heraus (403). Verwalterrechte dafür zu
-# verlangen wäre unverhältnismäßig: Wer Add-ons starten und löschen darf, darf
-# mehr als ein Heizungsplaner braucht.
-#
-# Home Assistant reicht dieselbe Auskunft durch – unter /api/hassio/addons,
-# mit den Rechten, die der Kern ohnehin hat. Dafür genügt der Zugang, den der
-# Planer für die Thermostate sowieso besitzt.
-_ADDON_LISTEN = ("http://supervisor/core/api/hassio/addons",
-                 "http://supervisor/addons")
-
-
-def _addon_suchen() -> str | None:
-    """Den Anlagenmanager im Docker-Netz finden – über seinen Slug.
-
-    Der Hostname lautet „<repo-hash>-heizungsanlage“, und der Hash hängt am
-    Repository, aus dem das Add-on stammt. Geraten werden kann er nicht;
-    gesucht wird deshalb nach dem Namensteil dahinter.
-    """
-    import os
-    zeichen = os.environ.get("SUPERVISOR_TOKEN")
-    if not zeichen:
-        return None
-    for quelle in _ADDON_LISTEN:
-        req = urllib.request.Request(
-            quelle, headers={"Authorization": f"Bearer {zeichen}"})
-        try:
-            with urllib.request.urlopen(req, timeout=10) as antwort:
-                daten = json.loads(antwort.read().decode("utf-8"))
-        except (urllib.error.URLError, OSError, ValueError) as fehler:
-            _LOGGER.info("Add-on-Liste über %s nicht zu haben: %s",
-                         quelle, fehler)
-            continue
-        # Beide Wege antworten gleich aufgebaut: {"data": {"addons": [...]}}.
-        for eintrag in (daten.get("data") or daten).get("addons") or []:
-            slug = str(eintrag.get("slug") or "")
-            if slug == ANLAGE_SLUG or slug.endswith("_" + ANLAGE_SLUG):
-                # Den Hostnamen nennt die Antwort selbst – Unterstrich wird
-                # dort zum Bindestrich, und darauf verlassen wir uns nicht.
-                name = eintrag.get("hostname") or slug.replace("_", "-")
-                _LOGGER.info("Heizungsanlagenmanager gefunden: %s", name)
-                return f"http://{name}:{ANLAGE_PORT}"
-        _LOGGER.info("Kein Heizungsanlagenmanager in der Liste von %s", quelle)
-    return None
-
-
 def basis(einstellungen: dict) -> str | None:
-    """Die Adresse des Anlagenmanagers – eingetragen oder selbst gefunden."""
-    global _gefunden, _gesucht
+    """Die Adresse des Anlagenmanagers – eingetragen oder angesagt."""
     eigene = ((einstellungen.get("kessel") or {}).get("adresse") or "").strip()
     if eigene:
         return eigene.rstrip("/")
-    if _gefunden:
-        return _gefunden
-    if not _gesucht:
-        _gesucht = True
-        _gefunden = _addon_suchen() or ""
     return _gefunden or None
 
 

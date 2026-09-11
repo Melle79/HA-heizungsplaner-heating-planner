@@ -1649,7 +1649,7 @@ pruefe("Ein anderes Add-on" in (lage.get("hinweis") or ""),
        "und die Lage nennt den, der ihn haelt")
 
 # Die Anschrift kommt vom Anlagenmanager selbst, per MQTT.
-kessel._gefunden, kessel._gesucht = "", True
+kessel._gefunden = ""
 kessel.anschrift_merken("http://95552f8b-heizungsanlage:8099/")
 pruefe(kessel.basis({"kessel": {"aktiv": True}}) == "http://95552f8b-heizungsanlage:8099",
        "die angesagte Anschrift wird uebernommen")
