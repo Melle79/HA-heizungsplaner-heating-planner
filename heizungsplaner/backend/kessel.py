@@ -49,7 +49,8 @@ QUELLE = "heizungsplaner"
 # Vorgabe hinzuschreiben, die nur hier stimmt.
 ANLAGE_SLUG = "heizungsanlage"
 ANLAGE_PORT = 8099
-_gefunden: str | None = None
+_gefunden = ""        # vom Anlagenmanager angesagt oder gefunden
+_gesucht = False      # der Supervisor-Versuch, einmal je Lauf
 
 # Welcher Raumzustand wie viel Wärme verlangt.
 #
@@ -122,6 +123,23 @@ def _json(methode: str, adresse: str, nutzlast: dict | None = None,
     return json.loads(text) if text else {}
 
 
+def anschrift_merken(adresse: str | None) -> None:
+    """Die Anschrift übernehmen, die der Anlagenmanager über MQTT ansagt.
+
+    Er kennt seinen Hostnamen im Docker-Netz selbst; der Planer kann ihn nicht
+    nachschlagen, ohne Rechte zu verlangen, die er nicht braucht. Die Nachricht
+    liegt „retained“ beim Broker und kommt deshalb auch dann sofort an, wenn
+    der Manager gerade nicht läuft.
+    """
+    global _gefunden
+    adresse = (adresse or "").strip().rstrip("/")
+    if not adresse.startswith(("http://", "https://")):
+        return
+    if adresse != _gefunden:
+        _LOGGER.info("Heizungsanlagenmanager meldet sich unter %s", adresse)
+    _gefunden = adresse
+
+
 # Die Liste der Add-ons liegt beim Supervisor – der gibt sie einem Add-on mit
 # der Rolle „default“ aber nicht heraus (403). Verwalterrechte dafür zu
 # verlangen wäre unverhältnismäßig: Wer Add-ons starten und löschen darf, darf
@@ -170,11 +188,14 @@ def _addon_suchen() -> str | None:
 
 def basis(einstellungen: dict) -> str | None:
     """Die Adresse des Anlagenmanagers – eingetragen oder selbst gefunden."""
-    global _gefunden
+    global _gefunden, _gesucht
     eigene = ((einstellungen.get("kessel") or {}).get("adresse") or "").strip()
     if eigene:
         return eigene.rstrip("/")
-    if _gefunden is None:
+    if _gefunden:
+        return _gefunden
+    if not _gesucht:
+        _gesucht = True
         _gefunden = _addon_suchen() or ""
     return _gefunden or None
 

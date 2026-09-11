@@ -1648,6 +1648,18 @@ pruefe(fremd.gesetzt == [] and fremd.anmeldungen == 0,
 pruefe("Ein anderes Add-on" in (lage.get("hinweis") or ""),
        "und die Lage nennt den, der ihn haelt")
 
+# Die Anschrift kommt vom Anlagenmanager selbst, per MQTT.
+kessel._gefunden, kessel._gesucht = "", True
+kessel.anschrift_merken("http://95552f8b-heizungsanlage:8099/")
+pruefe(kessel.basis({"kessel": {"aktiv": True}}) == "http://95552f8b-heizungsanlage:8099",
+       "die angesagte Anschrift wird uebernommen")
+kessel.anschrift_merken("javascript:boese()")
+pruefe(kessel.basis({"kessel": {"aktiv": True}}) == "http://95552f8b-heizungsanlage:8099",
+       "was nicht nach http aussieht, wird nicht uebernommen")
+pruefe(kessel.basis({"kessel": {"aktiv": True, "adresse": "http://eigen:1"}})
+       == "http://eigen:1", "eine eingetragene Adresse geht der Ansage vor")
+kessel._gefunden = ""
+
 print("\n=== Validierung ===")
 try:
     store.validate_raum({"name": "", "thermostate": []})

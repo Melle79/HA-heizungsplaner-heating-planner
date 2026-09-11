@@ -487,12 +487,12 @@ TEXTE: dict[str, dict[str, str]] = {
               "planner no longer sets the program selection; you can switch "
               "it on again here under Settings."},
     "kessel_nicht_gefunden": {
-        "de": "Das Add-on Heizungsanlagenmanager läuft nicht – oder es ist "
-              "unter einem anderen Namen erreichbar. Dann die Adresse hier "
-              "eintragen.",
-        "en": "The Heizungsanlagenmanager add-on is not running – or it is "
-              "reachable under a different name. Enter the address here in "
-              "that case."},
+        "de": "Der Heizungsanlagenmanager hat sich noch nicht gemeldet. Er "
+              "sagt seine Anschrift beim Start über MQTT an – einmal starten "
+              "genügt. Läuft er woanders, die Adresse hier eintragen.",
+        "en": "The heating system manager has not announced itself yet. It "
+              "publishes its address over MQTT when it starts – starting it "
+              "once is enough. If it runs elsewhere, enter the address here."},
     "kessel_keine_wahl": {
         "de": "Der Heizungsanlagenmanager hat in dieser Regelung keine "
               "Programmwahl gefunden. Erst den Parameterkatalog aufbauen.",

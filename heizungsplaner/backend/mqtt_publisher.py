@@ -15,11 +15,15 @@ import paho.mqtt.client as mqtt
 
 from version import VERSION
 import einheit
+import kessel
 import texte
 
 _LOGGER = logging.getLogger(__name__)
 
 DISCOVERY_PREFIX = "homeassistant"
+
+# Das Thema, unter dem der Heizungsanlagenmanager seine Anschrift ansagt.
+ANLAGE_ANSCHRIFT = "heizungsanlage/anschrift"
 BASE_TOPIC = "heizungsplaner"
 AVAILABILITY_TOPIC = f"{BASE_TOPIC}/availability"
 COMMAND_TOPIC = f"{BASE_TOPIC}/cmd"
@@ -133,6 +137,11 @@ class Publisher:
             client.publish(AVAILABILITY_TOPIC, "online", qos=1, retain=True)
             client.subscribe(COMMAND_TOPIC, qos=1)
             client.subscribe(PARTY_COMMAND_TOPIC, qos=1)
+            # Der Heizungsanlagenmanager sagt hier an, unter welchem Namen er
+            # im Docker-Netz zu erreichen ist. Die Nachricht ist „retained“:
+            # Sie liegt beim Broker und kommt sofort, auch wenn der Manager
+            # gerade nicht läuft.
+            client.subscribe(ANLAGE_ANSCHRIFT, qos=1)
             self.connected.set()
             if self.on_ready is not None:
                 try:
@@ -147,6 +156,13 @@ class Publisher:
         self.connected.clear()
 
     def _on_message(self, client, userdata, msg) -> None:
+        if msg.topic == ANLAGE_ANSCHRIFT:
+            try:
+                daten = json.loads(msg.payload.decode("utf-8") or "{}")
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                return
+            kessel.anschrift_merken(daten.get("adresse"))
+            return
         if msg.topic == PARTY_COMMAND_TOPIC:
             if self.on_party is not None:
                 try:

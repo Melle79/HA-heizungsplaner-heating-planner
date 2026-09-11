@@ -1,5 +1,19 @@
 # Änderungen
 
+## 1.25.3
+
+- **Der Planer findet den Heizungsanlagenmanager jetzt von selbst.** Der
+  meldet seine Anschrift ab Fassung 1.16.0 über MQTT an; der Planer hört
+  darauf. Das Feld *Adresse* bleibt damit in aller Regel leer.
+- Der Weg über den Supervisor ist damit hinfällig: Er hätte Verwalterrechte
+  gebraucht – und wer Add-ons starten und löschen darf, darf mehr als ein
+  Heizungsplaner braucht. `hassio_api` ist wieder aus der Konfiguration
+  verschwunden.
+
+## 1.25.2
+
+- Zwischenschritt beim Suchen des Anlagenmanagers, von 1.25.3 abgelöst.
+
 ## 1.25.1
 
 - **Behoben: Der Planer fand den Heizungsanlagenmanager nicht.** Als Adresse

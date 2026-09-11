@@ -597,9 +597,10 @@ to be built once and setting has to be released under *Settings* – both are
 off by default there as well.
 
 After that a single tick under *Settings → Boiler control* is enough in the
-planner. Leave the address empty: the planner asks the Supervisor under which
-name the system manager can be reached. It could not be guessed – it carries
-the hash of the repository the add-on came from.
+planner. Leave the address empty: when it starts, the system manager announces
+over MQTT under which name it can be reached, and the planner listens for
+that. The name could not be guessed – it carries the hash of the repository
+the add-on came from. This needs at least version 1.16.0 over there.
 
 ### What the planner sets
 
