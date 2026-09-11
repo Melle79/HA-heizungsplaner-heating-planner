@@ -1674,6 +1674,20 @@ pruefe(lage.get("erweitert"), "die Partytaste erweitert den heutigen Tag")
 pruefe(any(nr == "11.4" and "12:00-15:00" in w for nr, w in party.gesetzt),
        f"und zwar nur den Freitag ({party.gesetzt})")
 
+# Ein handgefuehrter Raum darf die Huellkurve nicht ueber die Erweiterung
+# wieder aufspannen – sonst schliesst fuer_tag ihn aus und bedarf_bis holt ihn
+# zurueck. Genau das ist am 11.09.2026 live passiert: Hobbyraum, Flur und
+# Gaestetoilette stehen dauerhaft auf "manuell" und haetten die Regelung rund
+# um die Uhr auf Komfort gehalten.
+pruefe("manuell" not in kessel.KOMFORT_ZUSTAENDE,
+       "ein handgefuehrter Raum spannt auch die Erweiterung nicht auf")
+pruefe(kessel.bedarf_bis(BERICHT("manuell", "2026-09-12T21:00:00")) is None,
+       "und loest kein naechtliches Dauerfenster aus")
+pruefe(kessel.bedarf_bis(BERICHT("party", "2026-09-11T15:00:00")) == 15 * 60,
+       "die Partytaste dagegen schon")
+pruefe(kessel.bedarf_bis(BERICHT("komfort", "2026-09-12T07:00:00")) == 24 * 60,
+       "was ueber den Tag hinausreicht, gilt bis Mitternacht")
+
 # Die Schreibbremse.
 bremse, zb = Anlage(uebernommen=True), {}
 _lauf(bremse, BERICHT(), CONFIG(), zb)

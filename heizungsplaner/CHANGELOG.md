@@ -1,5 +1,16 @@
 # Änderungen
 
+## 1.27.1
+
+- **Behoben: Handgeführte Räume hielten die Anlage rund um die Uhr auf
+  Komfort.** Räume in der Betriebsart „nur absenken“ melden dauerhaft
+  „manuell“. Aus der Hüllkurve waren sie ausgenommen – über die Erweiterung
+  kamen sie aber wieder herein, und damit war die ganze Ersparnis dahin.
+- Die Abwägung stammte aus der Fassung, die die Betriebsart stellte: Dort hieß
+  „nicht in der Hüllkurve“ tatsächlich *Standby*, also gar keine Wärme, und im
+  Zweifel warm zu fahren war richtig. Beim Wochenprogramm heißt es nur
+  *Reduziertsollwert*. Eine Begründung, deren Voraussetzung weggefallen war.
+
 ## 1.27.0
 
 - **Die Kesselregelung läuft jetzt über die Schaltzeiten statt über die

@@ -641,7 +641,9 @@ Drei Dinge fließen **nicht** in die Hüllkurve ein:
 * Räume, die abgeschaltet sind.
 * Räume in der Betriebsart **„nur absenken“** – für die weiß der Planer nicht,
   wann jemand sie warm haben will; er spannte die Hüllkurve sonst über den
-  ganzen Tag.
+  ganzen Tag. Das gilt auch für die Nachträge: Ein handgeführter Raum hält die
+  Anlage nicht auf Komfort. Er bekommt weiter den Reduziertsollwert, und
+  sobald irgendein anderer Raum Komfort verlangt, auch den vollen Vorlauf.
 * **Übersteuerungsregeln und die Partytaste.** Deren Bedingungen lassen sich
   nicht vorhersagen. Sie werden nachgetragen, sobald sie greifen – und *hier*
   entsteht der einzige Versatz des Verfahrens: bis zu einer Taktlänge.

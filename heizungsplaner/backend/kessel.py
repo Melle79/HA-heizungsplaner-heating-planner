@@ -76,10 +76,22 @@ KOMFORT_ZUSTAENDE = frozenset({
     "komfort",     # Zeitplan oder eine Regel verlangt Komfort
     "party",       # Partytaste
     "heimkehr",    # jemand ist auf dem Heimweg, der Raum wird vorgewärmt
-    "manuell",     # Handeinstellung: Wir kennen ihren Wert nicht sicher und
-                   # gehen auf die sichere Seite – zu wenig Vorlauf ist eine
-                   # kalte Wohnung, zu viel nur ein bisschen Öl.
 })
+
+# „manuell“ steht bewusst **nicht** darin – also kein handgeführter Raum.
+#
+# Das war beim Bauen anders gedacht und einmal live falsch: Bei Sven stehen
+# Hobbyraum, Flur und Gästetoilette dauerhaft auf „nur absenken“ und melden
+# darum immer „manuell“. Sie hätten die Hüllkurve rund um die Uhr aufgespannt
+# und die ganze Ersparnis zunichtegemacht – während `huellkurve.fuer_tag` sie
+# aus demselben Grund ausschließt. Ein Modul, das sich selbst widerspricht.
+#
+# Die Abwägung dahinter war aus der alten Fassung mitgeschleppt, die die
+# Betriebsart stellte: Dort hieß „nicht in der Hüllkurve“ tatsächlich
+# *Standby*, also keine Wärme, und im Zweifel warm zu fahren war richtig. Beim
+# Wochenprogramm heißt es nur *Reduziertsollwert* – bei Sven 20 °C. Das reicht
+# für einen Flur allemal, und wer den Hobbyraum von Hand hochdreht, bekommt
+# Vorlauf, sobald irgendein anderer Raum Komfort verlangt.
 
 # So oft darf der Planer einen Wochentag an einem Tag neu schreiben. Die
 # Grenze ist kein Sparzwang, sondern eine Bremse: Zwei Regeln, die einander

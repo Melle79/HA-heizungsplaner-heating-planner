@@ -633,7 +633,9 @@ Three things do **not** enter the envelope:
 * Rooms that are switched off.
 * Rooms in **“setback only”** mode – the planner does not know when somebody
   wants those warm; it would otherwise stretch the envelope across the whole
-  day.
+  day. This applies to the additions too: a hand-controlled room does not hold
+  the system at comfort. It keeps the reduced setpoint, and as soon as any
+  other room asks for comfort it gets the full flow temperature as well.
 * **Override rules and the party button.** Their conditions cannot be
   predicted. They are added once they take effect – and *this* is where the
   only offset of the method arises: up to one cycle.
