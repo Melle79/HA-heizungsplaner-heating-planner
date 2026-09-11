@@ -122,34 +122,49 @@ def _json(methode: str, adresse: str, nutzlast: dict | None = None,
     return json.loads(text) if text else {}
 
 
-def _beim_supervisor_suchen() -> str | None:
+# Die Liste der Add-ons liegt beim Supervisor – der gibt sie einem Add-on mit
+# der Rolle „default“ aber nicht heraus (403). Verwalterrechte dafür zu
+# verlangen wäre unverhältnismäßig: Wer Add-ons starten und löschen darf, darf
+# mehr als ein Heizungsplaner braucht.
+#
+# Home Assistant reicht dieselbe Auskunft durch – unter /api/hassio/addons,
+# mit den Rechten, die der Kern ohnehin hat. Dafür genügt der Zugang, den der
+# Planer für die Thermostate sowieso besitzt.
+_ADDON_LISTEN = ("http://supervisor/core/api/hassio/addons",
+                 "http://supervisor/addons")
+
+
+def _addon_suchen() -> str | None:
     """Den Anlagenmanager im Docker-Netz finden – über seinen Slug.
 
-    Gesucht wird nach dem Namensteil hinter dem Repository-Hash. Läuft er
-    nicht, kommt nichts zurück; der Aufrufer sagt dann „nicht erreichbar“,
-    was hier auch die Wahrheit ist.
+    Der Hostname lautet „<repo-hash>-heizungsanlage“, und der Hash hängt am
+    Repository, aus dem das Add-on stammt. Geraten werden kann er nicht;
+    gesucht wird deshalb nach dem Namensteil dahinter.
     """
     import os
     zeichen = os.environ.get("SUPERVISOR_TOKEN")
     if not zeichen:
         return None
-    req = urllib.request.Request(
-        "http://supervisor/addons",
-        headers={"Authorization": f"Bearer {zeichen}"})
-    try:
-        with urllib.request.urlopen(req, timeout=10) as antwort:
-            daten = json.loads(antwort.read().decode("utf-8"))
-    except (urllib.error.URLError, OSError, ValueError) as fehler:
-        _LOGGER.warning("Supervisor nicht erreichbar: %s", fehler)
-        return None
-    for eintrag in (daten.get("data") or {}).get("addons") or []:
-        slug = str(eintrag.get("slug") or "")
-        if slug == ANLAGE_SLUG or slug.endswith("_" + ANLAGE_SLUG):
-            # Der Supervisor nennt den Hostnamen selbst – Unterstrich wird
-            # dort zum Bindestrich, und darauf wollen wir uns nicht verlassen.
-            name = eintrag.get("hostname") or slug.replace("_", "-")
-            _LOGGER.info("Heizungsanlagenmanager gefunden: %s", name)
-            return f"http://{name}:{ANLAGE_PORT}"
+    for quelle in _ADDON_LISTEN:
+        req = urllib.request.Request(
+            quelle, headers={"Authorization": f"Bearer {zeichen}"})
+        try:
+            with urllib.request.urlopen(req, timeout=10) as antwort:
+                daten = json.loads(antwort.read().decode("utf-8"))
+        except (urllib.error.URLError, OSError, ValueError) as fehler:
+            _LOGGER.info("Add-on-Liste über %s nicht zu haben: %s",
+                         quelle, fehler)
+            continue
+        # Beide Wege antworten gleich aufgebaut: {"data": {"addons": [...]}}.
+        for eintrag in (daten.get("data") or daten).get("addons") or []:
+            slug = str(eintrag.get("slug") or "")
+            if slug == ANLAGE_SLUG or slug.endswith("_" + ANLAGE_SLUG):
+                # Den Hostnamen nennt die Antwort selbst – Unterstrich wird
+                # dort zum Bindestrich, und darauf verlassen wir uns nicht.
+                name = eintrag.get("hostname") or slug.replace("_", "-")
+                _LOGGER.info("Heizungsanlagenmanager gefunden: %s", name)
+                return f"http://{name}:{ANLAGE_PORT}"
+        _LOGGER.info("Kein Heizungsanlagenmanager in der Liste von %s", quelle)
     return None
 
 
@@ -160,7 +175,7 @@ def basis(einstellungen: dict) -> str | None:
     if eigene:
         return eigene.rstrip("/")
     if _gefunden is None:
-        _gefunden = _beim_supervisor_suchen() or ""
+        _gefunden = _addon_suchen() or ""
     return _gefunden or None
 
 
