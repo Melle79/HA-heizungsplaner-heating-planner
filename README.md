@@ -60,6 +60,13 @@ nothing to configure; both come from `/config` and are read on every cycle.
   are converted as spans: a hysteresis of 1.5 K becomes 2.7 °F, not 34.7. If
   the measurement system changes, the stored values are converted once.
 
+* **Boiler control** *(optional, off by default)* – the planner can also set
+  the controller's program selection, so the heating system stops running its
+  own time program against the plan: nominal as soon as a room wants comfort,
+  reduced when all are set back, summer in summer mode. Requires the
+  *Heizungsanlagenmanager* add-on. Whoever releases the takeover there keeps
+  it released – the planner does not register again on its own.
+
 * **Oil tank** *(optional, off by default)* – remaining oil, daily
   consumption, days left and a leak watch. The level works without a sensor in
   the tank: the calibrated delivery note as the anchor, burner runtime times
@@ -153,6 +160,7 @@ Over MQTT the add-on creates a device called “Heizungsplaner”:
 | `switch.heizungsplaner_party` | party button, with the remaining time as an attribute |
 | `binary_sensor.heizungsplaner_stoerung` | a thermostat has stopped reporting; messages separated by severity as attributes |
 | `sensor.heizungsplaner_stoerungen` | number of failed thermostats |
+| `sensor.heizungsplaner_kessel` | the controller's operating mode, while the boiler control is switched on |
 
 The entity ids stay German – they are part of every existing installation, and
 renaming them would break dashboards and automations.
@@ -177,7 +185,7 @@ third-party packages:
 python3 heizungsplaner/tests/test_logik.py
 ```
 
-Around 190 checks cover schedules across midnight, the heating curve and
+Around 250 checks cover schedules across midnight, the heating curve and
 summer hysteresis, presence including the return home, window detection, the
 “setback only” mode and writing on edges. Quite a few of them are there
 because the case was wrong once – for instance a school one kilometre away

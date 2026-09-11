@@ -325,6 +325,22 @@ window.SPRACHEN.en = {
     "The selection can be narrowed further per room.",
 
   // ── Öltank (optionaler Baustein)
+  // Kesselregelung
+  "Kesselregelung": "Boiler control",
+  "Kessel": "Boiler",
+  "Die Programmwahl der Heizungsregelung mitführen":
+    "Also set the controller's program selection",
+  "Braucht das Add-on Heizungsanlagenmanager. Der Planer meldet dort die Programmwahl zur Übernahme an und stellt sie nach dem Wärmebedarf der Räume: Nennbetrieb, sobald ein Raum Komfort will – Reduziert, wenn alle abgesenkt sind – Sommer im Sommerbetrieb. Damit fährt die Anlage nicht mehr ihr eigenes Zeitprogramm gegen den Plan.":
+    "Requires the Heizungsanlagenmanager add-on. The planner registers the program selection there for takeover and sets it according to the rooms' demand for heat: nominal as soon as a room wants comfort – reduced when all are set back – summer in summer mode. That stops the system running its own time program against the plan.",
+  "Solange die Übernahme steht, ist der Parameter im Anlagenmanager ausgeblendet. Der Knopf „Übernahme aufheben“ dort gibt ihn jederzeit zurück – der Planer schaltet sich dann hier von selbst ab und meldet es im Protokoll.":
+    "While the takeover is in place, the parameter is hidden in the system manager. The Release takeover button there hands it back at any time – the planner then switches itself off here and says so in the log.",
+  "Adresse des Anlagenmanagers": "Address of the system manager",
+  "Leer lassen, wenn beide Add-ons auf demselben Home Assistant laufen.":
+    "Leave empty if both add-ons run on the same Home Assistant.",
+  "Die Übernahme ist noch nicht angemeldet.": "The takeover is not registered yet.",
+  "wartet": "waiting",
+  "Anlagenmanager nicht erreichbar": "System manager not reachable",
+  "Trockenlauf – nicht gestellt": "Dry run – not set",
   "Öltank": "Oil tank",
   "Füllstand": "Tank level",
   "Wird geladen …": "Loading …",
@@ -467,6 +483,11 @@ window.SPRACHEN.en = {
   [/^(\d+) Person\(en\)$/, "$1 person(s)"],
   [/^(\d+) Melder$/, "$1 sensors"],
   [/^(\d+) Kontakt(e)?$/, "$1 window contact$2"],
+  [/^Parameter (\d+)$/, "Parameter $1"],
+  [/^Übernommen: Parameter (\d+) steht auf „(.+)“\.$/,
+   "Taken over: parameter $1 is set to “$2”."],
+  [/^Der Heizungsanlagenmanager antwortet gerade nicht: (.*)$/,
+   "The heating system manager is not answering right now: $1"],
   ],
 
   vorlagen: {"wohnraum": "Living space", "kinderzimmer": "Child's room",

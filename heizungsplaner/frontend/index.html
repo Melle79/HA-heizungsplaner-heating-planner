@@ -631,6 +631,29 @@
   </div>
 
   <div class="tafel">
+    <h2>Kesselregelung</h2>
+    <label class="haken"><input type="checkbox" id="e-kessel-aktiv">
+      <span>Die Programmwahl der Heizungsregelung mitführen</span></label>
+    <div class="notiz">Braucht das Add-on Heizungsanlagenmanager. Der
+      Planer meldet dort die Programmwahl zur Übernahme an und stellt sie nach
+      dem Wärmebedarf der Räume: Nennbetrieb, sobald ein Raum Komfort will –
+      Reduziert, wenn alle abgesenkt sind – Sommer im Sommerbetrieb. Damit
+      fährt die Anlage nicht mehr ihr eigenes Zeitprogramm gegen den Plan.</div>
+    <div class="notiz">Solange die Übernahme steht, ist der Parameter im
+      Anlagenmanager ausgeblendet. Der Knopf „Übernahme aufheben“ dort
+      gibt ihn jederzeit zurück – der Planer schaltet sich dann hier von
+      selbst ab und meldet es im Protokoll.</div>
+    <div class="raster-felder eng" style="margin-top:var(--l3)">
+      <div class="feld"><label>Adresse des Anlagenmanagers</label>
+        <input type="text" id="e-kessel-adresse"
+               placeholder="http://local-heizungsanlage:8099">
+        <div class="notiz">Leer lassen, wenn beide Add-ons auf demselben Home
+          Assistant laufen.</div></div>
+    </div>
+    <div id="kessel-lage" class="notiz" style="margin-top:var(--l2)"></div>
+  </div>
+
+  <div class="tafel">
     <h2>Öltank</h2>
     <label class="haken"><input type="checkbox" id="e-tank-aktiv">
       <span>Tanküberwachung anzeigen – Restmenge, Verbrauch und Leckagewache</span></label>
@@ -1559,12 +1582,39 @@ function lageZeichnen(bericht) {
     {marke:'Letzter Durchlauf', wert: uhr(bericht.zeit),
      zusatz: bericht.fehler ? bericht.fehler : '', klein:true},
   ];
+  // Der Kessel bekommt nur dann eine Kachel, wenn der Planer ihn auch führt.
+  // Wer die Kesselregelung nicht eingeschaltet hat, soll in der Übersicht
+  // nicht über ein Feld stolpern, das immer „–“ zeigt.
+  const ke = bericht.kessel || {};
+  if (ke.aktiv) {
+    const lage = ke.erreichbar === false
+      ? {wert:'?', zusatz:'Anlagenmanager nicht erreichbar'}
+      : ke.hinweis ? {wert:'wartet', zusatz: ke.hinweis}
+      : ke.fehler ? {wert: ke.anzeige || '?', zusatz: ke.fehler}
+      : {wert: ke.anzeige || '–',
+         zusatz: ke.trocken ? 'Trockenlauf – nicht gestellt'
+                            : `Parameter ${ke.parameter}`};
+    posten.push({marke:'Kessel', wert: lage.wert, zusatz: lage.zusatz,
+                 klein:true});
+  }
+
   const stoerungen = bericht.stoerungen || [];
   if (stoerungen.length) {
     const schwer = stoerungen.filter(s => s.schwere === 'fehler').length;
     posten.push({marke:'Störungen', wert: String(stoerungen.length),
                  zusatz: schwer ? `${schwer} ausgefallen` : 'Batterie schwach'});
   }
+  const kFeld = $('kessel-lage');
+  if (kFeld) {
+    kFeld.textContent = !ke.aktiv ? ''
+      : ke.erreichbar === false
+        ? 'Der Heizungsanlagenmanager antwortet gerade nicht: ' + (ke.fehler || '')
+      : ke.hinweis ? ke.hinweis
+      : ke.uebernommen
+        ? `Übernommen: Parameter ${ke.parameter} steht auf „${ke.anzeige}“.`
+        : 'Die Übernahme ist noch nicht angemeldet.';
+  }
+
   $('lage').innerHTML = posten.map(p => `
     <div class="posten">
       <span class="marke">${p.marke}</span>
@@ -2378,6 +2428,10 @@ function einstellungenZeichnen() {
   fuelleAuswahl($('e-schulfrei'), entitaeten.schalter || [], e.schulfrei_entity, 'keiner');
   fuelleAuswahl($('e-arbeitstag'), entitaeten.schalter || [], e.arbeitstag_entity, 'keiner');
 
+  const ke = e.kessel || {};
+  $('e-kessel-aktiv').checked = !!ke.aktiv;
+  $('e-kessel-adresse').value = ke.adresse || '';
+
   const tk = e.tank || {};
   $('e-tank-aktiv').checked = !!tk.aktiv;
   $('e-tank-inhalt').value = tk.inhalt_liter;
@@ -2557,6 +2611,10 @@ $('btn-speichern-einst').onclick = async () => {
       stumm_stunden: parseFloat($('e-wh-stumm').value),
       batterie_prozent: parseInt($('e-wh-batterie').value, 10),
       melden_an: gewaehlt($('e-wh-melden')),
+    },
+    kessel: {
+      aktiv: $('e-kessel-aktiv').checked,
+      adresse: $('e-kessel-adresse').value.trim(),
     },
     tank: {
       aktiv: $('e-tank-aktiv').checked,

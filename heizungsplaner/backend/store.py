@@ -172,6 +172,16 @@ STANDARD_EINSTELLUNGEN = {
         "waehrung": "€",              # nur Beschriftung, gerechnet wird ohnehin
         "melden_an": [],              # leer = die Meldewege des Wachhunds
     },
+    # Die Kesselregelung: ebenfalls ab Werk aus. Sie greift in ein zweites
+    # Add-on und über dieses in die Anlage selbst – so etwas schaltet man
+    # bewusst ein oder gar nicht.
+    "kessel": {
+        "aktiv": False,
+        # Leer heißt: das Add-on unter seinem üblichen Namen im Docker-Netz
+        # von Home Assistant. Eintragen muss das nur, wer den
+        # Heizungsanlagenmanager woanders betreibt.
+        "adresse": "",
+    },
     # Ein ausgefallenes Thermostat soll auffallen, ohne dass jemand hinsieht.
     "wachhund": {
         "aktiv": True,
@@ -571,6 +581,14 @@ def validate_einstellungen(roh: dict) -> dict:
     tk["leckage_entity"] = str(tk["leckage_entity"] or "").strip()
     tk["waehrung"] = (str(tk["waehrung"] or "").strip() or "€")[:3]
     tk["melden_an"] = [str(d).strip() for d in (tk.get("melden_an") or []) if str(d).strip()]
+
+    k = e["kessel"]
+    k["aktiv"] = bool(k["aktiv"])
+    adresse = str(k.get("adresse") or "").strip().rstrip("/")
+    if adresse and not adresse.startswith(("http://", "https://")):
+        raise ValidationError(
+            "Die Adresse des Heizungsanlagenmanagers beginnt mit http:// oder https://")
+    k["adresse"] = adresse
 
     f = e["fenster"]
     f["aktiv"] = bool(f["aktiv"])

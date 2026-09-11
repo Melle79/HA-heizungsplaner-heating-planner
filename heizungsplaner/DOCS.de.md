@@ -585,6 +585,78 @@ Für eigene Automationen gibt es `binary_sensor.heizungsplaner_stoerung`
 (Geräteklasse `problem`) mit den Meldungen als Attribut sowie
 `sensor.heizungsplaner_stoerungen` mit der Zahl der ausgefallenen Geräte.
 
+## Kesselregelung (optional)
+
+Auch dieser Baustein ist **ab Werk aus**, und zwar mit Bedacht: Er greift über
+ein zweites Add-on in die Heizungsregelung selbst.
+
+Der Planer stellt Thermostatventile – aber ein Ventil kann nur verteilen, was
+der Kessel liefert. Läuft dessen Regelung nach ihrem eigenen Zeitprogramm,
+arbeiten beide gegeneinander: Der Planer heizt morgens um halb sechs vor,
+während der Kessel noch absenkt, und abends um zehn hält der Kessel Vorlauf
+bereit, den kein Raum mehr will. Man merkt das nicht am Thermometer, sondern
+am Ölverbrauch.
+
+### Was dafür gebraucht wird
+
+Das Add-on **Heizungsanlagenmanager**, verbunden mit der Regelung (bei einer
+Siemens-Albatros-Regelung über BSB-LAN). Dort muss einmal der
+Parameterkatalog aufgebaut und unter *Einstellungen* das Stellen freigegeben
+sein – beides ist dort ebenfalls ab Werk aus.
+
+Danach genügt im Planer ein Haken unter *Einstellungen → Kesselregelung*. Die
+Adresse bleibt leer, solange beide Add-ons auf demselben Home Assistant
+laufen.
+
+### Was der Planer stellt
+
+Genau **einen** Parameter: die Programmwahl. Was dort hineingeschrieben wird,
+leitet sich aus dem ab, was der Planer für die Räume ohnehin entschieden hat:
+
+| Lage im Haus | Programmwahl |
+|---|---|
+| irgendein Raum auf Komfort, Party oder Heimkehr | **Nenn** |
+| nur Sparwerte – Eco, Nacht, abwesend, Urlaub | **Reduziert** |
+| Sommerbetrieb des Planers | **Sommer** |
+| kein Raum wird geregelt (alle aus, gesperrt, Fenster offen) | **Standby** |
+
+„Standby“ ist dabei nicht „aus“: Der Frostschutz der Regelung bleibt darunter
+aktiv, und das Warmwasser hängt an einem eigenen Parameter, den der Planer
+nicht anrührt.
+
+Ein Raum in der Betriebsart **„nur absenken“** zählt als Komfort. Der Planer
+kennt den Wert nicht, den eine Hand dort eingestellt hat – und zu wenig
+Vorlauf ist eine kalte Wohnung, zu viel nur ein wenig Öl.
+
+Geschrieben wird **auf Flanke**: Steht die Betriebsart schon richtig, geht
+kein Telegramm über den Bus. Bei ausgeschalteter Automatik und im Trockenlauf
+stellt der Planer den Kessel so wenig wie ein Thermostat.
+
+### Wer das letzte Wort hat
+
+Solange die Übernahme steht, ist der Parameter im Anlagenmanager
+ausgeblendet – dort kann ihn niemand aus Versehen gegen den Planer stellen.
+Der Knopf **„Übernahme aufheben“** gibt ihn jederzeit zurück.
+
+Und dann bleibt es dabei. Der Planer meldet sich **nicht** stillschweigend neu
+an: Er schaltet die Kesselregelung von selbst ab, schreibt es ins Protokoll
+und wartet, bis jemand den Haken hier wieder setzt. Ein Knopf, den ein
+Programm zwei Minuten später wieder aushebelt, wäre eine Attrappe.
+
+Führt bereits ein anderes Add-on die Programmwahl, lässt der Planer sie in
+Ruhe und sagt in der Übersicht, wer sie hält.
+
+### Was man davon sieht
+
+Auf der Übersicht steht eine Kachel **Kessel** mit der Betriebsart im
+Klartext. Dieselbe Angabe gibt es als `sensor.heizungsplaner_kessel` – mit
+Parameternummer, rohem Wert und Hinweistext als Attribute. Die Entität
+erscheint nur bei eingeschalteter Führung.
+
+Antwortet der Anlagenmanager gerade nicht – etwa während seines eigenen
+Neustarts –, sagt die Kachel das und der Takt läuft weiter. Die Räume sind zu
+diesem Zeitpunkt längst gestellt.
+
 ## Öltank (optional)
 
 Dieser Baustein ist **ab Werk aus**. Er erscheint erst, wenn du ihn unter

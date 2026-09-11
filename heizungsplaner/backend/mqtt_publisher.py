@@ -41,6 +41,14 @@ GRUND_ENTITAETEN = [
      None, None),
 ]
 
+# Die Kesselregelung, ebenfalls nur bei eingeschalteter Führung. Ein Sensor
+# genügt: Er trägt die Betriebsart als Zustand, alles Weitere als Attribut.
+# Eine eigene Störmeldung bekommt er nicht – ein nicht erreichbarer
+# Anlagenmanager ist kein Heizungsfehler, und die Kachel sagt es im Klartext.
+KESSEL_ENTITAETEN = [
+    ("sensor", "kessel", "Kessel Betriebsart", "mdi:water-boiler", None, None),
+]
+
 # Der Öltank ist optional und bekommt seine Entitäten nur, wenn er
 # eingeschaltet ist – sonst stünden in jeder Installation fünf leere Sensoren.
 # (component, key, Anzeigename, Icon, Einheit, device_class, state_class)
@@ -189,9 +197,25 @@ class Publisher:
 
     def publish_discovery(self, raeume: list[dict] | None = None,
                           tank_aktiv: bool = False,
-                          waehrung: str = "€") -> None:
+                          waehrung: str = "€",
+                          kessel_aktiv: bool = False) -> None:
         device = self._device()
         self._waehrung = waehrung or "€"
+        for component, key, name, icon, mass, klasse in KESSEL_ENTITAETEN:
+            pfad = f"{DISCOVERY_PREFIX}/{component}/{DEVICE_ID}/{key}/config"
+            if not kessel_aktiv:
+                self._publish(pfad, "")      # "retained" – muss weg, nicht leer
+                continue
+            self._publish(pfad, json.dumps({
+                "name": name,
+                "unique_id": f"{DEVICE_ID}_{key}",
+                "default_entity_id": f"{component}.{DEVICE_ID}_{key}",
+                "state_topic": f"{BASE_TOPIC}/{key}/state",
+                "json_attributes_topic": f"{BASE_TOPIC}/{key}/attributes",
+                "availability_topic": AVAILABILITY_TOPIC,
+                "icon": icon,
+                "device": device,
+            }, ensure_ascii=False))
         for component, key, name, icon, mass, klasse, verlauf in TANK_ENTITAETEN:
             pfad = f"{DISCOVERY_PREFIX}/{component}/{DEVICE_ID}/{key}/config"
             if not tank_aktiv:
@@ -372,6 +396,29 @@ class Publisher:
             })
 
         self._tank_zustand(bericht.get("tank") or {})
+        self._kessel_zustand(bericht.get("kessel") or {})
+
+    def _kessel_zustand(self, kessel: dict) -> None:
+        """Die Betriebsart als Zustand, die Begründung als Attribut.
+
+        Auf der Kachel soll „Nennbetrieb“ stehen, nicht die 4, die über den
+        Bus geht. Der rohe Wert bleibt als Attribut daneben – für den Fall,
+        dass jemand nachrechnen will, was der Planer der Anlage geschickt hat.
+        """
+        if not kessel.get("aktiv"):
+            return
+        if not kessel.get("erreichbar", True):
+            zustand = "nicht erreichbar"
+        elif kessel.get("hinweis"):
+            zustand = "wartet"
+        else:
+            zustand = kessel.get("anzeige") or "unknown"
+        self._zustand("kessel", zustand, {
+            "parameter": kessel.get("parameter"),
+            "wert": kessel.get("wert"),
+            "uebernommen": bool(kessel.get("uebernommen")),
+            "hinweis": kessel.get("hinweis") or kessel.get("fehler") or "",
+        })
 
     def _tank_zustand(self, tank: dict) -> None:
         """Die Tankwerte nach MQTT spiegeln – nur wenn es den Tank gibt."""

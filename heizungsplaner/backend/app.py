@@ -211,8 +211,9 @@ def _discovery_auffrischen() -> None:
                     if k not in aktuell]
         if veraltet:
             _publisher.entferne_raeume(veraltet)
-        _publisher.publish_discovery(raeume, tank_aktiv,
-                                    tank.get("waehrung") or "€")
+        _publisher.publish_discovery(
+            raeume, tank_aktiv, tank.get("waehrung") or "€",
+            bool((config["einstellungen"].get("kessel") or {}).get("aktiv")))
         zustand["veroeffentlichte_raeume"] = aktuell
         store.save_state(zustand)
     except Exception as err:  # noqa: BLE001

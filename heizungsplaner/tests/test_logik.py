@@ -1492,6 +1492,161 @@ pruefe(texte.sprache_setzen("fr-CA") == "en", "unbekannte Sprache faellt auf Eng
 pruefe(texte.sprache_setzen("de-AT") == "de", "de-AT bleibt Deutsch")
 texte.sprache_setzen("de")
 
+print("\n=== Kesselregelung ===")
+import kessel
+
+def _raeume(*zustaende):
+    return {"raeume": [{"zustand": z} for z in zustaende]}
+
+pruefe(kessel.gewuenschte_wahl(_raeume("komfort", "nacht")) == "nenn",
+       "ein Komfortraum genuegt fuer Nennbetrieb")
+pruefe(kessel.gewuenschte_wahl(_raeume("eco", "nacht", "abwesend")) == "reduziert",
+       "lauter Sparwerte ergeben Reduziert")
+pruefe(kessel.gewuenschte_wahl(_raeume("aus", "gesperrt", "fenster")) == "standby",
+       "geschlossene Raeume ergeben Standby")
+pruefe(kessel.gewuenschte_wahl({"sommerbetrieb": True,
+                                "raeume": [{"zustand": "komfort"}]}) == "sommer",
+       "der Sommerbetrieb geht allem vor")
+pruefe(kessel.gewuenschte_wahl({"raeume": []}) == "standby",
+       "ohne Raeume wird nichts verlangt")
+
+# Der Fehler, der beim Bauen beinahe stehen geblieben waere: „uebersteuert“
+# klingt nach einer greifenden Regel, entsteht aber nur, wenn eine Regel auf
+# „aus“ steht – der Raum ist dann zu, nicht warm.
+pruefe(kessel.gewuenschte_wahl(_raeume("uebersteuert")) == "standby",
+       "„uebersteuert“ heisst zu, nicht warm")
+pruefe("uebersteuert" not in kessel.KOMFORT_ZUSTAENDE,
+       "„uebersteuert“ zaehlt nicht als Waermebedarf")
+
+# Jeder Zustand, den regelung.py vergeben kann, muss hier eingeordnet sein –
+# sonst faellt ein neuer Sonderzustand stillschweigend auf Standby.
+import re as _re
+_quelle = open(os.path.join(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__))), "backend", "regelung.py"),
+    encoding="utf-8").read()
+_zustaende = set(_re.findall(r'ergebnis\("([a-z_]+)"', _quelle))
+_zustaende |= set(_re.findall(r'zustand = "([a-z_]+)"', _quelle))
+_zustaende |= {"komfort", "eco", "nacht", "aus"}       # aus dem Zeitplan
+_unbekannt = _zustaende - kessel.KOMFORT_ZUSTAENDE - kessel.SPAR_ZUSTAENDE - {
+    "aus", "gesperrt", "fenster", "sommer", "uebersteuert"}
+pruefe(not _unbekannt, f"alle {len(_zustaende)} Raumzustaende sind eingeordnet "
+       f"({sorted(_unbekannt) or 'keine Luecke'})")
+
+AUSWAHL = [{"wert": "0", "text": "Standby"}, {"wert": "1", "text": "Programm 3"},
+           {"wert": "2", "text": "Programm 2"}, {"wert": "3", "text": "Programm 1"},
+           {"wert": "4", "text": "Nenn"}, {"wert": "5", "text": "Reduziert"},
+           {"wert": "6", "text": "Sommer"}]
+pruefe(kessel.wert_zu("nenn", AUSWAHL) == "4", "Nenn traegt bei Sven die 4")
+pruefe(kessel.wert_zu("reduziert", AUSWAHL) == "5", "Reduziert traegt die 5")
+pruefe(kessel.wert_zu("sommer", AUSWAHL) == "6", "Sommer traegt die 6")
+pruefe(kessel.wert_zu("standby", AUSWAHL) == "0", "Standby traegt die 0")
+pruefe(kessel.wert_zu("nenn", [{"wert": "1", "text": "Programm 1"}]) is None,
+       "eine Regelung ohne Nennbetrieb liefert nichts statt zu raten")
+
+# --- Das Zusammenspiel, mit einem erfundenen Anlagenmanager --------------
+class Anlage:
+    """Ein Anlagenmanager auf dem Papier – zaehlt, was ihm zugerufen wird."""
+
+    def __init__(self, uebernommen=False, antwort=None):
+        self.uebernommen = uebernommen
+        self.antwort = antwort            # None = einverstanden
+        self.gesetzt = []
+        self.anmeldungen = 0
+        self.abmeldungen = 0
+
+    def __call__(self, methode, adresse, nutzlast=None, zeit=20.0):
+        if adresse.endswith("/api/katalog"):
+            return {"programmwahl": {"nr": "70", "name": "Programmwahl",
+                                     "schreibbar": True, "werte": AUSWAHL}}
+        if adresse.endswith("/api/uebernahme") and methode == "GET":
+            return {"quellen": {}, "parameter":
+                    {"70": {"quelle": "heizungsplaner", "name": "Heizungsplaner"}}
+                    if self.uebernommen else {}}
+        if adresse.endswith("/api/uebernahme"):
+            self.anmeldungen += 1
+            self.uebernommen = True
+            return {}
+        if "/api/uebernahme/" in adresse:
+            self.abmeldungen += 1
+            self.uebernommen = False
+            return {}
+        if adresse.endswith("/api/setzen"):
+            if self.antwort:
+                raise self.antwort
+            self.gesetzt.append(nutzlast["wert"])
+            return {"gesetzt": True}
+        raise AssertionError(adresse)
+
+
+def _lauf(anlage, bericht, einst, state):
+    alt, kessel._json = kessel._json, anlage
+    try:
+        return kessel.fuehren(bericht, einst, state, lambda *a, **k: None)
+    finally:
+        kessel._json = alt
+
+
+def EIN(**extra):
+    # Bewusst eine Funktion: EIN() waere eine flache Kopie, und der
+    # verschachtelte Kessel-Block bliebe zwischen den Pruefungen derselbe.
+    return {"kessel": {"aktiv": True, "adresse": ""}, **extra}
+warm = {"sommerbetrieb": False, "raeume": [{"zustand": "komfort"}]}
+kalt = {"sommerbetrieb": False, "raeume": [{"zustand": "nacht"}]}
+
+anlage, zustand = Anlage(), {}
+lage = _lauf(anlage, warm, EIN(), zustand)
+pruefe(anlage.anmeldungen == 1, "beim ersten Lauf wird die Uebernahme angemeldet")
+pruefe(anlage.gesetzt == ["4"], "danach steht die Programmwahl auf Nenn")
+pruefe(lage["anzeige"] == "Nennbetrieb", "die Lage nennt die Betriebsart im Klartext")
+
+_lauf(anlage, warm, EIN(), zustand)
+pruefe(anlage.gesetzt == ["4"], "derselbe Bedarf schreibt kein zweites Mal")
+
+_lauf(anlage, kalt, EIN(), zustand)
+pruefe(anlage.gesetzt == ["4", "5"], "erst die Flanke schreibt wieder")
+
+# Der Mensch hebt die Uebernahme im Anlagenmanager auf.
+anlage.uebernommen = False
+einst = EIN()
+lage = _lauf(anlage, warm, einst, zustand)
+pruefe(anlage.anmeldungen == 1, "nach dem Aufheben wird nicht neu angemeldet")
+pruefe(einst["kessel"]["aktiv"] is False, "der Planer schaltet die Fuehrung selbst ab")
+pruefe(lage.get("abgegeben"), "und sagt es in der Lage")
+
+# Ausgeschaltet: die Uebernahme zurueckgeben, statt sie liegen zu lassen.
+anlage2, zustand2 = Anlage(), {}
+_lauf(anlage2, warm, EIN(), zustand2)
+_lauf(anlage2, warm, {"kessel": {"aktiv": False}}, zustand2)
+pruefe(anlage2.abmeldungen == 1, "beim Abschalten wird die Uebernahme zurueckgegeben")
+
+# Trockenlauf: rechnen ja, stellen nein.
+anlage3, zustand3 = Anlage(uebernommen=True), {}
+lage = _lauf(anlage3, warm, EIN(trockenlauf=True), zustand3)
+pruefe(anlage3.gesetzt == [] and lage.get("trocken"),
+       "im Trockenlauf wird nichts gestellt")
+
+# 403 heisst „im Anlagenmanager noch gesperrt“ – und der Satz muss das sagen.
+anlage4 = Anlage(uebernommen=True,
+                 antwort=kessel.Abgelehnt(403, "noch nicht freigegeben"))
+lage = _lauf(anlage4, warm, EIN(), {})
+pruefe("Heizungsanlagenmanager" in (lage.get("fehler") or ""),
+       "eine Sperre verweist auf den Anlagenmanager")
+
+# Fuehrt ein anderes Add-on den Parameter, wird nicht darum gerangelt.
+class Fremd(Anlage):
+    def __call__(self, methode, adresse, nutzlast=None, zeit=20.0):
+        if adresse.endswith("/api/uebernahme") and methode == "GET":
+            return {"quellen": {}, "parameter":
+                    {"70": {"quelle": "anderes", "name": "Ein anderes Add-on"}}}
+        return Anlage.__call__(self, methode, adresse, nutzlast, zeit)
+
+fremd = Fremd()
+lage = _lauf(fremd, warm, EIN(), {})
+pruefe(fremd.gesetzt == [] and fremd.anmeldungen == 0,
+       "ein fremd gefuehrter Parameter wird in Ruhe gelassen")
+pruefe("Ein anderes Add-on" in (lage.get("hinweis") or ""),
+       "und die Lage nennt den, der ihn haelt")
+
 print("\n=== Validierung ===")
 try:
     store.validate_raum({"name": "", "thermostate": []})

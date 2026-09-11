@@ -1,5 +1,29 @@
 # Änderungen
 
+## 1.25.0
+
+- **Neu: Der Planer kann die Kesselregelung mitführen.** Bisher stellte er
+  Thermostatventile, während die Heizungsregelung ihr eigenes Zeitprogramm
+  fuhr – beide arbeiteten gegeneinander. Der Planer heizte morgens vor,
+  während der Kessel noch absenkte; abends hielt der Kessel Vorlauf bereit,
+  den kein Raum mehr wollte.
+- Eingeschaltet wird das unter *Einstellungen → Kesselregelung*. Es braucht
+  das Add-on **Heizungsanlagenmanager**; der Planer meldet dort die
+  Programmwahl zur Übernahme an und führt sie nach dem Wärmebedarf der Räume:
+  **Nenn**, sobald ein Raum Komfort will · **Reduziert**, wenn alle abgesenkt
+  sind · **Sommer** im Sommerbetrieb · **Standby**, wenn kein Raum geregelt
+  wird.
+- Geschrieben wird wie überall **auf Flanke**: Steht die Betriebsart schon so,
+  geht kein Telegramm über den Bus.
+- **Hebt jemand die Übernahme im Anlagenmanager auf, bleibt sie aufgehoben.**
+  Der Planer schaltet die Führung daraufhin selbst ab und vermerkt es im
+  Protokoll. Ein Knopf, den ein Programm zwei Minuten später wieder aushebelt,
+  wäre eine Attrappe.
+- Neue Entität `sensor.heizungsplaner_kessel` mit der Betriebsart im Klartext
+  – sie erscheint nur bei eingeschalteter Führung.
+- Ab Werk ist die Kesselregelung **aus**. Sie greift über ein zweites Add-on
+  in die Anlage selbst; so etwas schaltet man bewusst ein oder gar nicht.
+
 ## 1.24.1
 
 - **Behoben: Tankwerte ohne Zahl landeten auf `unavailable` statt `unknown`.**

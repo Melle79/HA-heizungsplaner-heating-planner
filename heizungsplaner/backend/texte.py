@@ -460,4 +460,46 @@ TEXTE: dict[str, dict[str, str]] = {
     "fehler_zahl": {"de": "{feld}: Zahl erwartet", "en": "{feld}: number expected"},
     "fehler_bereich": {"de": "{feld} muss zwischen {min} und {max} liegen",
                        "en": "{feld} must be between {min} and {max}"},
+
+    # Kesselregelung
+    "kessel_hinweis": {
+        "de": "Der Heizungsplaner führt die Programmwahl nach dem Wärmebedarf "
+              "der Räume.",
+        "en": "The heating planner sets the program selection according to the "
+              "rooms' demand for heat."},
+    "kessel_wahl_nenn": {"de": "Nennbetrieb", "en": "nominal"},
+    "kessel_wahl_reduziert": {"de": "Reduziert", "en": "reduced"},
+    "kessel_wahl_sommer": {"de": "Sommerbetrieb", "en": "summer"},
+    "kessel_wahl_standby": {"de": "Standby", "en": "standby"},
+    "kessel_gestellt": {"de": "Kessel auf {wahl}", "en": "Boiler to {wahl}"},
+    "kessel_gestellt_warum": {
+        "de": "Die Programmwahl der Regelung steht jetzt auf {wahl} – so weit "
+              "reicht der Wärmebedarf der Räume.",
+        "en": "The controller's program selection is now {wahl} – that is as "
+              "far as the rooms' demand for heat goes."},
+    "kessel_freigegeben": {"de": "Kessel wieder freigegeben",
+                           "en": "Boiler released again"},
+    "kessel_freigegeben_warum": {
+        "de": "Die Übernahme wurde im Heizungsanlagenmanager aufgehoben. Der "
+              "Planer stellt die Programmwahl nicht mehr; einschalten lässt "
+              "sie sich hier unter Einstellungen.",
+        "en": "The takeover was released in the heating system manager. The "
+              "planner no longer sets the program selection; you can switch "
+              "it on again here under Settings."},
+    "kessel_keine_wahl": {
+        "de": "Der Heizungsanlagenmanager hat in dieser Regelung keine "
+              "Programmwahl gefunden. Erst den Parameterkatalog aufbauen.",
+        "en": "The heating system manager found no program selection in this "
+              "controller. Build the parameter catalogue first."},
+    "kessel_unbekannt": {
+        "de": "Diese Regelung kennt keinen passenden Wert für {wahl}.",
+        "en": "This controller has no matching value for {wahl}."},
+    "kessel_gesperrt": {
+        "de": "Der Heizungsanlagenmanager lässt das Stellen noch nicht zu. "
+              "Dort unter Einstellungen freigeben.",
+        "en": "The heating system manager does not permit setting yet. "
+              "Release it there under Settings."},
+    "kessel_fremd": {
+        "de": "Die Programmwahl wird bereits von {quelle} geführt.",
+        "en": "The program selection is already held by {quelle}."},
 }

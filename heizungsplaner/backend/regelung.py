@@ -29,6 +29,7 @@ from datetime import datetime, timedelta
 import anwesenheit
 import einheit
 import ha_api
+import kessel
 import texte
 import wachhund
 import witterung
@@ -966,6 +967,24 @@ def takt(config: dict, state: dict, protokoll) -> dict:
         _LOGGER.warning("Überwachung fehlgeschlagen: %s", err)
         stoerungen = []
 
+    # Der Kessel zuletzt: Er soll dem folgen, was die Räume gerade tatsächlich
+    # bekommen haben, nicht dem, was vor dem Durchlauf geplant war. Steht die
+    # Automatik still, rührt er sich so wenig wie die Thermostate – ein Planer,
+    # der nichts stellt, darf auch die Anlage nicht umschalten.
+    kessel_lage = {"aktiv": False}
+    if automatik:
+        try:
+            kessel_lage = kessel.fuehren(
+                {"sommerbetrieb": sommer, "raeume": ergebnisse},
+                einst, state, protokoll)
+        except Exception as err:  # noqa: BLE001
+            # Der Anlagenmanager ist ein zweites Add-on. Ist es gerade beim
+            # Neustart, darf das nicht den ganzen Takt kosten – die Räume sind
+            # zu diesem Zeitpunkt längst gestellt.
+            _LOGGER.warning("Kesselführung fehlgeschlagen: %s", err)
+            kessel_lage = {"aktiv": True, "erreichbar": False,
+                           "fehler": str(err)}
+
     state.update({
         "aussen_gedaempft": round(gedaempft, 2) if gedaempft is not None else None,
         "sommerbetrieb": sommer,
@@ -986,6 +1005,7 @@ def takt(config: dict, state: dict, protokoll) -> dict:
         "personen": personen,
         "raeume": ergebnisse,
         "stoerungen": stoerungen,
+        "kessel": kessel_lage,
     }
 
 

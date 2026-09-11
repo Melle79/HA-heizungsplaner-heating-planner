@@ -577,6 +577,78 @@ For your own automations there is `binary_sensor.heizungsplaner_stoerung`
 (device class `problem`) with the messages as an attribute, as well as
 `sensor.heizungsplaner_stoerungen` with the number of failed devices.
 
+## Boiler control (optional)
+
+This part, too, is **off by default**, and deliberately so: it reaches through
+a second add-on into the heating controller itself.
+
+The planner sets radiator valves – but a valve can only distribute what the
+boiler delivers. If the controller runs its own time program, the two work
+against each other: the planner preheats at half past five while the boiler is
+still setting back, and at ten in the evening the boiler keeps flow
+temperature ready that no room wants any more. You do not notice that on the
+thermometer, you notice it on the oil bill.
+
+### What it needs
+
+The **Heizungsanlagenmanager** add-on, connected to the controller (over
+BSB-LAN for a Siemens Albatros controller). There, the parameter catalogue has
+to be built once and setting has to be released under *Settings* – both are
+off by default there as well.
+
+After that a single tick under *Settings → Boiler control* is enough in the
+planner. Leave the address empty as long as both add-ons run on the same Home
+Assistant.
+
+### What the planner sets
+
+Exactly **one** parameter: the program selection. What goes into it follows
+from what the planner has decided for the rooms anyway:
+
+| Situation in the house | Program selection |
+|---|---|
+| any room at comfort, party or coming home | **nominal** |
+| setback values only – eco, night, away, holiday | **reduced** |
+| the planner is in summer mode | **summer** |
+| no room is being controlled (all off, blocked, window open) | **standby** |
+
+“Standby” is not “off”: the controller's frost protection stays active below
+it, and domestic hot water hangs on a separate parameter that the planner does
+not touch.
+
+A room in the **“setback only”** mode counts as comfort. The planner does not
+know the value a hand has set there – and too little flow temperature is a
+cold flat, while too much is only a little oil.
+
+Writing happens **on edges**: if the operating mode is already right, no
+telegram goes over the bus. With the automatic switched off and during a dry
+run the planner leaves the boiler alone, just as it leaves the thermostats
+alone.
+
+### Who has the last word
+
+While the takeover is in place the parameter is hidden in the system manager –
+nobody can set it against the planner there by accident. The **“Release
+takeover”** button hands it back at any time.
+
+And then it stays that way. The planner does **not** register again quietly:
+it switches the boiler control off by itself, writes it into the log and waits
+until somebody ticks the box here again. A button that a program overrides two
+minutes later would be a sham.
+
+If another add-on already holds the program selection, the planner leaves it
+alone and says in the overview who holds it.
+
+### What you see of it
+
+The overview carries a **Boiler** tile with the operating mode in plain words.
+The same information is available as `sensor.heizungsplaner_kessel` – with the
+parameter number, the raw value and any note as attributes. The entity only
+appears while the control is switched on.
+
+If the system manager does not answer – during its own restart, say – the tile
+says so and the cycle carries on. The rooms have long been set by then.
+
 ## Oil tank (optional)
 
 This part is **off by default**. It only appears once you switch it on under
