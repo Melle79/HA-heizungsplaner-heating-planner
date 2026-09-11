@@ -1,5 +1,15 @@
 # Änderungen
 
+## 1.25.1
+
+- **Behoben: Der Planer fand den Heizungsanlagenmanager nicht.** Als Adresse
+  stand eine Vorgabe im Code, die nur bei lokal gebauten Add-ons stimmt. Ein
+  Add-on aus einem Repository heißt im Docker-Netz `<repo-hash>-heizungsanlage`
+  – und dieser Hash lässt sich nicht raten.
+- Der Planer fragt jetzt den Supervisor, unter welchem Namen das Add-on läuft.
+  Das Feld *Adresse* bleibt damit in aller Regel leer; es ist nur noch für den
+  Fall da, dass der Anlagenmanager woanders betrieben wird.
+
 ## 1.25.0
 
 - **Neu: Der Planer kann die Kesselregelung mitführen.** Bisher stellte er

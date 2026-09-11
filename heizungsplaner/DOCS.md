@@ -597,8 +597,9 @@ to be built once and setting has to be released under *Settings* – both are
 off by default there as well.
 
 After that a single tick under *Settings → Boiler control* is enough in the
-planner. Leave the address empty as long as both add-ons run on the same Home
-Assistant.
+planner. Leave the address empty: the planner asks the Supervisor under which
+name the system manager can be reached. It could not be guessed – it carries
+the hash of the repository the add-on came from.
 
 ### What the planner sets
 

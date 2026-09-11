@@ -1589,7 +1589,7 @@ def _lauf(anlage, bericht, einst, state):
 def EIN(**extra):
     # Bewusst eine Funktion: EIN() waere eine flache Kopie, und der
     # verschachtelte Kessel-Block bliebe zwischen den Pruefungen derselbe.
-    return {"kessel": {"aktiv": True, "adresse": ""}, **extra}
+    return {"kessel": {"aktiv": True, "adresse": "http://anlage:8099"}, **extra}
 warm = {"sommerbetrieb": False, "raeume": [{"zustand": "komfort"}]}
 kalt = {"sommerbetrieb": False, "raeume": [{"zustand": "nacht"}]}
 
@@ -1616,7 +1616,8 @@ pruefe(lage.get("abgegeben"), "und sagt es in der Lage")
 # Ausgeschaltet: die Uebernahme zurueckgeben, statt sie liegen zu lassen.
 anlage2, zustand2 = Anlage(), {}
 _lauf(anlage2, warm, EIN(), zustand2)
-_lauf(anlage2, warm, {"kessel": {"aktiv": False}}, zustand2)
+_lauf(anlage2, warm, {"kessel": {"aktiv": False, "adresse": "http://anlage:8099"}},
+      zustand2)
 pruefe(anlage2.abmeldungen == 1, "beim Abschalten wird die Uebernahme zurueckgegeben")
 
 # Trockenlauf: rechnen ja, stellen nein.

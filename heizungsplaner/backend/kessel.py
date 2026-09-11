@@ -41,7 +41,15 @@ import texte
 _LOGGER = logging.getLogger(__name__)
 
 QUELLE = "heizungsplaner"
-STANDARD_ADRESSE = "http://local-heizungsanlage:8099"
+
+# Der Name des Anlagenmanagers im Docker-Netz von Home Assistant ist nicht zu
+# raten: Er lautet „<repo-hash>-heizungsanlage“, und der Hash hängt daran, aus
+# welchem Repository das Add-on stammt. Bei Sven ist es 95552f8b, bei jemand
+# anderem etwas anderes. Deshalb fragen wir den Supervisor, statt eine
+# Vorgabe hinzuschreiben, die nur hier stimmt.
+ANLAGE_SLUG = "heizungsanlage"
+ANLAGE_PORT = 8099
+_gefunden: str | None = None
 
 # Welcher Raumzustand wie viel Wärme verlangt.
 #
@@ -114,10 +122,46 @@ def _json(methode: str, adresse: str, nutzlast: dict | None = None,
     return json.loads(text) if text else {}
 
 
-def basis(einstellungen: dict) -> str:
-    kessel = einstellungen.get("kessel") or {}
-    return ((kessel.get("adresse") or "").strip().rstrip("/")
-            or STANDARD_ADRESSE)
+def _beim_supervisor_suchen() -> str | None:
+    """Den Anlagenmanager im Docker-Netz finden – über seinen Slug.
+
+    Gesucht wird nach dem Namensteil hinter dem Repository-Hash. Läuft er
+    nicht, kommt nichts zurück; der Aufrufer sagt dann „nicht erreichbar“,
+    was hier auch die Wahrheit ist.
+    """
+    import os
+    zeichen = os.environ.get("SUPERVISOR_TOKEN")
+    if not zeichen:
+        return None
+    req = urllib.request.Request(
+        "http://supervisor/addons",
+        headers={"Authorization": f"Bearer {zeichen}"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as antwort:
+            daten = json.loads(antwort.read().decode("utf-8"))
+    except (urllib.error.URLError, OSError, ValueError) as fehler:
+        _LOGGER.warning("Supervisor nicht erreichbar: %s", fehler)
+        return None
+    for eintrag in (daten.get("data") or {}).get("addons") or []:
+        slug = str(eintrag.get("slug") or "")
+        if slug == ANLAGE_SLUG or slug.endswith("_" + ANLAGE_SLUG):
+            # Der Supervisor nennt den Hostnamen selbst – Unterstrich wird
+            # dort zum Bindestrich, und darauf wollen wir uns nicht verlassen.
+            name = eintrag.get("hostname") or slug.replace("_", "-")
+            _LOGGER.info("Heizungsanlagenmanager gefunden: %s", name)
+            return f"http://{name}:{ANLAGE_PORT}"
+    return None
+
+
+def basis(einstellungen: dict) -> str | None:
+    """Die Adresse des Anlagenmanagers – eingetragen oder selbst gefunden."""
+    global _gefunden
+    eigene = ((einstellungen.get("kessel") or {}).get("adresse") or "").strip()
+    if eigene:
+        return eigene.rstrip("/")
+    if _gefunden is None:
+        _gefunden = _beim_supervisor_suchen() or ""
+    return _gefunden or None
 
 
 def gewuenschte_wahl(bericht: dict) -> str:
@@ -153,6 +197,8 @@ def wert_zu(wahl: str, auswahl: list[dict]) -> str | None:
 def lage(einstellungen: dict) -> dict:
     """Was der Anlagenmanager gerade meldet – und wer die Programmwahl führt."""
     adresse = basis(einstellungen)
+    if not adresse:
+        return {"erreichbar": False, "fehler": texte.t("kessel_nicht_gefunden")}
     try:
         katalog = _json("GET", f"{adresse}/api/katalog")
         uebernahme = _json("GET", f"{adresse}/api/uebernahme")
@@ -174,8 +220,11 @@ def lage(einstellungen: dict) -> dict:
 
 
 def anmelden(einstellungen: dict, parameter: str) -> bool:
+    adresse = basis(einstellungen)
+    if not adresse:
+        return False
     try:
-        _json("PUT", f"{basis(einstellungen)}/api/uebernahme", {
+        _json("PUT", f"{adresse}/api/uebernahme", {
             "quelle": QUELLE,
             "name": "Heizungsplaner",
             "hinweis": texte.t("kessel_hinweis"),
@@ -195,8 +244,11 @@ def abmelden(einstellungen: dict) -> bool:
     obwohl ihn niemand mehr führt: eine Kachel, die für immer verschwunden
     ist, weil ein Schalter woanders umgelegt wurde.
     """
+    adresse = basis(einstellungen)
+    if not adresse:
+        return False
     try:
-        _json("DELETE", f"{basis(einstellungen)}/api/uebernahme/{QUELLE}")
+        _json("DELETE", f"{adresse}/api/uebernahme/{QUELLE}")
         return True
     except (Abgelehnt, urllib.error.URLError, OSError, ValueError) as fehler:
         _LOGGER.warning("Abmelden fehlgeschlagen: %s", fehler)

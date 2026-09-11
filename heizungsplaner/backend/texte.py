@@ -486,6 +486,13 @@ TEXTE: dict[str, dict[str, str]] = {
         "en": "The takeover was released in the heating system manager. The "
               "planner no longer sets the program selection; you can switch "
               "it on again here under Settings."},
+    "kessel_nicht_gefunden": {
+        "de": "Das Add-on Heizungsanlagenmanager läuft nicht – oder es ist "
+              "unter einem anderen Namen erreichbar. Dann die Adresse hier "
+              "eintragen.",
+        "en": "The Heizungsanlagenmanager add-on is not running – or it is "
+              "reachable under a different name. Enter the address here in "
+              "that case."},
     "kessel_keine_wahl": {
         "de": "Der Heizungsanlagenmanager hat in dieser Regelung keine "
               "Programmwahl gefunden. Erst den Parameterkatalog aufbauen.",

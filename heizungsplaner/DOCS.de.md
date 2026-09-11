@@ -605,8 +605,9 @@ Parameterkatalog aufgebaut und unter *Einstellungen* das Stellen freigegeben
 sein – beides ist dort ebenfalls ab Werk aus.
 
 Danach genügt im Planer ein Haken unter *Einstellungen → Kesselregelung*. Die
-Adresse bleibt leer, solange beide Add-ons auf demselben Home Assistant
-laufen.
+Adresse bleibt leer: Der Planer fragt den Supervisor, unter welchem Namen der
+Anlagenmanager erreichbar ist. Raten ließe sich der nicht – er trägt den Hash
+des Repositorys, aus dem das Add-on stammt.
 
 ### Was der Planer stellt
 

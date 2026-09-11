@@ -335,8 +335,9 @@ window.SPRACHEN.en = {
   "Solange die Übernahme steht, ist der Parameter im Anlagenmanager ausgeblendet. Der Knopf „Übernahme aufheben“ dort gibt ihn jederzeit zurück – der Planer schaltet sich dann hier von selbst ab und meldet es im Protokoll.":
     "While the takeover is in place, the parameter is hidden in the system manager. The Release takeover button there hands it back at any time – the planner then switches itself off here and says so in the log.",
   "Adresse des Anlagenmanagers": "Address of the system manager",
-  "Leer lassen, wenn beide Add-ons auf demselben Home Assistant laufen.":
-    "Leave empty if both add-ons run on the same Home Assistant.",
+  "Leer lassen: Der Planer findet das Add-on von selbst. Nur eintragen, wenn der Anlagenmanager woanders läuft.":
+    "Leave empty: the planner finds the add-on by itself. Only fill this in if the system manager runs elsewhere.",
+  "wird selbst gefunden": "found automatically",
   "Die Übernahme ist noch nicht angemeldet.": "The takeover is not registered yet.",
   "wartet": "waiting",
   "Anlagenmanager nicht erreichbar": "System manager not reachable",
