@@ -634,6 +634,23 @@ Geschrieben wird **auf Flanke**: Steht die Betriebsart schon richtig, geht
 kein Telegramm über den Bus. Bei ausgeschalteter Automatik und im Trockenlauf
 stellt der Planer den Kessel so wenig wie ein Thermostat.
 
+### Wenn die Regelung den Wert nicht annimmt
+
+**Nicht jede Heizungsregelung lässt ihre Betriebsart vom Bus stellen.** Bei
+einem Siemens-Albatros-Regler etwa gehört sie dem Schalter am Gerät: Das
+Telegramm wird angenommen und sogar quittiert, Minuten später steht wieder
+der alte Wert da.
+
+Der Planer prüft deshalb nach. Springt der Wert dreimal zurück, gibt er die
+Führung auf, gibt die Übernahme zurück und schreibt in Protokoll und Kachel,
+was er vorgefunden hat. Das ist Absicht: Ein Planer, der weiter gegen die
+Anlage anschreibt, erzeugt nur Bustelegramme – und einer, der stillschweigend
+„Nennbetrieb“ anzeigt, während die Anlage ihr eigenes Programm fährt, wäre
+schlimmer als gar keiner.
+
+Was in dem Fall bleibt, ist das Stellen der **Sollwerte** statt der
+Betriebsart. Die nehmen dieselben Regler in aller Regel an.
+
 ### Wer das letzte Wort hat
 
 Solange die Übernahme steht, ist der Parameter im Anlagenmanager

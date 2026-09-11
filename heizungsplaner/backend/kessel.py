@@ -185,10 +185,24 @@ def lage(einstellungen: dict) -> dict:
         return {"erreichbar": False, "fehler": str(fehler)}
 
     wahl = katalog.get("programmwahl") or {}
-    fuehrt = (uebernahme.get("parameter") or {}).get(str(wahl.get("nr") or ""))
+    nr = str(wahl.get("nr") or "")
+    fuehrt = (uebernahme.get("parameter") or {}).get(nr)
+
+    # Was in der Regelung *wirklich* steht. Ohne diesen Blick wüsste der
+    # Planer nur, dass sein Telegramm angenommen wurde – nicht, ob der Wert
+    # danach noch da ist.
+    ist = None
+    try:
+        werte = _json("GET", f"{adresse}/api/werte")
+        eintrag = (werte.get("werte") or werte).get(nr) or {}
+        if not eintrag.get("error"):
+            ist = str(eintrag.get("value"))
+    except (Abgelehnt, urllib.error.URLError, OSError, ValueError):
+        pass
     return {
         "erreichbar": True,
-        "parameter": str(wahl.get("nr") or ""),
+        "parameter": nr,
+        "ist": ist,
         "name": wahl.get("name") or "",
         "auswahl": wahl.get("werte") or [],
         "schreibbar": bool(wahl.get("schreibbar")),
@@ -232,6 +246,55 @@ def abmelden(einstellungen: dict) -> bool:
     except (Abgelehnt, urllib.error.URLError, OSError, ValueError) as fehler:
         _LOGGER.warning("Abmelden fehlgeschlagen: %s", fehler)
         return False
+
+
+# So oft darf ein Wert zurückspringen, bevor der Planer die Führung aufgibt.
+# Einmal kann ein Lesefehler sein oder ein Telegramm, das sich mit dem
+# Lesezyklus überschnitten hat. Dreimal ist eine Antwort.
+VERWORFEN_GRENZE = 3
+
+
+def _verworfen(merker: dict, wert: str, ist: str | None, einstellungen: dict,
+               ergebnis: dict, protokoll):
+    """Hat die Regelung den zuletzt gestellten Wert wieder verworfen?
+
+    Ein Telegramm anzunehmen und ein Telegramm zu befolgen sind zweierlei.
+    Bei einem Siemens-Albatros-Regler etwa gehört die Betriebsart dem Schalter
+    am Gerät: Der Bus darf sie setzen, der Regler stellt Sekunden später seinen
+    eigenen Stand wieder her. Wer nur auf Flanke schreibt, merkt davon nichts –
+    der zuletzt gestellte Wert steht im Gedächtnis, eine Flanke kommt nie
+    wieder, und die Oberfläche behauptet monatelang etwas Falsches.
+
+    Deshalb wird verglichen. Springt der Wert wiederholt zurück, gibt der
+    Planer die Führung auf, statt weiter gegen die Anlage anzuschreiben.
+    Zurück kommt dann die Lage, sonst ``None`` – dann geht es normal weiter.
+    """
+    if merker.get("gesetzt") is None or ist is None:
+        return None
+    if merker["gesetzt"] != wert:
+        merker.pop("verworfen", None)   # anderer Bedarf: neuer Versuch
+        return None
+    if ist == wert:
+        merker.pop("verworfen", None)   # sitzt
+        return None
+
+    zahl = int(merker.get("verworfen", 0)) + 1
+    merker["verworfen"] = zahl
+    ergebnis["verworfen"] = zahl
+    if zahl < VERWORFEN_GRENZE:
+        merker.pop("gesetzt", None)     # noch einmal versuchen
+        return None
+
+    # Erst zurückgeben, dann abschalten: Sonst bliebe der Parameter im
+    # Anlagenmanager ausgeblendet, weil ihn dort noch jemand zu führen scheint.
+    abmelden(einstellungen)
+    _abschalten(einstellungen)
+    merker.clear()
+    protokoll(texte.t("log_alle_raeume"), texte.t("kessel_verworfen"),
+              texte.t("kessel_verworfen_warum", ist=ist, soll=wert),
+              art="warnung")
+    return {"aktiv": False, "erreichbar": True, "verworfen": zahl,
+            "hinweis": texte.t("kessel_verworfen_warum", ist=ist, soll=wert)}
 
 
 def _abschalten(einstellungen: dict) -> None:
@@ -297,6 +360,7 @@ def fuehren(bericht: dict, einstellungen: dict, state: dict, protokoll) -> dict:
             return {"aktiv": True, "erreichbar": True, "uebernommen": False}
     merker["angemeldet"] = True
 
+    stand_ist = stand.get("ist")
     wahl = gewuenschte_wahl(bericht)
     wert = wert_zu(wahl, stand["auswahl"])
     if wert is None:
@@ -307,7 +371,18 @@ def fuehren(bericht: dict, einstellungen: dict, state: dict, protokoll) -> dict:
 
     ergebnis = {"aktiv": True, "erreichbar": True, "uebernommen": True,
                 "parameter": parameter, "wahl": wahl, "wert": wert,
-                "anzeige": texte.t("kessel_wahl_" + wahl)}
+                "ist": stand_ist, "anzeige": texte.t("kessel_wahl_" + wahl)}
+
+    # Die Flanke allein genügt nicht. Manche Regelungen nehmen ein Telegramm
+    # an, quittieren es sogar – und stellen den eigenen Stand kurz darauf
+    # wieder her. Die Betriebsart eines Albatros-Reglers etwa gehört dem
+    # Schalter am Gerät, nicht dem Bus. Ohne diesen Vergleich zeigte der
+    # Planer monatelang „Nennbetrieb“, während die Anlage ihr eigenes
+    # Programm fährt: eine Lüge, die niemandem auffällt.
+    verworfen = _verworfen(merker, wert, stand_ist, einstellungen,
+                           ergebnis, protokoll)
+    if verworfen is not None:
+        return verworfen
 
     if merker.get("gesetzt") == wert:
         return ergebnis                      # steht schon so – kein Telegramm

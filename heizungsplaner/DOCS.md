@@ -627,6 +627,22 @@ telegram goes over the bus. With the automatic switched off and during a dry
 run the planner leaves the boiler alone, just as it leaves the thermostats
 alone.
 
+### When the controller does not accept the value
+
+**Not every controller lets its operating mode be set from the bus.** On a
+Siemens Albatros controller, for instance, it belongs to the switch on the
+device: the telegram is accepted and even acknowledged, and minutes later the
+old value is back.
+
+The planner therefore checks. If the value springs back three times, it gives
+up the control, hands the takeover back and writes what it found into the log
+and onto the tile. That is deliberate: a planner that keeps writing against
+the system only produces bus telegrams – and one that quietly displays
+“nominal” while the system runs its own program would be worse than none.
+
+What remains in that case is setting the **setpoints** instead of the
+operating mode. Most such controllers do accept those.
+
 ### Who has the last word
 
 While the takeover is in place the parameter is hidden in the system manager –

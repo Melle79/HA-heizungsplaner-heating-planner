@@ -493,6 +493,17 @@ TEXTE: dict[str, dict[str, str]] = {
         "en": "The heating system manager has not announced itself yet. It "
               "publishes its address over MQTT when it starts – starting it "
               "once is enough. If it runs elsewhere, enter the address here."},
+    "kessel_verworfen": {"de": "Kesselregelung aufgegeben",
+                         "en": "Boiler control given up"},
+    "kessel_verworfen_warum": {
+        "de": "Die Heizungsregelung nimmt die Programmwahl nicht vom Bus an: "
+              "Gestellt war {soll}, kurz darauf stand wieder {ist}. Bei vielen "
+              "Reglern gehört die Betriebsart dem Schalter am Gerät. Die "
+              "Kesselregelung ist deshalb abgeschaltet.",
+        "en": "The controller does not accept the program selection from the "
+              "bus: {soll} was set, and shortly after it read {ist} again. On "
+              "many controllers the operating mode belongs to the switch on "
+              "the device. Boiler control has therefore been switched off."},
     "kessel_keine_wahl": {
         "de": "Der Heizungsanlagenmanager hat in dieser Regelung keine "
               "Programmwahl gefunden. Erst den Parameterkatalog aufbauen.",

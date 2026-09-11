@@ -1570,6 +1570,10 @@ class Anlage:
             self.abmeldungen += 1
             self.uebernommen = False
             return {}
+        if adresse.endswith("/api/werte"):
+            # Was in der Regelung steht: der zuletzt gestellte Wert.
+            return {"werte": {"70": {"value": self.gesetzt[-1] if self.gesetzt
+                                     else "3", "error": 0}}}
         if adresse.endswith("/api/setzen"):
             if self.antwort:
                 raise self.antwort
@@ -1647,6 +1651,36 @@ pruefe(fremd.gesetzt == [] and fremd.anmeldungen == 0,
        "ein fremd gefuehrter Parameter wird in Ruhe gelassen")
 pruefe("Ein anderes Add-on" in (lage.get("hinweis") or ""),
        "und die Lage nennt den, der ihn haelt")
+
+# --- Wenn die Regelung den Wert wieder verwirft ---------------------------
+#
+# Genau das ist am 11.09.2026 an Svens Weishaupt passiert: Parameter 70
+# wurde angenommen (status 1), stand zehn Minuten spaeter aber wieder auf
+# "Programm 1". Die Betriebsart gehoert dort dem Schalter am Geraet.
+class Sturkopf(Anlage):
+    """Nimmt jedes Telegramm an – und behaelt doch seinen eigenen Stand."""
+
+    def __call__(self, methode, adresse, nutzlast=None, zeit=20.0):
+        if adresse.endswith("/api/werte"):
+            return {"werte": {"70": {"value": "3", "error": 0}}}
+        return Anlage.__call__(self, methode, adresse, nutzlast, zeit)
+
+
+stur, zustand5, einst5 = Sturkopf(uebernommen=True), {}, EIN()
+lagen = [_lauf(stur, warm, einst5, zustand5) for _ in range(5)]
+pruefe(einst5["kessel"]["aktiv"] is False,
+       "nach wiederholtem Zurueckspringen gibt der Planer die Fuehrung auf")
+pruefe(len(stur.gesetzt) <= kessel.VERWORFEN_GRENZE,
+       f"und schreibt nicht endlos dagegen an ({len(stur.gesetzt)} Versuche)")
+pruefe(any("Schalter" in (l.get("hinweis") or "") for l in lagen),
+       "der Hinweis nennt den Schalter am Geraet als Ursache")
+pruefe(stur.abmeldungen == 1, "die Uebernahme wird dabei zurueckgegeben")
+
+folgsam, zustand6 = Anlage(uebernommen=True), {}
+for _ in range(4):
+    lage = _lauf(folgsam, warm, EIN(), zustand6)
+pruefe(folgsam.gesetzt == ["4"] and lage.get("aktiv"),
+       "haelt der Wert, bleibt es bei einem einzigen Telegramm")
 
 # Die Anschrift kommt vom Anlagenmanager selbst, per MQTT.
 kessel._gefunden = ""

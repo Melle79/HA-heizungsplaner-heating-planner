@@ -1,5 +1,23 @@
 # Änderungen
 
+## 1.26.0
+
+- **Behoben: Der Planer glaubte einer Regelung, die ihn belog.** Er schrieb
+  die Programmwahl auf Flanke und prüfte nie nach, ob der Wert dort auch
+  blieb. Bei Svens Weishaupt tat er das nicht: Das Telegramm wurde angenommen
+  und quittiert, zehn Minuten später stand wieder „Programm 1“ da. Die
+  Betriebsart gehört bei diesem Regler dem Schalter am Gerät.
+- Das Tückische daran war die Stille. Der Planer merkte sich „steht auf Nenn“,
+  sah nie wieder eine Flanke und hätte monatelang Nennbetrieb angezeigt,
+  während die Anlage ihr eigenes Zeitprogramm fährt.
+- **Jetzt wird der Ist-Wert mitgelesen und verglichen.** Springt er dreimal
+  zurück, gibt der Planer die Führung auf, meldet die Übernahme ab und
+  schreibt in Protokoll und Kachel, was er vorgefunden hat – statt weiter
+  gegen die Anlage anzuschreiben.
+- Beim Aufgeben wird die Übernahme jetzt auch wirklich zurückgegeben. Vorher
+  wäre der Parameter im Anlagenmanager ausgeblendet geblieben, obwohl ihn
+  niemand mehr führt.
+
 ## 1.25.4
 
 - Aufräumen: Der Versuch, die Add-on-Liste beim Supervisor zu holen, ist aus
