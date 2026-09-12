@@ -1578,15 +1578,26 @@ SVENS_PLAN = {nr: ("06:00-22:00 ##:##-##:## ##:##-##:##" if i < 5
 class Anlage:
     """Ein Anlagenmanager auf dem Papier – merkt sich, was ihm gesagt wird."""
 
-    def __init__(self, uebernommen=False, antwort=None, stur=False):
+    def __init__(self, uebernommen=False, antwort=None, stur=False,
+                 traege=False):
         self.werte = dict(SVENS_PLAN)
         self.werte["70"] = "3"            # Programm 1
         self.uebernommen = uebernommen
         self.antwort = antwort
         self.stur = stur                  # nimmt an, behaelt aber das Seine
+        self.traege = traege              # liest nach dem Schreiben nicht nach
         self.gesetzt = []
         self.anmeldungen = 0
         self.abmeldungen = 0
+        # Die Lesezeitpunkte, die der Anlagenmanager je Wert mitliefert.
+        # Ohne sie liesse sich "verworfen" nicht von "noch nicht nachgelesen"
+        # unterscheiden.
+        self.gelesen = {nr: "2026-09-11T00:00:00" for nr in self.werte}
+        self.uhr = 0
+
+    def _stempel(self):
+        self.uhr += 1
+        return f"2026-09-12T{self.uhr // 60 + 10:02d}:{self.uhr % 60:02d}:00"
 
     def __call__(self, methode, adresse, nutzlast=None, zeit=20.0):
         if adresse.endswith("/api/katalog"):
@@ -1594,8 +1605,16 @@ class Anlage:
                     "zeitprogramme": {"1": {"name": "Zeitschaltprogramm 1",
                                             "tage": WOCHENTAGE}}}
         if adresse.endswith("/api/werte"):
-            return {"werte": {nr: {"value": v, "error": 0}
+            return {"werte": {nr: {"value": v, "error": 0,
+                                   "zeit": self.gelesen.get(nr, "")}
                               for nr, v in self.werte.items()}}
+        if adresse.endswith("/api/lesen"):
+            # Nachlesen frischt die Zeitstempel auf – ausser bei einer traegen
+            # Anlage, die genau das nicht tut.
+            if not self.traege:
+                for nr in (nutzlast or {}).get("nr") or []:
+                    self.gelesen[nr] = self._stempel()
+            return {"gelesen": 0}
         if adresse.endswith("/api/uebernahme") and methode == "GET":
             eintrag = {"quelle": "heizungsplaner", "name": "Heizungsplaner"}
             return {"quellen": {}, "parameter":
@@ -1645,17 +1664,17 @@ def BERICHT(zustand="eco", wechsel=None):
                         "naechster_wechsel": wechsel}]}
 
 
-anlage, zustand = Anlage(), {}
-lage = _lauf(anlage, BERICHT(), CONFIG(), zustand)
+anlage, zustand, cfg0 = Anlage(), {}, CONFIG()
+lage = _lauf(anlage, BERICHT(), cfg0, zustand)
 pruefe(anlage.anmeldungen == 1, "beim ersten Lauf werden alle 7 Tage uebernommen")
-pruefe(zustand["kessel"]["original"] == SVENS_PLAN,
+pruefe(cfg0["einstellungen"]["kessel"]["original"] == SVENS_PLAN,
        "und Svens vorgefundener Plan wird zuerst gesichert")
 pruefe(all(w == "05:30-08:00 17:00-22:00 ##:##-##:##"
            for _, w in anlage.gesetzt), "geschrieben wird die Huellkurve")
 pruefe(len(anlage.gesetzt) == 7, "einmal je Wochentag")
 
 vorher = len(anlage.gesetzt)
-_lauf(anlage, BERICHT(), CONFIG(), zustand)
+_lauf(anlage, BERICHT(), cfg0, zustand)
 pruefe(len(anlage.gesetzt) == vorher,
        "beim zweiten Lauf geht kein einziges Telegramm mehr raus")
 
@@ -1702,7 +1721,7 @@ pruefe("fri" in (lage.get("gebremst") or []) and lage.get("hinweis"),
 
 # Wenn die Regelung die Schaltzeiten nicht behaelt.
 stur, zs, cfg = Anlage(stur=True), {}, CONFIG()
-for _ in range(kessel.VERWORFEN_GRENZE + 1):
+for _ in range(3 * kessel.VERWORFEN_GRENZE):
     lage = _lauf(stur, BERICHT(), cfg, zs)
 pruefe(cfg["einstellungen"]["kessel"]["aktiv"] is False,
        "behaelt die Regelung die Zeiten nicht, gibt der Planer auf")
@@ -1710,15 +1729,56 @@ pruefe(stur.abmeldungen == 1, "die Uebernahme wird zurueckgegeben")
 pruefe(any(w == SVENS_PLAN[nr] for nr, w in stur.gesetzt),
        "und Svens Plan wieder hineingeschrieben")
 
+# --- Der Fehlalarm vom 12.09.2026 ---------------------------------------
+#
+# Der Anlagenmanager liest zyklisch, nicht jeden Parameter in jedem Takt. Wer
+# seinen Zwischenstand mit dem gerade Geschriebenen vergleicht, liest den
+# eigenen alten Wert zurueck und haelt ihn fuer Widerspruch. Genau so hat die
+# Fuehrung zweimal grundlos aufgegeben, obwohl die Anlage alles uebernommen
+# hatte.
+traege, zt, cfgt = Anlage(traege=True), {}, CONFIG()
+for _ in range(3 * kessel.VERWORFEN_GRENZE):
+    _lauf(traege, BERICHT(), cfgt, zt)
+pruefe(cfgt["einstellungen"]["kessel"]["aktiv"] is True,
+       "ein veralteter Lesestand fuehrt NICHT zum Aufgeben")
+pruefe(traege.abmeldungen == 0, "und die Uebernahme bleibt stehen")
+
+# --- Das verlorene Original ----------------------------------------------
+#
+# Beim Aufgeben wurde der Merker geleert – und mit ihm das gesicherte
+# Original. Beim naechsten Einschalten sicherte der Planer dann seinen eigenen
+# Plan als Svens, womit der Weg zurueck endgueltig weg war. Das hat am
+# 12.09.2026 die 06:00-22:00 gekostet.
+pruefe(cfg["einstellungen"]["kessel"]["original"] == SVENS_PLAN,
+       "das gesicherte Original ueberlebt das Aufgeben")
+cfg["einstellungen"]["kessel"]["aktiv"] = True
+stur.stur = False
+_lauf(stur, BERICHT(), cfg, zs)
+pruefe(cfg["einstellungen"]["kessel"]["original"] == SVENS_PLAN,
+       "und wird beim Wiedereinschalten NICHT durch den eigenen ersetzt")
+
+# Und der Riegel davor: Steht in der Anlage schon die eigene Huellkurve,
+# wird sie nicht als Original gesichert – auch dann nicht, wenn gar keines da
+# ist. Sonst zementierte eine Neuinstallation den eigenen Plan als Svens.
+frisch, zf, cfgf = Anlage(uebernommen=False), {}, CONFIG()
+frisch.werte.update({nr: "05:30-08:00 17:00-22:00 ##:##-##:##"
+                     for nr in WOCHENTAGE[:5]})
+frisch.werte.update({nr: "05:30-08:00 17:00-22:00 ##:##-##:##"
+                     for nr in WOCHENTAGE[5:]})
+_lauf(frisch, BERICHT(), cfgf, zf)
+pruefe(not cfgf["einstellungen"]["kessel"].get("original"),
+       "die eigene Huellkurve wird nicht als Original gesichert")
+
 # Abschalten von Hand: genauso.
-aus, za = Anlage(), {}
-_lauf(aus, BERICHT(), CONFIG(), za)
+aus, za, cfga = Anlage(), {}, CONFIG()
+_lauf(aus, BERICHT(), cfga, za)
 aus.gesetzt.clear()
-_lauf(aus, BERICHT(), CONFIG(**{}) | {"einstellungen": {"kessel": {"aktiv": False,
-      "adresse": "http://anlage:8099"}}}, za)
+cfga["einstellungen"]["kessel"]["aktiv"] = False
+_lauf(aus, BERICHT(), cfga, za)
 pruefe(aus.abmeldungen == 1, "beim Abschalten wird die Uebernahme zurueckgegeben")
 pruefe(sorted(nr for nr, _ in aus.gesetzt) == sorted(WOCHENTAGE),
        "und alle sieben Tage auf den vorgefundenen Stand gebracht")
+
 
 # Der Mensch hebt die Uebernahme im Anlagenmanager auf.
 mensch, zm, cfg2 = Anlage(), {}, CONFIG()

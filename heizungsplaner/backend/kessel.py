@@ -263,13 +263,19 @@ def lage(einstellungen: dict) -> dict:
 
     # Die Parameter stehen in der Reihenfolge Montag … Sonntag.
     zuordnung = dict(zip(zeitplan.TAGE, (str(t) for t in tage)))
-    inhalt, fehlend = {}, []
+    inhalt, gelesen, fehlend = {}, {}, []
     for tag, nr in zuordnung.items():
         eintrag = werte.get(nr) or {}
         if eintrag.get("error") or eintrag.get("value") in (None, ""):
             fehlend.append(nr)
         else:
             inhalt[tag] = str(eintrag["value"])
+            # Wann der Anlagenmanager diesen Wert zuletzt von der Anlage geholt
+            # hat. Ohne diese Angabe ließe sich „die Regelung hat es verworfen“
+            # nicht von „der Manager hat seit unserem Schreiben nicht wieder
+            # gelesen“ unterscheiden – und genau diese Verwechslung hat die
+            # Führung am 12.09.2026 zweimal grundlos abgeschaltet.
+            gelesen[nr] = str(eintrag.get("zeit") or "")
 
     gefuehrt = uebernahme.get("parameter") or {}
     meine = [nr for nr in zuordnung.values()
@@ -283,6 +289,7 @@ def lage(einstellungen: dict) -> dict:
         "name": programm.get("name") or "",
         "parameter": zuordnung,
         "inhalt": inhalt,
+        "gelesen": gelesen,
         "fehlend": fehlend,
         "uebernommen": len(meine) == 7,
         "teilweise": 0 < len(meine) < 7,
@@ -332,6 +339,54 @@ def schreiben(einstellungen: dict, nr: str, text: str) -> None:
           {"nr": nr, "wert": text, "quelle": QUELLE})
 
 
+def original_lesen(einstellungen: dict) -> dict:
+    """Der Wochenplan, den der Planer vorgefunden hat.
+
+    Er liegt in der **Konfiguration**, nicht im Laufzeitzustand. Das ist nicht
+    beliebig: Beim Aufgeben wird der Merker geleert, und lag das Original
+    darin, war es mit weg. Beim nächsten Einschalten fand der Planer dann
+    seinen eigenen Plan vor, hielt ihn für den ursprünglichen und sicherte ihn
+    – womit der Weg zurück endgültig verloren war. Genau das ist am
+    12.09.2026 passiert und hat Svens 06:00–22:00 gekostet.
+    """
+    return dict((einstellungen.get("kessel") or {}).get("original") or {})
+
+
+def ist_eigener(inhalt: dict, plan: dict) -> bool:
+    """Ist das, was in der Anlage steht, schon unsere eigene Hüllkurve?
+
+    Die zweite Sicherung gegen ein festgeschriebenes Eigengewächs: Selbst wenn
+    das gesicherte Original einmal fehlt – nach einer Neuinstallation etwa –,
+    darf der Planer nicht ausgerechnet seinen eigenen Plan als den
+    vorgefundenen ablegen. Er erkennt ihn daran, dass er genau das ist, was er
+    heute schreiben würde.
+    """
+    if not inhalt or not plan:
+        return False
+    return all(huellkurve.aus_text(inhalt.get(tag, "")) ==
+               huellkurve.aus_text(text) for tag, text in plan.items())
+
+
+def original_sichern(einstellungen: dict, plan: dict) -> bool:
+    """Den vorgefundenen Plan sichern – **einmal**, und nie überschreiben.
+
+    Steht schon etwas da, bleibt es stehen. Ein zweites Sichern könnte nur
+    noch den eigenen Plan festschreiben.
+    """
+    if original_lesen(einstellungen):
+        return False
+    einstellungen.setdefault("kessel", {})["original"] = dict(plan)
+    try:
+        config = store.load_config()
+        config["einstellungen"].setdefault("kessel", {})["original"] = dict(plan)
+        store.save_config(config)
+    except Exception as fehler:  # noqa: BLE001
+        _LOGGER.warning("Wochenplan ließ sich nicht sichern: %s", fehler)
+        return False
+    _LOGGER.info("Vorgefundener Wochenplan gesichert: %s", plan)
+    return True
+
+
 def zurueckgeben(einstellungen: dict, merker: dict) -> int:
     """Den vorgefundenen Wochenplan wiederherstellen.
 
@@ -341,7 +396,7 @@ def zurueckgeben(einstellungen: dict, merker: dict) -> int:
     Abschalten stehen zu lassen hieße, jemandem seinen Heizungsplan
     wegzunehmen, ohne es zu sagen.
     """
-    original = merker.get("original") or {}
+    original = original_lesen(einstellungen)
     if not original:
         # Kein gesicherter Stand. Das passiert, wenn die Übernahme drüben noch
         # steht, das Gedächtnis hier aber weg ist – nach einer Neuinstallation
@@ -360,6 +415,17 @@ def zurueckgeben(einstellungen: dict, merker: dict) -> int:
     if zurueck:
         _LOGGER.info("%d Wochentage auf den vorgefundenen Stand gebracht", zurueck)
     return zurueck
+
+
+def _stempel(einstellungen: dict) -> str:
+    """Der Zeitpunkt eines Schreibvorgangs, vergleichbar mit denen der Anlage.
+
+    Der Anlagenmanager stempelt jeden gelesenen Wert in Ortszeit ohne Zone
+    (``2026-09-12T10:10:27``). Beide Add-ons laufen unter derselben Zeitzone
+    von Home Assistant, deshalb genügt derselbe Aufbau – und ISO-Zeiten lassen
+    sich als Zeichenketten der Reihe nach vergleichen.
+    """
+    return datetime.now().isoformat(timespec="seconds")
 
 
 def _darf_schreiben(merker: dict, nr: str, heute: str) -> bool:
@@ -383,7 +449,7 @@ def _gezaehlt(merker: dict, nr: str) -> int:
     return zaehler[nr]
 
 
-def _verworfen(merker: dict, soll: dict, ist: dict, einstellungen: dict,
+def _verworfen(merker: dict, ist: dict, gelesen: dict, einstellungen: dict,
                protokoll) -> dict | None:
     """Hat die Regelung zurückgenommen, was der Planer geschrieben hat?
 
@@ -393,17 +459,28 @@ def _verworfen(merker: dict, soll: dict, ist: dict, einstellungen: dict,
     wieder her. Bei den Schaltzeiten ist das nachgemessen anders – aber
     darauf zu *vertrauen*, wäre derselbe Fehler noch einmal.
 
-    Wer nur auf Flanke schreibt, merkt davon nichts: Der zuletzt geschriebene
-    Wert steht im Gedächtnis, eine Flanke kommt nie wieder, und die Oberfläche
-    behauptet monatelang etwas Falsches. Springt der Stand wiederholt zurück,
-    gibt der Planer die Führung auf.
+    Verglichen wird jedoch nur gegen einen Wert, den der Anlagenmanager
+    **nach** unserem Schreiben von der Anlage geholt hat. Er liest zyklisch
+    und nicht jeden Parameter in jedem Takt; sein Zwischenstand kann Minuten
+    alt sein. Ohne diese Prüfung liest der Planer seinen eigenen alten Wert
+    zurück und hält ihn für einen Widerspruch – zweimal am 12.09.2026
+    geschehen, beide Male grundlos aufgegeben.
     """
     geschrieben = merker.get("geschrieben") or {}
     if not geschrieben:
         return None
-    abweichung = [nr for nr, text in geschrieben.items()
-                  if nr in ist and soll.get(nr) == text
-                  and huellkurve.aus_text(ist[nr]) != huellkurve.aus_text(text)]
+
+    abweichung = []
+    for nr, eintrag in geschrieben.items():
+        if nr not in ist:
+            continue
+        text, am = eintrag.get("text"), eintrag.get("am") or ""
+        frisch = gelesen.get(nr) or ""
+        if not frisch or frisch <= am:
+            continue                       # seither nicht neu gelesen
+        if huellkurve.aus_text(ist[nr]) != huellkurve.aus_text(text):
+            abweichung.append(nr)
+
     if not abweichung:
         merker.pop("verworfen", None)
         return None
@@ -417,7 +494,7 @@ def _verworfen(merker: dict, soll: dict, ist: dict, einstellungen: dict,
 
     nr = abweichung[0]
     hinweis = texte.t("kessel_verworfen_warum", ist=ist.get(nr, "—"),
-                      soll=geschrieben.get(nr, "—"))
+                      soll=(geschrieben.get(nr) or {}).get("text", "—"))
     zurueckgeben(einstellungen, merker)
     abmelden(einstellungen)
     _abschalten(einstellungen)
@@ -463,7 +540,7 @@ def fuehren(bericht: dict, config: dict, state: dict, protokoll) -> dict:
         if merker.pop("angemeldet", False):
             zurueck = zurueckgeben(einstellungen, merker)
             abmelden(einstellungen)
-            ohne = not (merker.get("original") or {})
+            ohne = not original_lesen(einstellungen)
             merker.clear()
             if ohne:
                 protokoll(texte.t("log_alle_raeume"),
@@ -505,10 +582,18 @@ def fuehren(bericht: dict, config: dict, state: dict, protokoll) -> dict:
             return {"aktiv": False, "erreichbar": True, "abgegeben": True}
         # Erstanmeldung: Vorher sichern, was dort steht. Danach ist es zu spät –
         # der eigene Plan stünde darin, und der Weg zurück wäre verloren.
-        if not merker.get("original"):
-            merker["original"] = {parameter[tag]: text
-                                  for tag, text in inhalt.items()}
-            _LOGGER.info("Vorgefundener Wochenplan gesichert")
+        # Vor dem Sichern prüfen, ob dort schon unser eigener Plan steht –
+        # dann ist es nicht der vorgefundene, und Sichern würde ihn für immer
+        # festschreiben.
+        vorschau = huellkurve.woche(config.get("raeume") or [],
+                                    _jetzt(bericht), _tagesart(bericht))
+        if ist_eigener(inhalt, vorschau):
+            _LOGGER.warning("In der Regelung steht bereits der eigene Plan – "
+                            "es wird nichts als Original gesichert")
+        else:
+            original_sichern(
+                einstellungen,
+                {parameter[tag]: text for tag, text in inhalt.items()})
         if not anmelden(einstellungen, list(parameter.values())):
             return {"aktiv": True, "erreichbar": True, "uebernommen": False}
     merker["angemeldet"] = True
@@ -516,12 +601,12 @@ def fuehren(bericht: dict, config: dict, state: dict, protokoll) -> dict:
     # Übernahme steht, aber wir haben nie gesichert? Dann ist das Gedächtnis
     # verloren gegangen. Geführt wird weiter – aber der Weg zurück fehlt, und
     # darauf muss die Oberfläche hinweisen, statt einen vorzutäuschen.
-    ohne_original = not (merker.get("original") or {})
+    ohne_original = not original_lesen(einstellungen)
 
     # -- Hat gehalten, was wir geschrieben haben? ---------------------------
     nach_nr = {parameter[tag]: text for tag, text in inhalt.items()}
-    aufgegeben = _verworfen(merker, merker.get("geschrieben") or {},
-                            nach_nr, einstellungen, protokoll)
+    aufgegeben = _verworfen(merker, nach_nr, stand["gelesen"],
+                            einstellungen, protokoll)
     if aufgegeben is not None:
         return aufgegeben
 
@@ -578,10 +663,19 @@ def fuehren(bericht: dict, config: dict, state: dict, protokoll) -> dict:
             ergebnis["fehler"] = str(fehler)
             return ergebnis
         _gezaehlt(merker, nr)
-        merker.setdefault("geschrieben", {})[nr] = soll
+        merker.setdefault("geschrieben", {})[nr] = {
+            "text": soll, "am": _stempel(einstellungen)}
         geschrieben.append(tag)
 
     if geschrieben:
+        # Den Manager bitten, die geschriebenen Tage sofort nachzulesen. Ohne
+        # das käme die Bestätigung erst, wenn sein Lesezyklus zufällig wieder
+        # an diesen Parametern vorbeikommt.
+        try:
+            _json("POST", f"{basis(einstellungen)}/api/lesen",
+                  {"nr": [parameter[tag] for tag in geschrieben]})
+        except (Abgelehnt, urllib.error.URLError, OSError, ValueError) as fehler:
+            _LOGGER.info("Nachlesen nicht ausgelöst: %s", fehler)
         ergebnis["geschrieben"] = geschrieben
         protokoll(texte.t("log_alle_raeume"),
                   texte.t("kessel_gestellt", anzahl=len(geschrieben)),

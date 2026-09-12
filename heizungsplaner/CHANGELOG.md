@@ -1,5 +1,27 @@
 # Änderungen
 
+## 1.27.2
+
+- **Behoben: Der Planer gab die Kesselführung grundlos auf.** Die Nachprüfung
+  verglich das gerade Geschriebene mit dem Zwischenstand des
+  Anlagenmanagers – der liest zyklisch und nicht jeden Parameter in jedem
+  Takt. Der Planer las damit seinen eigenen alten Wert zurück und hielt ihn
+  für Widerspruch. Zweimal in einer Nacht hat er deshalb abgeschaltet, obwohl
+  die Anlage alles brav übernommen hatte.
+  Jetzt wird nur gegen Werte verglichen, die **nach** dem Schreiben von der
+  Anlage geholt wurden; außerdem stößt der Planer das Nachlesen selbst an.
+- **Behoben: Der gesicherte Wochenplan ging beim Aufgeben verloren.** Er lag
+  im Laufzeitzustand, und der wird beim Aufgeben geleert. Beim nächsten
+  Einschalten fand der Planer seinen eigenen Plan vor, hielt ihn für den
+  ursprünglichen und sicherte ihn – der Weg zurück war damit endgültig weg.
+  Das hat hier eine echte Einstellung gekostet.
+  Der vorgefundene Plan steht jetzt in der **Konfiguration**: Er überlebt
+  Abschalten, Aufgeben und Neustart, und wird nur ein einziges Mal gesichert.
+- **Zweiter Riegel:** Steht in der Regelung bereits die eigene Hüllkurve, wird
+  sie nicht als Original abgelegt – auch dann nicht, wenn gar keines
+  vorhanden ist. Sonst zementierte eine Neuinstallation den eigenen Plan als
+  den des Hauses.
+
 ## 1.27.1
 
 - **Behoben: Handgeführte Räume hielten die Anlage rund um die Uhr auf

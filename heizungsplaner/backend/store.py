@@ -177,6 +177,10 @@ STANDARD_EINSTELLUNGEN = {
     # bewusst ein oder gar nicht.
     "kessel": {
         "aktiv": False,
+        # Der Wochenplan, den der Planer in der Regelung vorgefunden hat.
+        # Er steht hier und nicht im Laufzeitzustand, weil er jedes Abschalten
+        # und jeden Neustart überleben muss: Er ist der einzige Weg zurück.
+        "original": {},
         # Leer heißt: das Add-on unter seinem üblichen Namen im Docker-Netz
         # von Home Assistant. Eintragen muss das nur, wer den
         # Heizungsanlagenmanager woanders betreibt.
@@ -584,6 +588,11 @@ def validate_einstellungen(roh: dict) -> dict:
 
     k = e["kessel"]
     k["aktiv"] = bool(k["aktiv"])
+    # Der gesicherte Plan wird durchgereicht, nicht neu erfunden: Schlüssel
+    # sind Parameternummern, Werte die Schaltzeilen der Regelung.
+    k["original"] = {str(nr): str(wert)
+                     for nr, wert in (k.get("original") or {}).items()
+                     if str(nr).strip() and str(wert).strip()}
     adresse = str(k.get("adresse") or "").strip().rstrip("/")
     if adresse and not adresse.startswith(("http://", "https://")):
         raise ValidationError(
