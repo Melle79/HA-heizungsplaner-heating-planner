@@ -1,3 +1,5 @@
+<img src="heizungsplaner/logo.png" alt="Heizungsplaner" height="90">
+
 # Heizungsplaner · Heating Planner
 
 Ein Home-Assistant-Add-on, das Heizkörperthermostate vorausschauend stellt –
@@ -129,6 +131,22 @@ Warnungen gelb:
 
 ![Protokoll der Schaltvorgänge mit Begründung](heizungsplaner/doku/bilder/protokoll.png)
 
+## Voraussetzungen
+
+- Home Assistant Core **2025.10 oder neuer** (die Discovery nutzt
+  `default_entity_id`)
+- Ein **MQTT-Broker** – etwa das offizielle *Mosquitto broker* Add-on – samt
+  MQTT-Integration. Die Zugangsdaten holt sich das Add-on selbst vom
+  Supervisor; einzurichten ist dort nichts.
+- Mindestens ein Thermostat mit einer `climate`-Entität. Geprüft mit FRITZ!DECT
+  über die FRITZ!Box-Integration und mit SwitchBot-Thermostaten über Matter;
+  alles, was `set_temperature` versteht, sollte gehen.
+- Ein Außentemperaturwert. Eine Wetter-Entität genügt, ein eigener Fühler ist
+  genauer.
+
+*Nicht* nötig sind HACS, eine Cloud-Anbindung oder ein Konto irgendwo. Der
+Planer rechnet vollständig auf dem eigenen Gerät.
+
 ## Installation
 
 1. In Home Assistant unter **Einstellungen → Add-ons → Add-on-Store** über das
@@ -159,11 +177,35 @@ Die ausführliche Anleitung steht in [DOCS.md](heizungsplaner/DOCS.md).
 | `sensor.heizungsplaner_aussentemperatur_gedaempft` | geglättete Außentemperatur |
 | `binary_sensor.heizungsplaner_sommerbetrieb` | Sommerbetrieb aktiv |
 | `binary_sensor.heizungsplaner_trockenlauf` | Trockenlauf aktiv |
-| `sensor.heizungsplaner_raum_<name>` | Zielwert je Raum; Attribute: `zustand`, `begruendung`, `ist_temperatur`, `naechster_wechsel` sowie `uebersteuerung`, `uebersteuerung_greift`, `uebersteuerung_lage` und `uebersteuerung_bis` |
+| `sensor.heizungsplaner_raum_<name>` | Zielwert je Raum (siehe Attribute unten) |
 | `switch.heizungsplaner_party` | Partytaste, mit Restzeit als Attribut |
 | `binary_sensor.heizungsplaner_stoerung` | ein Thermostat meldet sich nicht mehr; Meldungen nach Schwere getrennt als Attribute |
 | `sensor.heizungsplaner_stoerungen` | Zahl der ausgefallenen Thermostate |
-| `sensor.heizungsplaner_kessel` | was die Regelung gerade fährt, solange die Kesselregelung läuft |
+
+Dazu, **nur wenn eingeschaltet**, der Öltank und die Kesselregelung:
+
+| Entität | Bedeutung |
+|---|---|
+| `sensor.heizungsplaner_tank_verfuegbar` | Heizöl, das der Brenner erreicht |
+| `sensor.heizungsplaner_tank_stand` | Heizöl im Tank, samt Peilstabhöhe als Attribut |
+| `sensor.heizungsplaner_tank_verbrauch` | Verbrauchszähler – daraus baut Home Assistant von selbst eine Langzeitstatistik |
+| `sensor.heizungsplaner_tank_reichweite` | verbleibende Tage beim bisherigen Verbrauch |
+| `sensor.heizungsplaner_tank_kosten` | Kosten des Verbrauchs in der eingestellten Währung |
+| `binary_sensor.heizungsplaner_tank_leck` | Melder im Auffangraum |
+| `sensor.heizungsplaner_kessel` | was die Regelung gerade fährt – „Komfort bis 21:00 Uhr“; Attribute: `programm`, `heute`, `erweitert`, `uebernommen`, `gestellt`, `hinweis` |
+
+### Attribute am Raumsensor
+
+| Attribut | Bedeutung |
+|---|---|
+| `zustand` | `komfort`, `eco`, `nacht`, `abwesend`, `heimkehr`, `fenster`, `urlaub`, `sommer`, `manuell`, `gesperrt`, `aus` |
+| `begruendung` | der Satz, der auch auf der Kachel steht |
+| `ist_temperatur` | gemessene Raumtemperatur |
+| `seit` | seit wann dieser Zustand gilt |
+| `naechster_wechsel`, `naechste_uhrzeit`, `naechster_modus`, `naechstes_ziel` | der nächste Schaltpunkt |
+| `uebersteuerung`, `uebersteuerung_greift`, `uebersteuerung_lage`, `uebersteuerung_bis` | Name der Regel, ob sie greift, warum nicht, und bis wann |
+| `handeingriff_bis`, `am_geraet` | gesetzt, wenn jemand von Hand verstellt hat: bis wann der Planer sich zurückhält und was am Gerät steht |
+| `thermostate` | die Entitäten, die zu diesem Raum gehören |
 
 ## Karten fürs Dashboard
 
@@ -184,12 +226,47 @@ Die Regellogik lässt sich ohne Home Assistant und ohne Fremdpakete prüfen:
 python3 heizungsplaner/tests/test_logik.py
 ```
 
-Geprüft werden Zeitplan über Tagesgrenzen, Heizkurve und Sommerhysterese,
-Anwesenheit samt Heimkehr, Fenstererkennung, die Betriebsart „nur absenken“
-und das Schreiben auf Flanke. Etliche Fälle stehen dort, weil sie einmal
-falsch waren – etwa eine Schule in einem Kilometer Entfernung, die das
-Kinderzimmer den ganzen Vormittag als „auf dem Heimweg“ gelten ließ.
+Rund 300 Prüfungen umfassen den Zeitplan über Tagesgrenzen, Heizkurve und
+Sommerhysterese, Anwesenheit samt Heimkehr, Fenstererkennung, die Betriebsart
+„nur absenken“, das Schreiben auf Flanke, die Hüllkurve der Kesselregelung und
+beide Sprachen. Etliche Fälle stehen dort, weil sie einmal falsch waren – etwa
+eine Schule in einem Kilometer Entfernung, die das Kinderzimmer den ganzen
+Vormittag als „auf dem Heimweg“ gelten ließ, oder ein Gerät mit eigenem
+Zeitplan, das den Planer jedes Mal zum Zurückziehen brachte.
+
+## Technik
+
+- Backend: Python 3 mit Flask im Add-on-Container, ohne Fremdpakete außer
+  `paho-mqtt`. Die Oberfläche ist eine einzige `index.html` – kein Bundler,
+  kein Framework, nichts zu bauen.
+- Alle Daten liegen als JSON unter `/data` des Add-ons: `config.json` für
+  Räume und Einstellungen, `zustand.json` für das Gedächtnis zwischen zwei
+  Durchläufen. Keine Datenbank, keine Cloud.
+- Die Thermostate werden über die Home-Assistant-API gestellt
+  (`climate.set_temperature`), die Entitäten über **MQTT Discovery** angemeldet
+  (retained, mit Availability-Topic).
+- Gestellt wird **auf der Flanke**: Der Planer merkt sich, was er geschrieben
+  hat, und schweigt, solange sich nichts ändert. Ein von Hand verstelltes
+  Thermostat bleibt deshalb stehen, bis der Zeitplan wieder greift.
+- Jeder Raum wird einzeln entschieden, und jede Entscheidung trägt ihren Grund
+  im Klartext mit – auf der Kachel, im Protokoll und als MQTT-Attribut.
+- Die Regellogik lässt sich ohne Home Assistant prüfen:
+  `python3 heizungsplaner/tests/test_logik.py`.
 
 ## Lizenz
 
 MIT
+
+## Haftungsausschluss
+
+Dies ist ein **privates Hobby-Projekt** ohne kommerziellen Hintergrund. Die
+Nutzung erfolgt auf eigene Gefahr – **jegliche Haftung ist ausgeschlossen**
+(siehe auch MIT-Lizenz). Es findet **kein Support** statt; Issues und Pull
+Requests werden möglicherweise nicht beantwortet.
+
+Ein Hinweis, der bei einer Heizung mehr wiegt als bei anderer Software: Das
+Add-on stellt Thermostate und – wenn man es einschaltet – die Schaltzeiten der
+Heizungsregelung. Es beginnt deshalb im **Trockenlauf**, rechnet und
+protokolliert dabei nur, und stellt nichts, solange man es nicht abschaltet.
+Prüft die Entscheidungen, bevor ihr den Planer machen lasst, und verlasst euch
+für den Frostschutz auf die Heizungsregelung selbst, nicht auf dieses Add-on.

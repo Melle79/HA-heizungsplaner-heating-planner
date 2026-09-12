@@ -1,3 +1,5 @@
+<img src="heizungsplaner/logo.png" alt="Heizungsplaner" height="90">
+
 # Heating Planner · Heizungsplaner
 
 A Home Assistant add-on that sets radiator thermostats ahead of time – by
@@ -127,6 +129,22 @@ yellow:
 
 ![Log of switching operations with reasons](heizungsplaner/doku/bilder/en/protokoll.png)
 
+## Requirements
+
+- Home Assistant Core **2025.10 or newer** (discovery uses
+  `default_entity_id`)
+- An **MQTT broker** – the official *Mosquitto broker* add-on, for instance –
+  and the MQTT integration. The add-on fetches the credentials from the
+  Supervisor itself; there is nothing to configure there.
+- At least one thermostat with a `climate` entity. Tested with FRITZ!DECT via
+  the FRITZ!Box integration and with SwitchBot thermostats over Matter;
+  anything that understands `set_temperature` should work.
+- An outdoor temperature. A weather entity is enough, a sensor of your own is
+  more accurate.
+
+HACS, a cloud connection or an account somewhere are *not* required. The
+planner does all its arithmetic on your own hardware.
+
 ## Installation
 
 1. In Home Assistant open **Settings → Add-ons → Add-on Store**, then
@@ -157,11 +175,35 @@ Over MQTT the add-on creates a device called “Heizungsplaner”:
 | `sensor.heizungsplaner_aussentemperatur_gedaempft` | damped outdoor temperature |
 | `binary_sensor.heizungsplaner_sommerbetrieb` | summer mode active |
 | `binary_sensor.heizungsplaner_trockenlauf` | dry run active |
-| `sensor.heizungsplaner_raum_<name>` | setpoint per room; attributes: `zustand`, `begruendung`, `ist_temperatur`, `naechster_wechsel` as well as `uebersteuerung`, `uebersteuerung_greift`, `uebersteuerung_lage` and `uebersteuerung_bis` |
+| `sensor.heizungsplaner_raum_<name>` | setpoint per room (attributes below) |
 | `switch.heizungsplaner_party` | party button, with the remaining time as an attribute |
 | `binary_sensor.heizungsplaner_stoerung` | a thermostat has stopped reporting; messages separated by severity as attributes |
 | `sensor.heizungsplaner_stoerungen` | number of failed thermostats |
-| `sensor.heizungsplaner_kessel` | what the controller is running, while boiler control is switched on |
+
+In addition, **only when switched on**, the oil tank and the boiler control:
+
+| Entity | Meaning |
+|---|---|
+| `sensor.heizungsplaner_tank_verfuegbar` | oil the burner can actually reach |
+| `sensor.heizungsplaner_tank_stand` | oil in the tank, with the dipstick reading as an attribute |
+| `sensor.heizungsplaner_tank_verbrauch` | consumption counter – Home Assistant builds a long-term statistic from it by itself |
+| `sensor.heizungsplaner_tank_reichweite` | days remaining at the consumption so far |
+| `sensor.heizungsplaner_tank_kosten` | cost of the consumption in the configured currency |
+| `binary_sensor.heizungsplaner_tank_leck` | sensor in the containment area |
+| `sensor.heizungsplaner_kessel` | what the controller is running – “comfort until 22:00”; attributes: `programm`, `heute`, `erweitert`, `uebernommen`, `gestellt`, `hinweis` |
+
+### Attributes on the room sensor
+
+| Attribute | Meaning |
+|---|---|
+| `zustand` | `komfort`, `eco`, `nacht`, `abwesend`, `heimkehr`, `fenster`, `urlaub`, `sommer`, `manuell`, `gesperrt`, `aus` |
+| `begruendung` | the sentence that also appears on the tile |
+| `ist_temperatur` | measured room temperature |
+| `seit` | since when this state has applied |
+| `naechster_wechsel`, `naechste_uhrzeit`, `naechster_modus`, `naechstes_ziel` | the next switching point |
+| `uebersteuerung`, `uebersteuerung_greift`, `uebersteuerung_lage`, `uebersteuerung_bis` | the rule's name, whether it applies, why not, and until when |
+| `handeingriff_bis`, `am_geraet` | set when somebody adjusted by hand: until when the planner stands back, and what the device shows |
+| `thermostate` | the entities belonging to this room |
 
 The entity ids stay German – they are part of every existing installation, and
 renaming them would break dashboards and automations.
@@ -186,12 +228,46 @@ third-party packages:
 python3 heizungsplaner/tests/test_logik.py
 ```
 
-Around 290 checks cover schedules across midnight, the heating curve and
+Around 300 checks cover schedules across midnight, the heating curve and
 summer hysteresis, presence including the return home, window detection, the
-“setback only” mode and writing on edges. Quite a few of them are there
-because the case was wrong once – for instance a school one kilometre away
-that kept a child's room “on the way home” all morning.
+“setback only” mode, writing on edges, the envelope for the boiler control and
+both languages. Quite a few of them are there because the case was wrong once –
+for instance a school one kilometre away that kept a child's room “on the way
+home” all morning, or a device with a schedule of its own that made the planner
+stand back every time.
+
+## How it works
+
+- Backend: Python 3 with Flask inside the add-on container, no third-party
+  packages beyond `paho-mqtt`. The interface is a single `index.html` – no
+  bundler, no framework, nothing to build.
+- All data lives as JSON under the add-on's `/data`: `config.json` for rooms
+  and settings, `zustand.json` for the memory between two cycles. No database,
+  no cloud.
+- Thermostats are set through the Home Assistant API
+  (`climate.set_temperature`); the entities are registered over **MQTT
+  discovery** (retained, with an availability topic).
+- Writing happens **on edges**: the planner remembers what it wrote and stays
+  quiet while nothing changes. A thermostat adjusted by hand therefore keeps
+  its value until the schedule takes over again.
+- Every room is decided on its own, and every decision carries its reason in
+  plain words – on the tile, in the log and as an MQTT attribute.
+- The control logic can be checked without Home Assistant:
+  `python3 heizungsplaner/tests/test_logik.py`.
 
 ## Licence
 
 MIT
+
+## Disclaimer
+
+This is a **private hobby project** with no commercial background. Use it at
+your own risk – **all liability is excluded** (see also the MIT licence). There
+is **no support**; issues and pull requests may go unanswered.
+
+One note that weighs more with heating than with other software: the add-on
+sets thermostats and – if you switch that on – the switching times of the
+heating controller. That is why it starts in **dry run**, where it only
+calculates and logs and sets nothing until you turn that off. Check its
+decisions before you let it act, and rely on the heating controller itself for
+frost protection, not on this add-on.
