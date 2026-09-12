@@ -1566,6 +1566,29 @@ pruefe(hk.erweitern("06:00-13:00 ##:##-##:## ##:##-##:##", 14 * 60, mittag)
 pruefe(hk.erweitern("06:00-08:00 ##:##-##:## ##:##-##:##", 11 * 60, mittag) is None,
        "was in der Vergangenheit endet, wird nicht geschrieben")
 
+# --- Damit niemand im Kalten sitzt ---------------------------------------
+#
+# Die Huellkurve entscheidet, wann die Anlage ueberhaupt Vorlauf liefert. Alles
+# hier Gepruefte ist ein Weg, auf dem sie faelschlich leer bliebe – und ein
+# Haus, das auf dem Reduziertsollwert steht, kuehlt langsam aus, ohne dass
+# jemand den Heizungsplaner dafuer verantwortlich macht.
+pruefe(hk.leer({"mon": hk.als_text([]), "tue": hk.als_text([])}),
+       "eine Woche ohne jede Komfortzeit wird als leer erkannt")
+pruefe(not hk.leer({"mon": hk.als_text([]), "tue": "06:00-22:00"}),
+       "ein einzelner leerer Tag ist keine leere Woche")
+pruefe(not hk.leer({}), "gar kein Plan ist auch keine leere Woche")
+
+# Wegnehmen und Draufpacken auseinanderhalten – daran haengt, was die
+# Schreibbremse aufhalten darf.
+pruefe(hk.deckt("05:00-22:00", "06:00-21:00"),
+       "ein groesseres Fenster deckt das kleinere")
+pruefe(not hk.deckt("06:00-21:00", "05:00-22:00"),
+       "ein kleineres deckt das groessere nicht")
+pruefe(hk.deckt("06:00-08:00 17:00-22:00", "06:00-08:00 17:00-22:00"),
+       "dasselbe deckt sich selbst")
+pruefe(not hk.deckt("06:00-08:00", "06:00-08:00 17:00-22:00"),
+       "ein weggefallener Block zaehlt als Wegnahme")
+
 print("\n=== Kesselregelung ===")
 import kessel
 
@@ -1779,6 +1802,46 @@ stur.stur = False
 _lauf(stur, BERICHT(), cfg, zs)
 pruefe(cfg["einstellungen"]["kessel"]["original"] == SVENS_PLAN,
        "und wird beim Wiedereinschalten NICHT durch den eigenen ersetzt")
+
+# --- Die beiden Frier-Riegel im Zusammenspiel ----------------------------
+#
+# 1) Eine Woche ganz ohne Komfortzeit entsteht nicht durch eine Einstellung,
+#    sondern weil etwas fehlt: eine nicht geladene Raumliste, alle Raeume
+#    abgeschaltet, kein Zeitplan. Geschrieben ergaebe sie eine Anlage, die
+#    sieben Tage lang nur absenkt.
+ohne_raeume, zl, cfgl = Anlage(uebernommen=True), {}, CONFIG(raeume=[])
+lage = _lauf(ohne_raeume, BERICHT(), cfgl, zl)
+pruefe(ohne_raeume.gesetzt == [],
+       "ohne Raeume wird KEINE leere Woche in die Anlage geschrieben")
+pruefe("Komfortzeit" in (lage.get("hinweis") or ""),
+       "stattdessen sagt die Lage, dass etwas fehlt")
+nur_hand = [dict(buero, betriebsart="nur_absenken"),
+            dict(bad, betriebsart="nur_absenken")]
+hand, zh = Anlage(uebernommen=True), {}
+_lauf(hand, BERICHT(), CONFIG(raeume=nur_hand), zh)
+pruefe(hand.gesetzt == [],
+       "lauter handgefuehrte Raeume ergeben ebenfalls keinen leeren Plan")
+
+# 2) Die Schreibbremse darf nur aufhalten, was Waerme wegnimmt. Sonst bliebe
+#    bei erschoepftem Zaehler ausgerechnet die Partytaste ungehoert.
+br, zbr, cfgbr = Anlage(uebernommen=True), {}, CONFIG()
+_lauf(br, BERICHT(), cfgbr, zbr)
+zbr["kessel"]["schreibzaehler"] = {
+    "tag": FREITAG.date().isoformat(),
+    **{nr: kessel.SCHREIBGRENZE for nr in WOCHENTAGE}}
+br.gesetzt.clear()
+lage = _lauf(br, BERICHT("party", "2026-09-11T23:00:00"), cfgbr, zbr)
+pruefe(len(br.gesetzt) > 0,
+       "bei erschoepfter Bremse geht Waerme trotzdem durch")
+pruefe(not (lage.get("gebremst") or []),
+       "und wird nicht als gebremst gemeldet")
+
+# Andersherum: Eine Aenderung, die etwas wegnimmt, haelt die Bremse auf.
+br.gesetzt.clear()
+br.werte["11.4"] = "00:00-24:00 ##:##-##:## ##:##-##:##"   # jemand macht auf
+lage = _lauf(br, BERICHT(), cfgbr, zbr)
+pruefe(br.gesetzt == [] and "fri" in (lage.get("gebremst") or []),
+       "eine wegnehmende Aenderung bleibt gebremst")
 
 # Und der Riegel davor: Steht in der Anlage schon die eigene Huellkurve,
 # wird sie nicht als Original gesichert – auch dann nicht, wenn gar keines da

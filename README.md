@@ -186,7 +186,7 @@ third-party packages:
 python3 heizungsplaner/tests/test_logik.py
 ```
 
-Around 270 checks cover schedules across midnight, the heating curve and
+Around 290 checks cover schedules across midnight, the heating curve and
 summer hysteresis, presence including the return home, window detection, the
 “setback only” mode and writing on edges. Quite a few of them are there
 because the case was wrong once – for instance a school one kilometre away

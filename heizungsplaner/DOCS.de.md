@@ -653,6 +653,43 @@ sind, weiß heute niemand –, rechnet der Planer **beide** Fälle und vereinigt
 sie. Die Anlage steht dann eher zu früh bereit als zu spät; am Tag selbst
 schreibt er den richtigen Stand darüber.
 
+### Was passiert, wenn etwas ausfällt
+
+Die Frage hinter dieser Funktion lautet: *Kann es passieren, dass die Anlage
+absenkt, obwohl jemand Wärme braucht?* Deshalb hier die Ausfälle im Einzelnen.
+
+| Was ausfällt | Was die Regelung dann tut |
+|---|---|
+| Der Anlagenmanager ist weg oder startet neu | Der zuletzt geschriebene Wochenplan bleibt stehen und gilt weiter. Der Planer meldet es auf der Kachel. |
+| Der Heizungsplaner stürzt ab oder wird gestoppt | Ebenso – der letzte Plan bleibt. Er ist immer ein vollständiger Heizplan, nie ein halber. |
+| BSB-LAN antwortet nicht | Weder Lesen noch Schreiben; die Regelung fährt unverändert weiter. |
+| Home Assistant startet neu | Der Planer setzt den Takt aus und rührt nichts an. |
+| Trockenlauf oder Automatik aus | Es wird nichts geschrieben, der vorhandene Plan bleibt. |
+| Die Übernahme wird aufgehoben | Der **vorgefundene** Wochenplan wird zurückgeschrieben – nicht der des Planers. |
+| Die Regelung behält die Zeiten nicht | Nach drei Versuchen dasselbe: zurückschreiben, abschalten, melden. |
+
+In allen diesen Fällen steht danach ein gültiger Wochenplan in der Regelung.
+Das ist Absicht: Es gibt keinen Pfad, auf dem ein *halber* Plan liegen bleibt.
+
+**Zwei Riegel** sichern zusätzlich gegen die Fälle ab, in denen der Planer
+selbst etwas Falsches berechnen könnte:
+
+* **Eine Woche ganz ohne Komfortzeit wird nie geschrieben.** So ein Plan
+  entsteht nicht durch eine Einstellung, sondern weil etwas fehlt – eine nicht
+  geladene Raumliste, alle Räume abgeschaltet, kein einziger Zeitplan.
+  Hineingeschrieben ergäbe er eine Anlage, die sieben Tage lang nur absenkt,
+  und niemand käme auf die Idee, die Ursache im Heizungsplaner zu suchen.
+  Stattdessen bleibt der alte Plan stehen und die Kachel sagt, was fehlt.
+* **Die Schreibbremse hält nur auf, was Wärme wegnimmt.** Eine Änderung, die
+  jede bisherige Komfortminute behält und nur ergänzt – die Partytaste, eine
+  greifende Regel, das Vorheizen –, geht immer durch. Sonst bliebe bei
+  erschöpftem Zähler ausgerechnet der Wärmewunsch ungehört, und eine
+  Schutzgrenze hätte in die falsche Richtung gewirkt.
+
+Darunter liegt ohnehin der **Frostschutz der Regelung** selbst. Der Planer
+kann ihn weder verstellen noch umgehen; er ist der letzte Boden, wenn alles
+andere versagt.
+
 ### Der Reduziertsollwert entscheidet, wie viel die Absenkung bringt
 
 Das Wochenprogramm schaltet zwischen den beiden Sollwerten der Regelung um –

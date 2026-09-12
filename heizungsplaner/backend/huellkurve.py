@@ -183,6 +183,30 @@ def woche(raeume: list[dict], jetzt: datetime, tagesart) -> dict[str, str]:
     return plan
 
 
+def deckt(soll: str, ist: str) -> bool:
+    """Enthält ``soll`` jede Komfortminute, die schon in ``ist`` steht?
+
+    Damit lässt sich eine Änderung, die **nur wärmt**, von einer
+    unterscheiden, die etwas wegnimmt. Der Unterschied ist keine Spitzfindigkeit:
+    Wo eine Bremse nötig ist, darf sie die wärmende Richtung nicht treffen.
+    Zu viel Vorlauf kostet Öl, zu wenig eine kalte Wohnung.
+    """
+    haben = aus_text(ist)
+    neu_ = aus_text(soll)
+    return all(any(nb <= b and e <= ne for nb, ne in neu_) for b, e in haben)
+
+
+def leer(plan: dict) -> bool:
+    """Ist für die ganze Woche keine einzige Komfortzeit vorgesehen?
+
+    Das ist kein gültiger Zustand, sondern ein Zeichen dafür, dass etwas
+    fehlt – eine nicht geladene Raumliste etwa. Geschrieben ergäbe es eine
+    Regelung, die sieben Tage lang nur den Reduziertsollwert fährt: ein Haus,
+    das langsam auskühlt, weil eine Datei nicht da war.
+    """
+    return bool(plan) and not any(aus_text(text) for text in plan.values())
+
+
 def erweitern(text: str, bis_minute: int, jetzt: datetime) -> str | None:
     """Das laufende Fenster bis ``bis_minute`` verlängern – oder eines anlegen.
 

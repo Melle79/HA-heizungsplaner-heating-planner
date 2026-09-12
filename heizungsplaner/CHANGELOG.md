@@ -1,5 +1,29 @@
 # Änderungen
 
+## 1.28.0
+
+Eine systematische Durchsicht des Zusammenspiels mit dem Anlagenmanager, mit
+einer Frage: *Kann die Anlage absenken, obwohl jemand Wärme braucht?* Zwei
+Wege dorthin gab es, beide sind jetzt versperrt.
+
+- **Eine Woche ganz ohne Komfortzeit wird nicht mehr geschrieben.** Vier
+  Ursachen führten dazu – eine leere Raumliste, alle Räume abgeschaltet, alle
+  auf „nur absenken“, alle Zeitpläne leer. In die Regelung geschrieben ergab
+  das sieben Tage Absenkbetrieb, ohne dass die Ursache beim Planer vermutet
+  worden wäre. Jetzt bleibt der alte Plan stehen und die Kachel nennt das
+  Problem.
+- **Die Schreibbremse hält nur noch auf, was Wärme wegnimmt.** Vorher wurde
+  bei erschöpftem Zähler auch die Partytaste nicht mehr nachgetragen – eine
+  Schutzgrenze, die in die falsche Richtung wirkte. Änderungen, die jede
+  bisherige Komfortminute behalten und nur ergänzen, gehen jetzt immer durch.
+- Geprüft und für gut befunden: Bedarf und Hüllkurve decken sich an allen
+  sieben Tagen; die Nachträge greifen für genau die drei Zustände, die Wärme
+  verlangen; Sommerbetrieb, Urlaub und Fenstersturz verändern die Hüllkurve
+  nicht, weil sie aus den Zeitplänen stammt und nicht aus den Zuständen; und
+  bei jedem Ausfall bleibt ein vollständiger Wochenplan stehen.
+- Das Handbuch hat dazu einen eigenen Abschnitt bekommen: *Was passiert, wenn
+  etwas ausfällt* – als Tabelle, damit man nicht suchen muss.
+
 ## 1.27.3
 
 - Handbuch: Ein eigener Abschnitt erklärt, dass der Abstand zwischen Komfort-

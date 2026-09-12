@@ -630,6 +630,18 @@ def fuehren(bericht: dict, config: dict, state: dict, protokoll) -> dict:
             plan[heute] = breiter
             erweitert = True
 
+    # Eine Woche ganz ohne Komfortzeit wird nicht geschrieben. Sie entsteht
+    # nicht durch eine Einstellung, sondern durch ein Versehen – eine leere
+    # Raumliste, alle Räume abgeschaltet, kein Zeitplan. Hineingeschrieben
+    # ergäbe sie eine Anlage, die sieben Tage lang nur absenkt, und niemand
+    # käme auf die Idee, die Ursache im Heizungsplaner zu suchen.
+    if huellkurve.leer(plan):
+        _LOGGER.warning("Keine einzige Komfortzeit in der ganzen Woche – "
+                        "es wird nichts geschrieben")
+        return {"aktiv": True, "erreichbar": True, "uebernommen": True,
+                "programm": stand["name"], "heute": inhalt.get(heute, ""),
+                "hinweis": texte.t("kessel_leer")}
+
     ergebnis = {"aktiv": True, "erreichbar": True, "uebernommen": True,
                 "programm": stand["name"], "heute": plan[heute],
                 "erweitert": erweitert,
@@ -648,9 +660,16 @@ def fuehren(bericht: dict, config: dict, state: dict, protokoll) -> dict:
         soll = plan.get(tag)
         if soll is None:
             continue
-        if huellkurve.aus_text(inhalt.get(tag, "")) == huellkurve.aus_text(soll):
+        vorhanden = inhalt.get(tag, "")
+        if huellkurve.aus_text(vorhanden) == huellkurve.aus_text(soll):
             continue                       # steht schon so – kein Telegramm
-        if not _darf_schreiben(merker, nr, datum):
+        # Die Bremse hält nur auf, was Wärme wegnimmt. Eine Änderung, die
+        # jede bisherige Komfortminute behält und nur ergänzt, geht immer
+        # durch: Sonst bliebe bei erschöpftem Zähler ausgerechnet die
+        # Partytaste ungehört, und man säße im Kalten, weil eine Schutzgrenze
+        # in die falsche Richtung gewirkt hat.
+        if (not huellkurve.deckt(soll, vorhanden)
+                and not _darf_schreiben(merker, nr, datum)):
             gebremst.append(tag)
             continue
         try:

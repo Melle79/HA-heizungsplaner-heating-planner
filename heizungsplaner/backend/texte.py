@@ -525,6 +525,15 @@ TEXTE: dict[str, dict[str, str]] = {
         "en": "The controller's weekly program has not been read completely "
               "yet. The planner waits rather than overwrite it on partial "
               "knowledge."},
+    "kessel_leer": {
+        "de": "Für die ganze Woche ist keine einzige Komfortzeit vorgesehen. "
+              "Der Planer schreibt das nicht in die Regelung – so ein Plan "
+              "entsteht nicht durch eine Einstellung, sondern weil etwas "
+              "fehlt. Bitte die Räume und ihre Zeitpläne prüfen.",
+        "en": "Not a single comfort period is scheduled for the whole week. "
+              "The planner does not write that to the controller – such a "
+              "program does not come from a setting but from something "
+              "missing. Please check the rooms and their schedules."},
     "kessel_gebremst": {
         "de": "Heute wurde schon {grenze}-mal umgeschrieben – weitere "
               "Änderungen warten bis morgen. Das schützt den Speicher der "

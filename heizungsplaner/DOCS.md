@@ -645,6 +645,42 @@ week after next is a school holiday – the planner computes **both** cases and
 merges them. The system then stands ready too early rather than too late; on
 the day itself the planner writes the correct state over it.
 
+### What happens when something fails
+
+The question behind this feature is: *can the system end up setting back while
+somebody needs heat?* So here are the failures one by one.
+
+| What fails | What the controller then does |
+|---|---|
+| The system manager is gone or restarting | The last written weekly program stays and remains in force. The planner says so on the tile. |
+| The heating planner crashes or is stopped | The same – the last program stays. It is always a complete heating program, never half of one. |
+| BSB-LAN does not answer | Neither reading nor writing; the controller carries on unchanged. |
+| Home Assistant restarts | The planner skips the cycle and touches nothing. |
+| Dry run, or the automatic switched off | Nothing is written, the existing program stays. |
+| The takeover is released | The program **found there** is written back – not the planner's. |
+| The controller does not keep the times | After three attempts the same: write back, switch off, report. |
+
+In every one of these cases a valid weekly program is left in the controller.
+That is deliberate: there is no path on which half a program is left behind.
+
+**Two safeguards** additionally cover the cases where the planner itself might
+compute something wrong:
+
+* **A week without a single comfort period is never written.** Such a program
+  does not come from a setting but from something missing – a room list that
+  failed to load, all rooms switched off, not one schedule. Written to the
+  controller it would produce a system that only sets back for seven days, and
+  nobody would think to look for the cause in the heating planner. Instead the
+  old program stays and the tile says what is missing.
+* **The write brake only holds back what takes heat away.** A change that
+  keeps every previous comfort minute and only adds to it – the party button,
+  a rule taking effect, preheating – always gets through. Otherwise an
+  exhausted counter would silence exactly the request for warmth, and a safety
+  limit would have worked in the wrong direction.
+
+Below all of it sits the controller's own **frost protection**. The planner can
+neither change nor bypass it; it is the final floor when everything else fails.
+
 ### The reduced setpoint decides how much the setback is worth
 
 The weekly program switches between the controller's two setpoints – on an
