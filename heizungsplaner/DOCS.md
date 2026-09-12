@@ -942,6 +942,17 @@ Operation*.
 Radio thermostats report with a delay. The planner therefore only treats a
 deviation as a manual change 15 minutes after its own write operation.
 
+**You can see it on the tile.** While the planner holds back, the tile shows
+the value that is on the device – not the one the plan would have set – along
+with the time from which it takes over again. That matters more than it
+sounds: before, the tile kept saying “comfort · 22.5 °C” while the thermostat
+stood at 8 °C. The big number was the planner's wish, and a child's room
+turned off by hand went unnoticed for two days.
+
+The same information is available as the attributes `handeingriff_bis` and
+`am_geraet` on `sensor.heizungsplaner_raum_<name>` – enough to build a
+dashboard card that flags a room someone has switched off.
+
 **Not every deviation is a hand.** Some devices acknowledge a setpoint and
 still do not apply it – they stand unchanged afterwards. The planner therefore
 remembers which value was on the device *before* its command: if it is still
