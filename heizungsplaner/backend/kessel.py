@@ -89,9 +89,11 @@ KOMFORT_ZUSTAENDE = frozenset({
 # Die Abwägung dahinter war aus der alten Fassung mitgeschleppt, die die
 # Betriebsart stellte: Dort hieß „nicht in der Hüllkurve“ tatsächlich
 # *Standby*, also keine Wärme, und im Zweifel warm zu fahren war richtig. Beim
-# Wochenprogramm heißt es nur *Reduziertsollwert* – bei Sven 20 °C. Das reicht
-# für einen Flur allemal, und wer den Hobbyraum von Hand hochdreht, bekommt
-# Vorlauf, sobald irgendein anderer Raum Komfort verlangt.
+# Wochenprogramm heißt es nur *Reduziertsollwert* – ein Wert, der an der
+# Regelung eingestellt ist und dort nachgesehen werden kann. Wer einen Raum
+# von Hand hochdreht und ihn außerhalb der Komfortzeiten zu kühl findet, stellt
+# entweder diesen Sollwert höher oder gibt dem Raum einen Zeitplan; dann zählt
+# er regulär in der Hüllkurve mit.
 
 # So oft darf der Planer einen Wochentag an einem Tag neu schreiben. Die
 # Grenze ist kein Sparzwang, sondern eine Bremse: Zwei Regeln, die einander

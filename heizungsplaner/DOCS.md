@@ -645,6 +645,24 @@ week after next is a school holiday – the planner computes **both** cases and
 merges them. The system then stands ready too early rather than too late; on
 the day itself the planner writes the correct state over it.
 
+### The reduced setpoint decides how much the setback is worth
+
+The weekly program switches between the controller's two setpoints – on an
+Albatros controller parameters 50 (comfort) and 51 (reduced). How much the
+setback achieves depends solely on the gap between them: at 23 and 20 °C the
+difference is small; at 23 and 18 °C it becomes a real night setback.
+
+That gap is set on the controller, not in the planner – the planner only
+writes the switching times. If a hand-controlled room feels too cool outside
+the comfort periods, either raise the reduced setpoint or give the room a
+schedule; then it counts in the envelope like any other.
+
+**Preheating is unaffected.** When the planner brings comfort forward by up to
+two hours because of the cold, the room already reports comfort demand – the
+window is opened backwards and the flow temperature is ready in time. Without
+that, preheating would run into nothing: open valves on a boiler that is still
+setting back.
+
 A controller holds **three phases per day**. If more accumulate, the blocks
 with the *smallest* gap are merged: joining two blocks twenty minutes apart
 costs twenty minutes of comfort operation, while the five-hour lunch break is

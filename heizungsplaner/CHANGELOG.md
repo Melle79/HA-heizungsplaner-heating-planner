@@ -1,5 +1,16 @@
 # Änderungen
 
+## 1.27.3
+
+- Handbuch: Ein eigener Abschnitt erklärt, dass der Abstand zwischen Komfort-
+  und Reduziertsollwert der Regelung darüber entscheidet, wie viel die
+  Absenkung bringt – und dass er dort eingestellt wird, nicht im Planer.
+- Festgeschrieben, dass das **Vorheizen** Vorlauf bekommt: Zieht der Planer
+  den Komfort wegen Kälte vor, meldet der Raum bereits Bedarf, und das
+  Schaltfenster wird nach vorn geöffnet. Ohne das liefe das Vorheizen ins
+  Leere – offene Ventile an einem Kessel, der noch absenkt. Zwei neue
+  Prüfungen decken das ab.
+
 ## 1.27.2
 
 - **Behoben: Der Planer gab die Kesselführung grundlos auf.** Die Nachprüfung

@@ -1592,12 +1592,18 @@ class Anlage:
         # Die Lesezeitpunkte, die der Anlagenmanager je Wert mitliefert.
         # Ohne sie liesse sich "verworfen" nicht von "noch nicht nachgelesen"
         # unterscheiden.
-        self.gelesen = {nr: "2026-09-11T00:00:00" for nr in self.werte}
+        # Ab Werk ein alter Stand: So sieht ein Wert aus, den der Manager
+        # seit unserem Schreiben nicht wieder geholt hat.
+        self.gelesen = {nr: "2000-01-01T00:00:00" for nr in self.werte}
         self.uhr = 0
 
     def _stempel(self):
+        # Muss nach dem Schreibzeitpunkt liegen, und der kommt aus der echten
+        # Uhr (``kessel._stempel``). Eine erfundene Zeit in der Vergangenheit
+        # liesse die Pruefung stumm bleiben – und genau die soll hier greifen.
         self.uhr += 1
-        return f"2026-09-12T{self.uhr // 60 + 10:02d}:{self.uhr % 60:02d}:00"
+        return (datetime.now() + timedelta(seconds=self.uhr)).isoformat(
+            timespec="seconds")
 
     def __call__(self, methode, adresse, nutzlast=None, zeit=20.0):
         if adresse.endswith("/api/katalog"):
@@ -1706,6 +1712,23 @@ pruefe(kessel.bedarf_bis(BERICHT("party", "2026-09-11T15:00:00")) == 15 * 60,
        "die Partytaste dagegen schon")
 pruefe(kessel.bedarf_bis(BERICHT("komfort", "2026-09-12T07:00:00")) == 24 * 60,
        "was ueber den Tag hinausreicht, gilt bis Mitternacht")
+
+# --- Vorheizen bekommt Vorlauf -------------------------------------------
+#
+# Der Planer heizt bei Kaelte bis zu zwei Stunden vor dem Schaltpunkt vor, die
+# Huellkurve beginnt aber erst zum Schaltpunkt. Ohne den Nachtrag liefe das
+# Vorheizen ins Leere: Die Ventile oeffnen, aber der Kessel faehrt noch
+# Reduziert. Beim Vorheizen traegt der Raum den Zustand des kommenden Modus,
+# also "komfort" – daran erkennt es der Planer.
+vorheiz = {"zeit": "2026-09-14T04:00:00", "raeume": [
+    {"name": "Wohnzimmer", "zustand": "komfort",
+     "naechster_wechsel": "2026-09-14T05:30:00"}]}
+pruefe(kessel.bedarf_bis(vorheiz) == 5 * 60 + 30,
+       "das Vorheizen meldet Bedarf bis zum Schaltpunkt")
+pruefe(hk.erweitern("05:30-07:30 09:00-21:00 ##:##-##:##", 5 * 60 + 30,
+                    datetime(2026, 9, 14, 4, 0))
+       == "04:00-07:30 09:00-21:00 ##:##-##:##",
+       "und das Fenster wird nach vorn geoeffnet statt gestueckelt")
 
 # Die Schreibbremse.
 bremse, zb = Anlage(uebernommen=True), {}

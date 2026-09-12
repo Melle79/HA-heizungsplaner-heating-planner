@@ -653,6 +653,25 @@ sind, weiß heute niemand –, rechnet der Planer **beide** Fälle und vereinigt
 sie. Die Anlage steht dann eher zu früh bereit als zu spät; am Tag selbst
 schreibt er den richtigen Stand darüber.
 
+### Der Reduziertsollwert entscheidet, wie viel die Absenkung bringt
+
+Das Wochenprogramm schaltet zwischen den beiden Sollwerten der Regelung um –
+bei einem Albatros-Regler Parameter 50 (Komfort) und 51 (Reduziert). Wie stark
+die Absenkung wirkt, hängt allein am Abstand dieser beiden: Stehen sie auf 23
+und 20 °C, ist der Unterschied klein; bei 23 und 18 °C wird daraus eine echte
+Nachtabsenkung.
+
+Diesen Abstand stellt man in der Regelung ein, nicht im Planer – er führt nur
+die Schaltzeiten. Wer einen handgeführten Raum außerhalb der Komfortzeiten zu
+kühl findet, hebt entweder den Reduziertsollwert an oder gibt dem Raum einen
+Zeitplan; dann zählt er regulär in der Hüllkurve mit.
+
+**Das Vorheizen ist davon nicht betroffen.** Zieht der Planer den Komfort
+wegen Kälte um bis zu zwei Stunden vor, meldet der Raum bereits Komfortbedarf –
+das Fenster wird nach vorn geöffnet, und der Vorlauf steht rechtzeitig bereit.
+Ohne das liefe das Vorheizen ins Leere: offene Ventile an einem Kessel, der
+noch absenkt.
+
 Ein Regler führt **drei Phasen je Tag**. Kommen mehr zusammen, werden die
 Blöcke mit der *kleinsten* Lücke zusammengelegt: Zwei Blöcke mit zwanzig
 Minuten Abstand zu verschmelzen kostet zwanzig Minuten Komfortbetrieb, die
