@@ -487,6 +487,8 @@ window.SPRACHEN.en = {
   [/^(\d+) Person\(en\)$/, "$1 person(s)"],
   [/^(\d+) Melder$/, "$1 sensors"],
   [/^(\d+) Kontakt(e)?$/, "$1 window contact$2"],
+  [/^Von Hand gestellt – der Planer greift erst um (\d\d:\d\d) Uhr wieder ein\. Geplant wären ([\d,.]+) (°[CF])\.$/,
+   "Set by hand – the planner will not step in again until $1. The plan would be $2 $3."],
   [/^Parameter (\d+)$/, "Parameter $1"],
   [/^Übernommen: (.+), heute (.+)\.$/, "Taken over: $1, today $2."],
   [/^Komfort bis (\d\d:\d\d) Uhr$/, "comfort until $1"],

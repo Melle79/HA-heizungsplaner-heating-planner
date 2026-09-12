@@ -956,6 +956,17 @@ Danach führt wieder der Plan. Abschaltbar über *Einstellungen → Betrieb*.
 Funkthermostate melden verzögert. Deshalb wertet der Planer eine Abweichung
 erst 15 Minuten nach dem eigenen Schreibvorgang als Handeingriff.
 
+**Man sieht es auf der Kachel.** Solange sich der Planer zurückhält, zeigt sie
+den Wert, der am Gerät steht – nicht den, den der Plan vorgesehen hätte –,
+dazu die Uhrzeit, ab der wieder geregelt wird. Das ist wichtiger, als es
+klingt: Vorher stand dort weiter „Komfort · 22,5 °C“, während das Thermostat
+auf 8 °C stand. Die große Zahl war der Wunsch des Planers, und ein
+ausgedrehtes Kinderzimmer blieb so zwei Tage unbemerkt.
+
+Dieselbe Angabe gibt es als Attribut `handeingriff_bis` und `am_geraet` an
+`sensor.heizungsplaner_raum_<name>` – damit lässt sich im Dashboard eine
+Karte bauen, die anschlägt, wenn ein Raum von Hand stillgelegt ist.
+
 **Nicht jede Abweichung ist eine Hand.** Manche Geräte quittieren einen
 Sollwert und setzen ihn trotzdem nicht um – sie stehen danach unverändert da.
 Der Planer merkt sich deshalb, welcher Wert *vor* seinem Befehl am Gerät

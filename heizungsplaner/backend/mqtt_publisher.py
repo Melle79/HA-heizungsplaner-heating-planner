@@ -409,6 +409,17 @@ class Publisher:
                 "naechster_modus": raum.get("naechster_modus"),
                 "naechstes_ziel": raum.get("naechstes_ziel"),
                 "thermostate": [t["entity_id"] for t in raum.get("thermostate", [])],
+                # Ein erkannter Handeingriff: Der Planer hält sich zurück, und
+                # sein Zielwert ist gerade nicht wirksam. Ohne diese Angabe
+                # zeigte die Kachel in Home Assistant weiter 22,5 °C, während
+                # das Thermostat auf 8 °C stand – so ist ein ausgedrehtes
+                # Kinderzimmer zwei Tage lang unbemerkt geblieben.
+                "handeingriff_bis": next(
+                    (t.get("manuell_bis") for t in raum.get("thermostate") or []
+                     if t.get("manuell_bis")), ""),
+                "am_geraet": next(
+                    (t.get("soll") for t in raum.get("thermostate") or []
+                     if t.get("manuell_bis")), None),
             })
 
         self._tank_zustand(bericht.get("tank") or {})

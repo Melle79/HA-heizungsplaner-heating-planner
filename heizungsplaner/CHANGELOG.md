@@ -1,5 +1,21 @@
 # Änderungen
 
+## 1.28.1
+
+- **Behoben: Ein erkannter Handeingriff war auf der Kachel nicht zu sehen.**
+  Der Planer hält sich zurück, wenn jemand ein Thermostat von Hand verstellt –
+  das ist richtig. Die Kachel zeigte aber weiter „Komfort · 22,5 °C“, obwohl
+  das Gerät auf 8 °C stand. Die große Zahl war der Wunsch des Planers, nicht
+  die Wirklichkeit.
+  Hier ist dadurch ein ausgedrehtes Kinderzimmer zwei Tage unbemerkt
+  geblieben: Im Dashboard stand 8 °C, im Planer 22,5 – und es sah nach einem
+  Fehler aus, wo in Wahrheit dreimal jemand die Heizung abgestellt hatte.
+- Jetzt zeigt die Kachel den **Wert am Gerät** und darunter, bis wann der
+  Planer sich zurückhält und was er eigentlich vorgesehen hätte.
+- Neue Attribute an `sensor.heizungsplaner_raum_<name>`: `handeingriff_bis`
+  und `am_geraet`. Damit lässt sich auch im Dashboard eine Karte bauen, die
+  anschlägt, wenn ein Raum von Hand stillgelegt ist.
+
 ## 1.28.0
 
 Eine systematische Durchsicht des Zusammenspiels mit dem Anlagenmanager, mit

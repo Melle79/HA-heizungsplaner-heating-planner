@@ -248,7 +248,8 @@
   .soll.hand{color:var(--text)}
   .ist{font-size:.83rem; color:var(--leise); margin-left:auto; text-align:right;
        white-space:nowrap}
-  .grund{font-size:.82rem; color:var(--leise); flex:1;
+  .grund.eingriff{color:var(--warn,#e0a030);font-weight:500}
+.grund{font-size:.82rem; color:var(--leise); flex:1;
          display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;
          overflow:hidden}
   .karte .fusszeile{
@@ -1634,6 +1635,14 @@ function karteZeichnen(raum) {
   const handbetrieb = raum.zustand === 'manuell';
   const hatHandwert = raum.handwert !== null && raum.handwert !== undefined;
 
+  // Ein erkannter Handeingriff in einem sonst geregelten Raum: Der Planer
+  // hält sich zurück, bis der Zeitplan wieder greift. Ohne diesen Hinweis
+  // stand auf der Kachel weiter „Komfort 22,5 °C“, während das Thermostat auf
+  // 8 °C stand – die Zahl war der Wunsch des Planers, nicht die Wirklichkeit.
+  // Genau so ist ein ausgedrehtes Kinderzimmer zwei Tage unbemerkt geblieben.
+  const eingriff = handbetrieb ? null
+    : (raum.thermostate || []).find(t => t.manuell_bis) || null;
+
   let anzeige;
   if (ruht) {
     anzeige = `<span class="soll ruht">Aus<span class="einheit"> · Ventil zu</span></span>`;
@@ -1641,6 +1650,10 @@ function karteZeichnen(raum) {
     anzeige = `<span class="soll ruht">Von Hand</span>`;
   } else if (handbetrieb) {
     anzeige = `<span class="soll hand">${zahl(raum.handwert)}<span
+                 class="einheit">${EINHEIT} · von Hand</span></span>`;
+  } else if (eingriff && eingriff.soll !== null && eingriff.soll !== undefined) {
+    // Die Wirklichkeit zuerst: Was am Gerät steht, ist das, was heizt.
+    anzeige = `<span class="soll hand">${zahl(eingriff.soll)}<span
                  class="einheit">${EINHEIT} · von Hand</span></span>`;
   } else {
     anzeige = `<span class="soll">${zahl(raum.ziel)}<span class="einheit">${EINHEIT}</span></span>`;
@@ -1672,6 +1685,9 @@ function karteZeichnen(raum) {
         ? '' : 'ist ' + zahl(raum.ist) +  ' ' + EINHEIT}</span>
     </div>
     <div class="grund">${raum.begruendung}</div>
+    ${eingriff ? `<div class="grund eingriff">Von Hand gestellt – der Planer
+       greift erst um ${uhr(eingriff.manuell_bis)} Uhr wieder ein. Geplant
+       wären ${zahl(raum.ziel)} ${EINHEIT}.</div>` : ''}
     <div class="fusszeile">
       <div class="wechsel">
         <span>seit ${uhr(raum.seit)}</span>
