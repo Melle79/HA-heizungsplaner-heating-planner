@@ -893,6 +893,38 @@ pruefe(zust_h["thermostate"]["climate.n"].get("manuell_bis") is not None,
        "ein dritter Wert gilt weiterhin als Handeingriff")
 pruefe(not gesendet_nu, "und wird nicht ueberschrieben")
 
+# Steht das Geraet wieder auf dem Zielwert, ist der Handeingriff erledigt.
+#
+# Nach dem Firmware-Upgrade des SwitchBot-Hubs meldete Lunas Thermostat noch
+# einmal 8 Grad; der Planer merkte einen Handeingriff bis 21:00 und hielt dann
+# still, obwohl das Geraet laengst wieder auf dem Zielwert stand. Die Kachel
+# widersprach sich dabei selbst: "22,5 von Hand - geplant waeren 22,5".
+zust_weg = {"thermostate": {"climate.n": {
+    "soll": 8.0, "manuell_bis": montag.replace(hour=21).isoformat(timespec="seconds"),
+    "hand_wert": 8.0, "hand_wann": [montag.replace(hour=15).isoformat(timespec="seconds")],
+    "gesetzt_am": montag.replace(hour=12).isoformat(timespec="seconds")}},
+    "raeume": {}}
+gesendet_nu.clear()
+regelung.anwenden(raum_nu, {"zustand": "komfort", "ziel": 23.0, "begruendung": "x"},
+                  zust_weg, umg_nu(23.0), lambda *a, **k: None)
+g_weg = zust_weg["thermostate"]["climate.n"]
+pruefe(g_weg.get("manuell_bis") is None,
+       "der Handeingriff endet, sobald das Geraet auf dem Ziel steht")
+pruefe(not g_weg.get("hand_wann") and not g_weg.get("hand_wert"),
+       "und der Verdacht auf ein Fremdprogramm wird mit zurueckgesetzt")
+
+# Weicht das Geraet dagegen weiter ab, bleibt zurueckgehalten.
+zust_bleibt = {"thermostate": {"climate.n": {
+    "soll": 8.0, "manuell_bis": montag.replace(hour=21).isoformat(timespec="seconds"),
+    "gesetzt_am": montag.replace(hour=12).isoformat(timespec="seconds")}},
+    "raeume": {}}
+gesendet_nu.clear()
+regelung.anwenden(raum_nu, {"zustand": "komfort", "ziel": 23.0, "begruendung": "x"},
+                  zust_bleibt, umg_nu(8.0), lambda *a, **k: None)
+pruefe(zust_bleibt["thermostate"]["climate.n"].get("manuell_bis") is not None,
+       "bei weiterhin abweichendem Wert bleibt es beim Zurueckhalten")
+pruefe(not gesendet_nu, "und es wird nichts geschrieben")
+
 # Kommt der Wert an, ist der Zaehler wieder bei null
 zust_ok = {"thermostate": {"climate.n": {"soll": 23.0, "schreib_fehler": 2}},
            "raeume": {}}

@@ -954,6 +954,10 @@ schedule can only be switched off where it is configured – it cannot be reache
 from Home Assistant. Changing values still count as a manual change; a person
 does not turn a dial to the same tenth three times over.
 
+**It also ends early** if the device finds its way back to the target value –
+no matter who put it there. The point of standing back is not to overwrite a
+deviating manual value; with no deviation left, there is nothing to protect.
+
 **You can see it on the tile.** While the planner holds back, the tile shows
 the value that is on the device – not the one the plan would have set – along
 with the time from which it takes over again. That matters more than it

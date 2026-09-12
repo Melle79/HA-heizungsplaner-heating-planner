@@ -1,5 +1,18 @@
 # Änderungen
 
+## 1.29.1
+
+- **Behoben: Der Handeingriff endete nicht, wenn er sich erledigt hatte.** Stand
+  das Gerät wieder auf dem Zielwert, hielt der Planer trotzdem bis zum nächsten
+  Schaltpunkt still – und die Kachel widersprach sich selbst: „22,5 °C von Hand
+  – geplant wären 22,5 °C“. Der Sinn des Zurückhaltens ist, einen abweichenden
+  Handwert nicht zu überschreiben; gibt es keine Abweichung, gibt es nichts zu
+  schützen.
+- **Behoben: Der Hinweis auf der Kachel wurde mitten im Wort abgeschnitten.** Er
+  hing an der Begründungszeile, und die klemmt auf drei Zeilen. Jetzt hat er
+  eine eigene Zeile und einen kürzeren Text: *Von Hand · Planer wieder ab 21:00
+  Uhr · geplant 22,5 °C*.
+
 ## 1.29.0
 
 - **Neu: Der Planer erkennt einen fremden Zeitplan im Gerät.** Wird ein

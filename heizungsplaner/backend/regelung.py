@@ -798,6 +798,19 @@ def anwenden(raum: dict, entscheidung: dict, state: dict, umgebung: dict,
                                       entity_id, attrs, protokoll)
                 continue
         manuell_bis = _aus_iso(gedaechtnis.get("manuell_bis"))
+        # Steht das Gerät wieder auf dem Zielwert, ist der Handeingriff
+        # erledigt – gleich wer ihn aufgehoben hat. Der Sinn des Zurückhaltens
+        # ist, einen abweichenden Handwert nicht zu überschreiben; gibt es
+        # keine Abweichung, gibt es nichts zu schützen. Ohne diese Zeile hielt
+        # der Planer stundenlang still, obwohl längst alles zusammenpasste,
+        # und die Kachel widersprach sich selbst: „22,5 von Hand – geplant
+        # wären 22,5“.
+        if (manuell_bis and ist_soll is not None
+                and abs(ist_soll - ziel) < _schritt()):
+            gedaechtnis["manuell_bis"] = None
+            manuell_bis = None
+            for schluessel in ("hand_wann", "hand_wert", "fremd_gemeldet"):
+                gedaechtnis.pop(schluessel, None)
         if manuell_bis and manuell_bis > jetzt and not erzwingen:
             continue
         if manuell_bis:

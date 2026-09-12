@@ -248,7 +248,8 @@
   .soll.hand{color:var(--text)}
   .ist{font-size:.83rem; color:var(--leise); margin-left:auto; text-align:right;
        white-space:nowrap}
-  .grund.eingriff{color:var(--warn,#e0a030);font-weight:500}
+  .eingriff{font-size:.82rem; font-weight:500; flex:none;
+            color:var(--warn,#e0a030); margin-top:var(--l1)}
 .grund{font-size:.82rem; color:var(--leise); flex:1;
          display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;
          overflow:hidden}
@@ -1685,9 +1686,9 @@ function karteZeichnen(raum) {
         ? '' : 'ist ' + zahl(raum.ist) +  ' ' + EINHEIT}</span>
     </div>
     <div class="grund">${raum.begruendung}</div>
-    ${eingriff ? `<div class="grund eingriff">Von Hand gestellt – der Planer
-       greift erst um ${uhr(eingriff.manuell_bis)} Uhr wieder ein. Geplant
-       wären ${zahl(raum.ziel)} ${EINHEIT}.</div>` : ''}
+    ${eingriff ? `<div class="eingriff">Von Hand · Planer wieder ab
+       ${uhr(eingriff.manuell_bis)} Uhr · geplant ${zahl(raum.ziel)} ${EINHEIT}</div>`
+       : ''}
     <div class="fusszeile">
       <div class="wechsel">
         <span>seit ${uhr(raum.seit)}</span>

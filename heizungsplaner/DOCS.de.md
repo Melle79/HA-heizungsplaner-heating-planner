@@ -968,6 +968,11 @@ das Gerät. Abschalten lässt sich der nur dort, wo er eingestellt ist – von
 Home Assistant aus ist er nicht erreichbar. Wechselnde Werte gelten weiter als
 Handeingriff; ein Mensch dreht nicht dreimal auf die Zehntelstelle gleich.
 
+**Er endet auch früher**, wenn das Gerät von selbst wieder auf dem Zielwert
+landet – gleich wer ihn dorthin gestellt hat. Der Sinn des Zurückhaltens ist,
+einen abweichenden Handwert nicht zu überschreiben; gibt es keine Abweichung
+mehr, gibt es nichts zu schützen.
+
 **Man sieht es auf der Kachel.** Solange sich der Planer zurückhält, zeigt sie
 den Wert, der am Gerät steht – nicht den, den der Plan vorgesehen hätte –,
 dazu die Uhrzeit, ab der wieder geregelt wird. Das ist wichtiger, als es
