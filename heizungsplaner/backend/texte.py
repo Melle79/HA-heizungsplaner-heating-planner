@@ -462,6 +462,22 @@ TEXTE: dict[str, dict[str, str]] = {
                        "en": "{feld} must be between {min} and {max}"},
 
     # Kesselregelung
+    # Ein zweiter Plan im Gerät selbst
+    "log_fremdprogramm": {"de": "Fremder Zeitplan vermutet",
+                          "en": "Foreign schedule suspected"},
+    "fremdprogramm": {
+        "de": "{name} wurde {anzahl}-mal auf {grad} °C zurückgestellt – immer "
+              "auf denselben Wert. Das passt nicht zu einer Hand, sondern zu "
+              "einem zweiten Zeitplan im Gerät selbst. Bitte in der App des "
+              "Herstellers nachsehen und den Zeitplan dort abschalten; der "
+              "Planer kann ihn von hier aus nicht erreichen und zieht sich "
+              "bis dahin jedes Mal zurück.",
+        "en": "{name} has been reset to {grad} °C {anzahl} times – always to "
+              "the same value. That does not look like a hand but like a "
+              "second schedule inside the device. Please check the "
+              "manufacturer's app and switch that schedule off there; the "
+              "planner cannot reach it from here and will keep standing back "
+              "until then."},
     "kessel_hinweis": {
         "de": "Der Heizungsplaner führt das Wochenprogramm nach den Zeitplänen "
               "der Räume.",

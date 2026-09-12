@@ -311,6 +311,47 @@ def _uebersteuerung(raum: dict, states_index: dict,
     return None
 
 
+# Ab so vielen gleichen Rückstellungen ist es keine Hand mehr.
+#
+# Ein Mensch, der ein Thermostat dreimal binnen zwei Tagen auf **denselben**
+# Wert zurückdreht, ist ungewöhnlich. Ein Zeitprogramm im Gerät tut genau das.
+# Bei Svens SwitchBot-Thermostat in Lunas Zimmer lief neben dem Planer ein
+# zweiter Plan in der Hersteller-App: Er stellte immer wieder auf 8 °C, der
+# Planer hielt es jedes Mal für einen Handeingriff und zog sich zurück – und
+# das Zimmer blieb zwei Tage ungeheizt, ohne dass irgendwo etwas anschlug.
+FREMDPROGRAMM_AB = 3
+FREMDPROGRAMM_FENSTER = timedelta(days=2)
+
+
+def _fremdprogramm_merken(gedaechtnis: dict, wert: float, jetzt: datetime,
+                          raum: dict, entity_id: str, attrs: dict,
+                          protokoll) -> None:
+    """Wiederholte Rückstellungen auf denselben Wert sammeln – und melden.
+
+    Der Planer zieht sich bei einem Handeingriff bewusst zurück; das bleibt so.
+    Aber er sagt jetzt Bescheid, wenn das Muster nicht zu einem Menschen passt,
+    statt sich stumm immer wieder verdrängen zu lassen. Zurückgehalten wird
+    nach der Meldung weiter – was in der Hersteller-App eingestellt ist, kann
+    nur dort abgeschaltet werden.
+    """
+    frueher = [_aus_iso(z) for z in (gedaechtnis.get("hand_wann") or [])]
+    letzte = [z for z in frueher if z and jetzt - z <= FREMDPROGRAMM_FENSTER]
+    if gedaechtnis.get("hand_wert") is not None and \
+            abs(float(gedaechtnis["hand_wert"]) - wert) >= 0.25:
+        letzte = []                       # anderer Wert: Zählung von vorn
+    letzte.append(jetzt)
+    gedaechtnis["hand_wann"] = [_iso(z) for z in letzte[-FREMDPROGRAMM_AB:]]
+    gedaechtnis["hand_wert"] = wert
+
+    if len(letzte) < FREMDPROGRAMM_AB or gedaechtnis.get("fremd_gemeldet"):
+        return
+    gedaechtnis["fremd_gemeldet"] = _iso(jetzt)
+    protokoll(raum["name"], texte.t("log_fremdprogramm"),
+              texte.t("fremdprogramm", name=attrs.get("friendly_name", entity_id),
+                      grad=f"{wert:.1f}", anzahl=len(letzte)),
+              entity_id, art="warnung")
+
+
 def _verlauf_fortschreiben(rz: dict, ist: float | None, jetzt: datetime,
                            quelle: str) -> None:
     """Kurzes Temperaturgedächtnis je Raum, eine Stunde tief.
@@ -753,12 +794,18 @@ def anwenden(raum: dict, entscheidung: dict, state: dict, umgebung: dict,
                 protokoll(raum["name"], texte.t("log_manuell"),
                           texte.t("hand_erkannt", grad=f"{ist_soll:.1f}"),
                           entity_id)
+                _fremdprogramm_merken(gedaechtnis, ist_soll, jetzt, raum,
+                                      entity_id, attrs, protokoll)
                 continue
         manuell_bis = _aus_iso(gedaechtnis.get("manuell_bis"))
         if manuell_bis and manuell_bis > jetzt and not erzwingen:
             continue
         if manuell_bis:
             gedaechtnis["manuell_bis"] = None
+            # Der Zeitplan greift wieder, und niemand hat dazwischengefunkt:
+            # Damit ist der Verdacht auf ein Fremdprogramm erledigt.
+            for schluessel in ("hand_wann", "hand_wert", "fremd_gemeldet"):
+                gedaechtnis.pop(schluessel, None)
 
         # -- Betriebsart sicherstellen ---------------------------------------
         if eintrag.get("state") == "off" and not trockenlauf:

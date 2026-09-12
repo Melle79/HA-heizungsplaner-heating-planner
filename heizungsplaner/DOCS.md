@@ -942,6 +942,18 @@ Operation*.
 Radio thermostats report with a delay. The planner therefore only treats a
 deviation as a manual change 15 minutes after its own write operation.
 
+**A second schedule inside the device is not a hand.** Some thermostats bring
+their own weekly program, adjustable only in the manufacturer's app. If it runs
+alongside, it keeps resetting the setpoint – the planner takes that for a
+manual change and stands back every time. The room stays cold and nothing
+raises a flag.
+
+So the planner counts: if a thermostat is reset to the **same** value three
+times within two days, it reports a foreign schedule and names the device. That
+schedule can only be switched off where it is configured – it cannot be reached
+from Home Assistant. Changing values still count as a manual change; a person
+does not turn a dial to the same tenth three times over.
+
 **You can see it on the tile.** While the planner holds back, the tile shows
 the value that is on the device – not the one the plan would have set – along
 with the time from which it takes over again. That matters more than it

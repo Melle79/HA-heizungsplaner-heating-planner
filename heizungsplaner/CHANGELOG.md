@@ -1,5 +1,22 @@
 # Änderungen
 
+## 1.29.0
+
+- **Neu: Der Planer erkennt einen fremden Zeitplan im Gerät.** Wird ein
+  Thermostat dreimal binnen zwei Tagen auf **denselben** Wert zurückgestellt,
+  meldet er das und verweist auf die App des Herstellers. Ein Mensch dreht
+  nicht dreimal auf die Zehntelstelle gleich – ein Wochenprogramm im Gerät tut
+  genau das.
+- Der Anlass: In einem SwitchBot-Thermostat lief neben dem Planer ein zweiter
+  Zeitplan in der Hersteller-App. Er stellte immer wieder auf 8 °C, der Planer
+  hielt es jedes Mal für einen Handeingriff und zog sich zurück. Das
+  Kinderzimmer blieb zwei Tage ungeheizt, und nichts schlug an – weil sich der
+  Planer bei einem Handeingriff ja mit Absicht zurückhält.
+- Zurückgehalten wird weiter: Was in der Hersteller-App steht, kann nur dort
+  abgeschaltet werden. Aber man erfährt jetzt davon.
+- Wechselnde Werte gelten unverändert als Handeingriff, und Rückstellungen, die
+  Wochen auseinanderliegen, sind kein Muster.
+
 ## 1.28.1
 
 - **Behoben: Ein erkannter Handeingriff war auf der Kachel nicht zu sehen.**

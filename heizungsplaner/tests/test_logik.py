@@ -1492,6 +1492,46 @@ pruefe(texte.sprache_setzen("fr-CA") == "en", "unbekannte Sprache faellt auf Eng
 pruefe(texte.sprache_setzen("de-AT") == "de", "de-AT bleibt Deutsch")
 texte.sprache_setzen("de")
 
+print("\n=== Fremdprogramm im Geraet ===")
+# Svens SwitchBot-Thermostat in Lunas Zimmer hatte einen zweiten Zeitplan in
+# der Hersteller-App. Er stellte immer wieder auf 8 Grad, der Planer hielt es
+# jedes Mal fuer eine Hand und zog sich zurueck - zwei Tage ungeheizt, ohne
+# dass irgendwo etwas anschlug.
+def _fremd(werte, protokoll):
+    ged, jetzt = {}, datetime(2026, 9, 12, 12, 0)
+    for i, w in enumerate(werte):
+        regelung._fremdprogramm_merken(
+            ged, w, jetzt + timedelta(hours=i * 6), {"name": "Luna Zimmer"},
+            "climate.heizung_luna", {"friendly_name": "Heizung Luna"}, protokoll)
+    return ged
+
+meldungen = []
+ged = _fremd([8.0, 8.0], lambda *a, **k: meldungen.append(a))
+pruefe(not meldungen, "zweimal derselbe Wert meldet noch nichts")
+meldungen.clear()
+ged = _fremd([8.0, 8.0, 8.0], lambda *a, **k: meldungen.append(a))
+pruefe(len(meldungen) == 1, "beim dritten Mal wird gemeldet")
+pruefe("Hersteller" in meldungen[0][2] and "8.0" in meldungen[0][2],
+       "und der Text verweist auf die App des Herstellers")
+
+meldungen.clear()
+_fremd([8.0, 8.0, 8.0, 8.0, 8.0], lambda *a, **k: meldungen.append(a))
+pruefe(len(meldungen) == 1, "danach wird nicht weiter gemeldet (einmal genuegt)")
+
+# Verschiedene Werte sind eine Hand, kein Programm.
+meldungen.clear()
+_fremd([18.0, 21.0, 19.5], lambda *a, **k: meldungen.append(a))
+pruefe(not meldungen, "wechselnde Werte gelten weiter als Handeingriff")
+
+# Und was lange auseinanderliegt, ist kein Muster.
+ged, meldungen = {}, []
+for i, w in enumerate([8.0, 8.0, 8.0]):
+    regelung._fremdprogramm_merken(
+        ged, w, datetime(2026, 9, 1) + timedelta(days=i * 5),
+        {"name": "Luna Zimmer"}, "climate.heizung_luna",
+        {"friendly_name": "Heizung Luna"}, lambda *a, **k: meldungen.append(a))
+pruefe(not meldungen, "drei Rueckstellungen ueber Wochen sind kein Programm")
+
 print("\n=== Huellkurve ===")
 import huellkurve as hk
 

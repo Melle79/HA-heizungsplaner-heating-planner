@@ -956,6 +956,18 @@ Danach führt wieder der Plan. Abschaltbar über *Einstellungen → Betrieb*.
 Funkthermostate melden verzögert. Deshalb wertet der Planer eine Abweichung
 erst 15 Minuten nach dem eigenen Schreibvorgang als Handeingriff.
 
+**Ein zweiter Zeitplan im Gerät ist keine Hand.** Manche Thermostate bringen
+ein eigenes Wochenprogramm mit, einstellbar nur in der App des Herstellers.
+Läuft es mit, stellt es den Sollwert immer wieder zurück – der Planer hält es
+für einen Handeingriff und zieht sich jedes Mal zurück. Das Zimmer bleibt kalt,
+und nichts schlägt an.
+
+Deshalb zählt der Planer mit: Wird ein Thermostat dreimal binnen zwei Tagen auf
+**denselben** Wert zurückgestellt, meldet er einen fremden Zeitplan und nennt
+das Gerät. Abschalten lässt sich der nur dort, wo er eingestellt ist – von
+Home Assistant aus ist er nicht erreichbar. Wechselnde Werte gelten weiter als
+Handeingriff; ein Mensch dreht nicht dreimal auf die Zehntelstelle gleich.
+
 **Man sieht es auf der Kachel.** Solange sich der Planer zurückhält, zeigt sie
 den Wert, der am Gerät steht – nicht den, den der Plan vorgesehen hätte –,
 dazu die Uhrzeit, ab der wieder geregelt wird. Das ist wichtiger, als es
