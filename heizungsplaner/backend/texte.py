@@ -478,6 +478,32 @@ TEXTE: dict[str, dict[str, str]] = {
               "manufacturer's app and switch that schedule off there; the "
               "planner cannot reach it from here and will keep standing back "
               "until then."},
+    # Warmwasser im Urlaub
+    "ww_urlaub": {"de": "Warmwasser auf Urlaubsbetrieb",
+                  "en": "Hot water on holiday mode"},
+    "ww_urlaub_warum": {
+        "de": "Im Urlaub lädt der Speicher nur noch {fenster} statt den ganzen "
+              "Tag bereitzustehen. Abgeschaltet wird er nicht: Ein Speicher, "
+              "der tagelang lauwarm steht, ist hygienisch schlechter als "
+              "einer, der einmal am Tag durchheizt.",
+        "en": "During the holiday the cylinder only heats {fenster} instead of "
+              "standing by all day. It is not switched off: a cylinder left "
+              "lukewarm for days is worse hygienically than one that heats "
+              "through once a day."},
+    "ww_zurueck": {"de": "Warmwasser wieder im Alltag",
+                   "en": "Hot water back to normal"},
+    "ww_zurueck_warum": {
+        "de": "Der Urlaub ist vorbei, die gewohnten Warmwasserzeiten stehen "
+              "wieder. Der Speicher heizt beim nächsten Fenster durch – bis "
+              "dahin kann das Wasser noch kühl sein.",
+        "en": "The holiday is over and the usual hot water times are back. The "
+              "cylinder will heat through at the next window – until then the "
+              "water may still be cool."},
+    "ww_kein_programm": {
+        "de": "In dieser Regelung ist kein Trinkwasser-Zeitprogramm zu finden. "
+              "Erst den Parameterkatalog im Heizungsanlagenmanager aufbauen.",
+        "en": "No domestic hot water schedule found in this controller. Build "
+              "the parameter catalogue in the heating system manager first."},
     "kessel_hinweis": {
         "de": "Der Heizungsplaner führt das Wochenprogramm nach den Zeitplänen "
               "der Räume.",

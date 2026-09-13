@@ -1676,6 +1676,10 @@ print("\n=== Kesselregelung ===")
 import kessel
 
 WOCHENTAGE = ["11", "11.1", "11.2", "11.3", "11.4", "11.5", "11.6"]
+WW_TAGE = ["41", "41.1", "41.2", "41.3", "41.4", "41.5", "41.6"]
+SVENS_WW = {nr: ("05:30-21:00 ##:##-##:## ##:##-##:##" if i < 5
+                 else "09:30-21:00 ##:##-##:## ##:##-##:##")
+            for i, nr in enumerate(WW_TAGE)}
 SVENS_PLAN = {nr: ("06:00-22:00 ##:##-##:## ##:##-##:##" if i < 5
                    else "08:00-22:00 ##:##-##:## ##:##-##:##")
               for i, nr in enumerate(WOCHENTAGE)}
@@ -1687,6 +1691,7 @@ class Anlage:
     def __init__(self, uebernommen=False, antwort=None, stur=False,
                  traege=False):
         self.werte = dict(SVENS_PLAN)
+        self.werte.update(SVENS_WW)
         self.werte["70"] = "3"            # Programm 1
         self.uebernommen = uebernommen
         self.antwort = antwort
@@ -1714,8 +1719,10 @@ class Anlage:
     def __call__(self, methode, adresse, nutzlast=None, zeit=20.0):
         if adresse.endswith("/api/katalog"):
             return {"programmwahl": {"nr": "70", "werte": [], "zu": {"1": "3"}},
-                    "zeitprogramme": {"1": {"name": "Zeitschaltprogramm 1",
-                                            "tage": WOCHENTAGE}}}
+                    "zeitprogramme": {
+                        "1": {"name": "Zeitschaltprogramm 1", "tage": WOCHENTAGE},
+                        "4": {"name": "Zeitschaltprogramm Trinkwasser",
+                              "tage": WW_TAGE}}}
         if adresse.endswith("/api/werte"):
             return {"werte": {nr: {"value": v, "error": 0,
                                    "zeit": self.gelesen.get(nr, "")}
@@ -1994,6 +2001,75 @@ gesperrt = Anlage(uebernommen=True,
 lage = _lauf(gesperrt, BERICHT(), CONFIG(), {})
 pruefe("Heizungsanlagenmanager" in (lage.get("fehler") or ""),
        "eine Sperre verweist auf den Anlagenmanager")
+
+print("\n=== Warmwasser im Urlaub ===")
+# Der einzige Fall, in dem der Planer beim Warmwasser etwas weiss, das die
+# Regelung nicht weiss: dass niemand da ist. Wann jemand duscht, steht in
+# keinem Raumzeitplan - deshalb wird hier NICHT die Huellkurve uebertragen.
+
+def WWCONFIG(**extra):
+    return {"einstellungen": {"kessel": {
+                "aktiv": False, "adresse": "http://anlage:8099",
+                "warmwasser_urlaub": True, "warmwasser_fenster": "06:00-07:00",
+                "original": {}, "original_ww": {}}, **extra},
+            "raeume": [buero, bad]}
+
+def WWBERICHT(urlaub=False):
+    return dict(BERICHT(), urlaub=urlaub)
+
+# Kein Urlaub: nichts zu tun, Svens Zeiten bleiben stehen.
+ww, zw, cfgw = Anlage(uebernommen=True), {}, WWCONFIG()
+_lauf(ww, WWBERICHT(False), cfgw, zw)
+pruefe(ww.werte["41"] == SVENS_WW["41"],
+       "ohne Urlaub bleiben die gewohnten Warmwasserzeiten stehen")
+
+# Urlaub: kurzes Ladefenster, aber nicht abgeschaltet.
+ww.gesetzt.clear()
+lage = _lauf(ww, WWBERICHT(True), cfgw, zw)
+gesetzt = {nr: w for nr, w in ww.gesetzt}
+pruefe(all(nr in gesetzt for nr in WW_TAGE),
+       f"im Urlaub werden alle sieben Warmwassertage gestellt ({len(gesetzt)})")
+pruefe(all(w.startswith("06:00-07:00") for w in gesetzt.values()),
+       f"und zwar auf das kurze Ladefenster ({list(gesetzt.values())[:1]})")
+pruefe(all("#" not in w.split()[0] for w in gesetzt.values()),
+       "abgeschaltet wird das Warmwasser NICHT - ein lauwarmer Speicher waere "
+       "hygienisch schlechter")
+pruefe(cfgw["einstellungen"]["kessel"]["original_ww"] == SVENS_WW,
+       "Svens Zeiten werden vor dem ersten Eingriff gesichert")
+
+# Urlaub vorbei: die gewohnten Zeiten kommen zurueck.
+ww.gesetzt.clear()
+_lauf(ww, WWBERICHT(False), cfgw, zw)
+zurueck = {nr: w for nr, w in ww.gesetzt}
+pruefe(zurueck == SVENS_WW,
+       f"nach dem Urlaub stehen die gewohnten Zeiten wieder ({len(zurueck)} Tage)")
+
+# Zweiter Lauf ohne Urlaub: kein Telegramm mehr.
+ww.gesetzt.clear()
+_lauf(ww, WWBERICHT(False), cfgw, zw)
+pruefe(ww.gesetzt == [], "danach geht nichts mehr raus (Flanke)")
+
+# Abgeschaltet: zurueckgeben, was vorgefunden wurde.
+ww2, zw2 = Anlage(uebernommen=True), {}
+cfg2 = WWCONFIG()
+_lauf(ww2, WWBERICHT(True), cfg2, zw2)
+ww2.gesetzt.clear()
+cfg2["einstellungen"]["kessel"]["warmwasser_urlaub"] = False
+_lauf(ww2, WWBERICHT(True), cfg2, zw2)
+pruefe({nr: w for nr, w in ww2.gesetzt} == SVENS_WW,
+       "beim Abschalten kommen die gewohnten Zeiten zurueck, auch mitten im Urlaub")
+
+# Trockenlauf: rechnen ja, stellen nein.
+ww3, zw3 = Anlage(uebernommen=True), {}
+lage = _lauf(ww3, WWBERICHT(True), WWCONFIG(trockenlauf=True), zw3)
+pruefe(ww3.gesetzt == [], "im Trockenlauf wird das Warmwasser nicht gestellt")
+
+# Die Huellkurve der Raeume darf NICHT ins Warmwasser wandern.
+ww4, zw4 = Anlage(uebernommen=True), {}
+_lauf(ww4, WWBERICHT(True), WWCONFIG(), zw4)
+heiz = {nr: w for nr, w in ww4.gesetzt if nr in WOCHENTAGE}
+pruefe(not heiz,
+       "bei reiner Warmwasserschaltung wird der Heizkreis nicht angefasst")
 
 # Die Anschrift kommt vom Anlagenmanager selbst, per MQTT.
 kessel._gefunden = ""

@@ -1,5 +1,23 @@
 # Änderungen
 
+## 1.31.0
+
+- **Neu: Warmwasser im Urlaub zurückfahren.** Der Planer ist die einzige Stelle
+  im Haus, die weiß, dass niemand da ist. Eingeschaltet, schreibt er während
+  des Urlaubs ein kurzes Ladefenster (voreingestellt 06:00–07:00) in das
+  Trinkwasser-Zeitprogramm; danach stehen die gewohnten Zeiten wieder.
+- **Abgeschaltet wird das Warmwasser bewusst nicht.** Ein Speicher, der
+  tagelang lauwarm steht, ist hygienisch schlechter als einer, der einmal am
+  Tag durchheizt – und bei der Rückkehr will niemand kalt duschen.
+- Die Hüllkurve der Räume wird **nicht** aufs Warmwasser übertragen. Wann
+  jemand duscht, steht in keinem Raumzeitplan; dass die Zeiten sich hier
+  ähneln, ist Zufall und keine Ableitung.
+- Der Schalter ist unabhängig von der Heizkreisregelung – man kann das eine
+  ohne das andere haben. Die vorgefundenen Zeiten werden wie beim Heizkreis
+  vor dem ersten Eingriff gesichert und beim Abschalten zurückgeschrieben.
+- Für das regelmäßige Durchheizen gegen Legionellen bleibt die Heizungsregelung
+  zuständig, nicht dieses Add-on.
+
 ## 1.30.0
 
 - **Behoben: Ein geschlossenes Ventil behielt seinen alten Sollwert.** Wo der

@@ -946,6 +946,37 @@ minutes.
 It also makes the display honest. A thermostat reporting “off” with 23.5 °C
 next to it looks, on any dashboard, as though it were heating towards that.
 
+### Hot water during a holiday
+
+What applies to the heating does **not** apply to hot water. For the heating
+the planner derives the switching times from something it knows: when each room
+wants comfort. It does not know when somebody showers — that is in no room
+schedule. The rooms' envelope is therefore **never** transferred to the
+domestic hot water program.
+
+There is one case, though, where the planner knows something the controller
+does not: **that nobody is home for two weeks.** Otherwise the system keeps a
+cylinder warm for many hours a day during that time, for nobody.
+
+Switched on under *Settings → Boiler control → Hot water during a holiday*, the
+planner writes a short charging window (06:00–07:00 by default) into all seven
+days of the hot water program for the duration of the holiday. Afterwards the
+usual times are back, unchanged — they are saved before the first change, just
+as for the heating circuit.
+
+**The hot water is deliberately not switched off.** A cylinder left lukewarm for
+days is worse hygienically than one that heats through properly once a day —
+and nobody wants a cold shower on the day they get back. For the same reason
+the planner notes in the log, at the end of the holiday, that the water may
+still be cool until the next window.
+
+The switch is **independent** of the heating circuit control: you can have one
+without the other. All they share is the takeover at the system manager.
+
+For the **periodic heat-up against legionella** the heating controller itself is
+responsible, not this add-on. It can do that (via the legionella function on
+Siemens Albatros controllers), and it keeps doing it when the planner is down.
+
 ## Manual changes
 
 If a thermostat is adjusted by hand – at the device, in Home Assistant or by

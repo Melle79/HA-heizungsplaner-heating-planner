@@ -961,6 +961,39 @@ zweimal für ein paar Minuten.
 Nebenbei stimmt damit auch die Anzeige. Ein Thermostat, das „Aus" meldet und
 23,5 °C daneben zeigt, sieht auf jedem Dashboard so aus, als heize es darauf.
 
+### Warmwasser im Urlaub
+
+Für das Warmwasser gilt **nicht**, was für die Heizung gilt. Bei der Heizung
+leitet der Planer die Schaltzeiten aus etwas ab, das er weiß: wann welcher
+Raum Komfort will. Wann jemand duscht, weiß er nicht — das steht in keinem
+Raumzeitplan. Die Hüllkurve der Räume wird deshalb **nie** auf das
+Trinkwasserprogramm übertragen.
+
+Einen Fall gibt es aber, in dem der Planer etwas weiß, das die Regelung nicht
+weiß: **dass zwei Wochen niemand da ist.** Sonst hält die Anlage in dieser Zeit
+täglich viele Stunden einen Speicher warm, für niemanden.
+
+Eingeschaltet unter *Einstellungen → Kesselregelung → Warmwasser im Urlaub*,
+schreibt der Planer während des Urlaubs ein kurzes Ladefenster (voreingestellt
+06:00–07:00) in alle sieben Tage des Trinkwasserprogramms. Danach stehen die
+gewohnten Zeiten wieder, unverändert — sie werden vor dem ersten Eingriff
+gesichert, genau wie beim Heizkreis.
+
+**Abgeschaltet wird das Warmwasser bewusst nicht.** Ein Speicher, der tagelang
+lauwarm steht, ist hygienisch schlechter als einer, der einmal am Tag richtig
+durchheizt — und bei der Rückkehr will niemand kalt duschen. Aus demselben
+Grund meldet der Planer am Ende des Urlaubs im Protokoll, dass das Wasser bis
+zum nächsten Fenster noch kühl sein kann.
+
+Der Schalter ist **unabhängig** von der Heizkreisregelung: Man kann das eine
+ohne das andere haben. Gemeinsam ist beiden nur die Übernahme beim
+Anlagenmanager.
+
+Für das **regelmäßige Durchheizen gegen Legionellen** ist dagegen die
+Heizungsregelung selbst zuständig, nicht dieses Add-on. Sie kann das (bei
+Siemens-Albatros-Reglern über die Legionellenfunktion), und sie tut es auch,
+wenn der Planer gerade steht.
+
 ## Handeingriffe
 
 Wird ein Thermostat von Hand verstellt – am Gerät, in Home Assistant oder per

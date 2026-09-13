@@ -433,7 +433,7 @@ class Publisher:
         bleibt als Attribut daneben, für den Fall, dass jemand nachsehen will,
         was der Planer der Anlage geschickt hat.
         """
-        if not kessel.get("aktiv"):
+        if not kessel.get("aktiv") and not (kessel.get("warmwasser") or {}).get("aktiv"):
             return
         if not kessel.get("erreichbar", True):
             zustand = "nicht erreichbar"
@@ -448,6 +448,10 @@ class Publisher:
             "uebernommen": bool(kessel.get("uebernommen")),
             "gestellt": kessel.get("geschrieben") or [],
             "hinweis": kessel.get("hinweis") or kessel.get("fehler") or "",
+            # Warmwasser hat eine eigene Schaltung – sie laeuft unabhaengig
+            # vom Heizkreis und soll deshalb auch getrennt ablesbar sein.
+            "warmwasser_urlaub": bool((kessel.get("warmwasser") or {}).get("urlaub")),
+            "warmwasser_fenster": (kessel.get("warmwasser") or {}).get("fenster", ""),
         })
 
     def _tank_zustand(self, tank: dict) -> None:

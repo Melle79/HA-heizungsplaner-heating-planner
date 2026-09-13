@@ -279,6 +279,24 @@ def lage(einstellungen: dict) -> dict:
             # Führung am 12.09.2026 zweimal grundlos abgeschaltet.
             gelesen[nr] = str(eintrag.get("zeit") or "")
 
+    # Das Trinkwasserprogramm – für die Urlaubsschaltung. Es wird über den
+    # Namen gesucht, nicht über die Nummer: Welches der vier Programme das
+    # Trinkwasser führt, ist je nach Regelung verschieden.
+    ww_tage, ww_inhalt, ww_gelesen = {}, {}, {}
+    for nummer, eintrag in programme.items():
+        if "wasser" not in str(eintrag.get("name") or "").lower():
+            continue
+        tage = [str(t) for t in (eintrag.get("tage") or [])]
+        if len(tage) != 7:
+            continue
+        ww_tage = dict(zip(zeitplan.TAGE, tage))
+        for tag, nr in ww_tage.items():
+            e = werte.get(nr) or {}
+            if not e.get("error") and e.get("value") not in (None, ""):
+                ww_inhalt[tag] = str(e["value"])
+                ww_gelesen[nr] = str(e.get("zeit") or "")
+        break
+
     gefuehrt = uebernahme.get("parameter") or {}
     meine = [nr for nr in zuordnung.values()
              if (gefuehrt.get(nr) or {}).get("quelle") == QUELLE]
@@ -293,6 +311,9 @@ def lage(einstellungen: dict) -> dict:
         "inhalt": inhalt,
         "gelesen": gelesen,
         "fehlend": fehlend,
+        "ww_parameter": ww_tage,
+        "ww_inhalt": ww_inhalt,
+        "ww_gelesen": ww_gelesen,
         "uebernommen": len(meine) == 7,
         "teilweise": 0 < len(meine) < 7,
         "fremd": next(iter(fremde.values()), None) if fremde else None,
@@ -524,21 +545,138 @@ def _abschalten(einstellungen: dict) -> None:
         _LOGGER.warning("Kesselführung ließ sich nicht abschalten: %s", fehler)
 
 
-def fuehren(bericht: dict, config: dict, state: dict, protokoll) -> dict:
-    """Das Wochenprogramm der Regelung nachführen – einmal je Takt.
+def warmwasser_fuehren(bericht: dict, config: dict, stand: dict, state: dict,
+                       protokoll) -> dict:
+    """Das Warmwasser im Urlaub zurückfahren – und danach zuverlässig zurück.
 
-    Zurück kommt die Lage für Oberfläche und MQTT, auch wenn nichts
-    geschrieben wurde: Wer sehen will, was der Planer der Anlage zumutet, soll
-    das nicht aus dem Protokoll zusammensuchen müssen.
+    Das ist der einzige Fall, in dem der Planer beim Warmwasser überhaupt
+    etwas weiß, das die Regelung nicht weiß: dass zwei Wochen niemand da ist.
+    Wann jemand duscht, steht dagegen in keinem Raumzeitplan – deshalb wird
+    hier **nicht** die Hüllkurve der Räume übertragen, sondern nur im Urlaub
+    ein kurzes Ladefenster gesetzt.
+
+    Abgeschaltet wird das Warmwasser dabei nicht. Ein Speicher, der tagelang
+    lauwarm steht, ist hygienisch schlechter als einer, der einmal am Tag
+    richtig durchheizt – und bei der Rückkehr will niemand kalt duschen.
+    """
+    einst = config["einstellungen"]
+    kessel = einst.get("kessel") or {}
+    merker = state.setdefault("kessel", {})
+    parameter = stand.get("ww_parameter") or {}
+    inhalt = stand.get("ww_inhalt") or {}
+
+    if not kessel.get("warmwasser_urlaub"):
+        # Abgeschaltet: zurückgeben, was wir vorgefunden haben.
+        if merker.pop("ww_angemeldet", False):
+            ww_zurueckgeben(einst, protokoll)
+        return {"aktiv": False}
+    if len(parameter) != 7 or len(inhalt) != 7:
+        return {"aktiv": True, "hinweis": texte.t("ww_kein_programm")}
+
+    urlaub = bool(bericht.get("urlaub"))
+    if urlaub and not (einst.get("kessel") or {}).get("original_ww"):
+        # Vor dem ersten Eingriff sichern – danach stünde der eigene Plan da.
+        original_ww_sichern(einst, {parameter[t]: w for t, w in inhalt.items()})
+
+    fenster = str(kessel.get("warmwasser_fenster") or "06:00-07:00")
+    soll = {tag: (huellkurve.als_text(huellkurve.aus_text(fenster))
+                  if urlaub else None) for tag in parameter}
+    if not urlaub:
+        gesichert = (einst.get("kessel") or {}).get("original_ww") or {}
+        soll = {tag: gesichert.get(nr) for tag, nr in parameter.items()}
+
+    ergebnis = {"aktiv": True, "urlaub": urlaub, "fenster": fenster,
+                "heute": inhalt.get(zeitplan.TAGE[_jetzt(bericht).weekday()], "")}
+    if einst.get("trockenlauf"):
+        ergebnis["trocken"] = True
+        return ergebnis
+
+    nach = {parameter[t]: w for t, w in inhalt.items()}
+    if not merker.get("ww_angemeldet"):
+        if not anmelden(einst, _gefuehrte_parameter(einst, stand)):
+            return dict(ergebnis, fehler=texte.t("kessel_gesperrt"))
+        merker["ww_angemeldet"] = True
+
+    geschrieben = []
+    for tag, nr in parameter.items():
+        ziel = soll.get(tag)
+        if not ziel:
+            continue                       # nichts gesichert, nichts zu tun
+        if huellkurve.aus_text(nach.get(nr, "")) == huellkurve.aus_text(ziel):
+            continue
+        try:
+            schreiben(einst, nr, ziel)
+        except (Abgelehnt, urllib.error.URLError, OSError, ValueError) as fehler:
+            ergebnis["fehler"] = str(getattr(fehler, "text", fehler))
+            return ergebnis
+        geschrieben.append(tag)
+
+    if geschrieben:
+        ergebnis["geschrieben"] = geschrieben
+        if urlaub:
+            protokoll(texte.t("log_alle_raeume"), texte.t("ww_urlaub"),
+                      texte.t("ww_urlaub_warum", fenster=fenster))
+        else:
+            # Zurück im Alltag: Der Speicher heizt beim nächsten Fenster wieder
+            # durch. Das gehört gesagt – wer aus dem Urlaub kommt, soll wissen,
+            # dass das Wasser erst wieder warm werden muss.
+            protokoll(texte.t("log_alle_raeume"), texte.t("ww_zurueck"),
+                      texte.t("ww_zurueck_warum"))
+    return ergebnis
+
+
+def _gefuehrte_parameter(einst: dict, stand: dict) -> list[str]:
+    """Alles, was der Planer an dieser Anlage führt – Heizkreis und Warmwasser."""
+    kessel = einst.get("kessel") or {}
+    fuehrt = []
+    if kessel.get("aktiv"):
+        fuehrt += list((stand.get("parameter") or {}).values())
+    if kessel.get("warmwasser_urlaub"):
+        fuehrt += list((stand.get("ww_parameter") or {}).values())
+    return fuehrt
+
+
+def original_ww_sichern(einst: dict, plan: dict) -> None:
+    if (einst.get("kessel") or {}).get("original_ww"):
+        return
+    einst.setdefault("kessel", {})["original_ww"] = dict(plan)
+    try:
+        config = store.load_config()
+        config["einstellungen"].setdefault("kessel", {})["original_ww"] = dict(plan)
+        store.save_config(config)
+        _LOGGER.info("Warmwasser-Zeitprogramm gesichert: %s", plan)
+    except Exception as fehler:  # noqa: BLE001
+        _LOGGER.warning("Warmwasserplan ließ sich nicht sichern: %s", fehler)
+
+
+def ww_zurueckgeben(einst: dict, protokoll) -> None:
+    """Beim Abschalten den vorgefundenen Warmwasserplan wiederherstellen."""
+    original = (einst.get("kessel") or {}).get("original_ww") or {}
+    for nr, text in original.items():
+        try:
+            schreiben(einst, nr, text)
+        except (Abgelehnt, urllib.error.URLError, OSError, ValueError) as fehler:
+            _LOGGER.warning("Warmwassertag %s nicht zurückgestellt: %s", nr, fehler)
+    if original:
+        _LOGGER.info("Warmwasser-Zeitprogramm zurückgestellt")
+
+
+def fuehren(bericht: dict, config: dict, state: dict, protokoll) -> dict:
+    """Die Anlage nachführen – Heizkreis und Warmwasser, einmal je Takt.
+
+    Beide Teile sind unabhängig schaltbar und teilen sich einen Blick auf die
+    Anlage: ein Abruf, zwei Entscheidungen. Zurück kommt die Lage für
+    Oberfläche und MQTT, auch wenn nichts geschrieben wurde – wer sehen will,
+    was der Planer der Anlage zumutet, soll das nicht aus dem Protokoll
+    zusammensuchen müssen.
     """
     einstellungen = config["einstellungen"]
     kessel = einstellungen.get("kessel") or {}
     merker = state.setdefault("kessel", {})
 
-    if not kessel.get("aktiv"):
-        # Gerade ausgeschaltet? Dann den vorgefundenen Plan zurückschreiben
-        # und die Übernahme zurückgeben, solange wir noch wissen, dass wir sie
-        # hatten.
+    if not kessel.get("aktiv") and not kessel.get("warmwasser_urlaub"):
+        if merker.pop("ww_angemeldet", False):
+            ww_zurueckgeben(einstellungen, protokoll)
         if merker.pop("angemeldet", False):
             zurueck = zurueckgeben(einstellungen, merker)
             abmelden(einstellungen)
@@ -555,6 +693,29 @@ def fuehren(bericht: dict, config: dict, state: dict, protokoll) -> dict:
     stand = lage(einstellungen)
     if not stand["erreichbar"]:
         return {"aktiv": True, "erreichbar": False, "fehler": stand["fehler"]}
+
+    heiz = _heizkreis_fuehren(bericht, config, state, protokoll, stand)
+    try:
+        warm = warmwasser_fuehren(bericht, config, stand, state, protokoll)
+    except Exception as fehler:  # noqa: BLE001
+        _LOGGER.warning("Warmwasserschaltung fehlgeschlagen: %s", fehler)
+        warm = {"aktiv": True, "fehler": str(fehler)}
+    return dict(heiz, warmwasser=warm)
+
+
+def _heizkreis_fuehren(bericht: dict, config: dict, state: dict, protokoll,
+                       stand: dict) -> dict:
+    """Das Wochenprogramm des Heizkreises nachführen."""
+    einstellungen = config["einstellungen"]
+    kessel = einstellungen.get("kessel") or {}
+    merker = state.setdefault("kessel", {})
+
+    if not kessel.get("aktiv"):
+        if merker.pop("angemeldet", False):
+            zurueck = zurueckgeben(einstellungen, merker)
+            merker.pop("geschrieben", None)
+            return {"aktiv": False, "zurueckgestellt": zurueck}
+        return {"aktiv": False}
     if stand.get("fehler"):
         return {"aktiv": True, "erreichbar": True, "hinweis": stand["fehler"]}
     if stand["fremd"]:
@@ -596,7 +757,10 @@ def fuehren(bericht: dict, config: dict, state: dict, protokoll) -> dict:
             original_sichern(
                 einstellungen,
                 {parameter[tag]: text for tag, text in inhalt.items()})
-        if not anmelden(einstellungen, list(parameter.values())):
+        # Immer die volle Liste anmelden: Die Schnittstelle ersetzt sie, eine
+        # Anmeldung nur für den Heizkreis würde das Warmwasser wieder
+        # freigeben – und umgekehrt.
+        if not anmelden(einstellungen, _gefuehrte_parameter(einstellungen, stand)):
             return {"aktiv": True, "erreichbar": True, "uebernommen": False}
     merker["angemeldet"] = True
 

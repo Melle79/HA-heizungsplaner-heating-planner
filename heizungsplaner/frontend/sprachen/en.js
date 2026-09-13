@@ -336,6 +336,15 @@ window.SPRACHEN.en = {
     "Because the planner knows its schedule in advance, there is no offset. Only what no schedule foresees – the party button, an override rule that takes effect – is added afterwards, and that can take one cycle.",
   "Solange die Übernahme steht, sind die Schaltzeiten im Anlagenmanager ausgeblendet. Der Knopf „Übernahme aufheben“ dort gibt sie jederzeit zurück – der Planer schreibt dann den vorgefundenen Wochenplan zurück, schaltet sich ab und meldet es im Protokoll.":
     "While the takeover is in place, the switching times are hidden in the system manager. The “Release takeover” button there hands them back at any time – the planner then writes back the weekly program it found, switches itself off and says so in the log.",
+  "Warmwasser im Urlaub": "Hot water during a holiday",
+  "Den Speicher im Urlaub nur kurz laden lassen":
+    "Only charge the cylinder briefly during a holiday",
+  "Der Planer ist die einzige Stelle im Haus, die weiß, dass niemand da ist. Statt den ganzen Tag bereitzustehen, lädt der Speicher dann nur in diesem Fenster. Danach stehen die gewohnten Zeiten wieder, unverändert.":
+    "The planner is the only thing in the house that knows nobody is home. Instead of standing by all day, the cylinder then only charges within this window. Afterwards the usual times are back, unchanged.",
+  "Abgeschaltet wird das Warmwasser bewusst nicht: Ein Speicher, der tagelang lauwarm steht, ist hygienisch schlechter als einer, der einmal am Tag durchheizt – und bei der Rückkehr will niemand kalt duschen.":
+    "The hot water is deliberately not switched off: a cylinder left lukewarm for days is worse hygienically than one that heats through once a day – and nobody wants a cold shower on the day they get back.",
+  "Ladefenster im Urlaub": "Charging window during a holiday",
+  "Form: 06:00-07:00": "Format: 06:00-07:00",
   "Adresse des Anlagenmanagers": "Address of the system manager",
   "Leer lassen: Der Planer findet das Add-on von selbst. Nur eintragen, wenn der Anlagenmanager woanders läuft.":
     "Leave empty: the planner finds the add-on by itself. Only fill this in if the system manager runs elsewhere.",

@@ -181,6 +181,17 @@ STANDARD_EINSTELLUNGEN = {
         # Er steht hier und nicht im Laufzeitzustand, weil er jedes Abschalten
         # und jeden Neustart überleben muss: Er ist der einzige Weg zurück.
         "original": {},
+        # Warmwasser im Urlaub zurückfahren. Unabhängig von "aktiv": Wer die
+        # Heizkreiszeiten selbst führen will, kann trotzdem wollen, dass der
+        # Speicher nicht zwei Wochen lang für niemanden bereitsteht.
+        #
+        # Abgeschaltet wird das Warmwasser dabei *nicht*. Ein Speicher, der
+        # tagelang lauwarm steht, ist hygienisch schlechter als einer, der
+        # einmal am Tag richtig durchheizt – und bei der Rückkehr will niemand
+        # kalt duschen.
+        "warmwasser_urlaub": False,
+        "warmwasser_fenster": "06:00-07:00",
+        "original_ww": {},
         # Leer heißt: das Add-on unter seinem üblichen Namen im Docker-Netz
         # von Home Assistant. Eintragen muss das nur, wer den
         # Heizungsanlagenmanager woanders betreibt.
@@ -593,6 +604,22 @@ def validate_einstellungen(roh: dict) -> dict:
     k["original"] = {str(nr): str(wert)
                      for nr, wert in (k.get("original") or {}).items()
                      if str(nr).strip() and str(wert).strip()}
+    k["original_ww"] = {str(nr): str(wert)
+                        for nr, wert in (k.get("original_ww") or {}).items()
+                        if str(nr).strip() and str(wert).strip()}
+    k["warmwasser_urlaub"] = bool(k.get("warmwasser_urlaub"))
+    fenster = str(k.get("warmwasser_fenster") or "").strip() or "06:00-07:00"
+    teile = fenster.split("-")
+    if len(teile) != 2:
+        raise ValidationError(
+            "Das Warmwasserfenster braucht die Form 06:00-07:00")
+    for teil in teile:
+        if not _TIME_RE.match(teil):
+            raise ValidationError(texte.t("fehler_uhrzeit", wert=teil))
+    if teile[0] >= teile[1]:
+        raise ValidationError(
+            "Das Warmwasserfenster muss innerhalb eines Tages liegen")
+    k["warmwasser_fenster"] = fenster
     adresse = str(k.get("adresse") or "").strip().rstrip("/")
     if adresse and not adresse.startswith(("http://", "https://")):
         raise ValidationError(
