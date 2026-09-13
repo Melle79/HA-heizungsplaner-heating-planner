@@ -1,5 +1,14 @@
 # Änderungen
 
+## 1.31.1
+
+- **Behoben: Die Kesselführung fiel aus, weil die Anlage ihre Aufzählungen
+  anders schreibt.** Parameter wie die Programmwahl kommen mal als `3`, mal
+  als `3 - Programm 1`. Der Planer verglich auf die nackte Zahl, fand
+  daraufhin „kein Wochenprogramm zur laufenden Programmwahl“ und stellte
+  nichts mehr. Beide Schreibweisen zu verstehen kostet eine Zeile – sie steht
+  jetzt da, mit Prüfungen für beide Fälle.
+
 ## 1.31.0
 
 - **Neu: Warmwasser im Urlaub zurückfahren.** Der Planer ist die einzige Stelle

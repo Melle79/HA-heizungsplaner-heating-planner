@@ -2002,6 +2002,24 @@ lage = _lauf(gesperrt, BERICHT(), CONFIG(), {})
 pruefe("Heizungsanlagenmanager" in (lage.get("fehler") or ""),
        "eine Sperre verweist auf den Anlagenmanager")
 
+# Die Anlage schreibt Aufzaehlungen mal als "3", mal als "3 - Programm 1".
+# Am 13.09.2026 hat sich das im laufenden Betrieb geaendert; der Planer fand
+# daraufhin "kein Wochenprogramm" und stellte nichts mehr.
+pruefe(kessel._enum_wert("3") == "3", "die nackte Zahl wird verstanden")
+pruefe(kessel._enum_wert("3 - Programm 1") == "3",
+       "die ausgeschriebene Form ebenso")
+pruefe(kessel._enum_wert("") == "" and kessel._enum_wert(None) == "",
+       "und nichts bleibt nichts")
+
+enum, ze = Anlage(), {}
+enum.werte["70"] = "3 - Programm 1"
+lage = _lauf(enum, BERICHT(), CONFIG(), ze)
+pruefe(lage.get("uebernommen") and len(enum.gesetzt) == 7,
+       f"die Fuehrung laeuft auch mit der ausgeschriebenen Form "
+       f"({len(enum.gesetzt)} Tage gestellt)")
+pruefe("Wochenprogramm" not in (lage.get("hinweis") or ""),
+       "und meldet kein fehlendes Wochenprogramm mehr")
+
 print("\n=== Warmwasser im Urlaub ===")
 # Der einzige Fall, in dem der Planer beim Warmwasser etwas weiss, das die
 # Regelung nicht weiss: dass niemand da ist. Wann jemand duscht, steht in

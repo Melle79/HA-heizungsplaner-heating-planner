@@ -156,6 +156,20 @@ def anschrift_merken(adresse: str | None) -> None:
     _gefunden = adresse
 
 
+def _enum_wert(roh) -> str:
+    """Die Zahl aus einer Aufzählungsangabe der Anlage holen.
+
+    Sie kommt in zwei Schreibweisen: mal als ``"3"``, mal als
+    ``"3 - Programm 1"`` – je nachdem, wie der Anlagenmanager gerade
+    formatiert. Am 13.09.2026 hat sich das im laufenden Betrieb geändert, und
+    der Vergleich auf die nackte Zahl lief prompt ins Leere: Der Planer fand
+    „kein Wochenprogramm zur laufenden Programmwahl“ und stellte nichts mehr.
+    Beide Schreibweisen zu verstehen kostet eine Zeile.
+    """
+    text = str(roh if roh is not None else "").strip()
+    return text.split()[0] if text else ""
+
+
 def basis(einstellungen: dict) -> str | None:
     """Die Adresse des Anlagenmanagers – eingetragen oder angesagt."""
     eigene = ((einstellungen.get("kessel") or {}).get("adresse") or "").strip()
@@ -251,7 +265,7 @@ def lage(einstellungen: dict) -> dict:
     # zu *stellen* haben wir aufgegeben; sie zu lesen ist die Voraussetzung
     # dafür, das richtige Programm zu beschreiben.
     wahl = katalog.get("programmwahl") or {}
-    ist_wahl = str((werte.get(str(wahl.get("nr") or "")) or {}).get("value") or "")
+    ist_wahl = _enum_wert((werte.get(str(wahl.get("nr") or "")) or {}).get("value"))
     nummer = next((p for p, w in (wahl.get("zu") or {}).items() if w == ist_wahl), None)
 
     programme = katalog.get("zeitprogramme") or {}
