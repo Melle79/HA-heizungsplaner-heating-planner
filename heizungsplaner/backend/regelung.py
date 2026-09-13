@@ -716,6 +716,29 @@ def anwenden(raum: dict, entscheidung: dict, state: dict, umgebung: dict,
         # das Ventil genauso, nur über den Sollwert.
         kann_aus = "off" in (attrs.get("hvac_modes") or [])
         if ventil_zu and kann_aus and not gedaechtnis.get("aus_vergeblich"):
+            # Erst den Sollwert sichern, dann den Modus ausschalten.
+            #
+            # „Aus“ allein genügt nicht: Springt das Gerät von selbst zurück
+            # auf „heat“ – und genau das tun diese Matter-Thermostate, dafür
+            # gibt es ja aus_vergeblich –, heizt es sofort auf den alten
+            # Sollwert weiter. Bei Luna stand dort 23,5 °C; am 13.09.2026 hat
+            # das Ventil deshalb zweimal mitten im Sommerbetrieb geöffnet.
+            #
+            # Nebenbei stimmt damit auch die Anzeige: Ein Thermostat, das auf
+            # „aus“ steht und 23,5 °C zeigt, sieht auf jedem Dashboard so aus,
+            # als würde es darauf heizen.
+            sicher = _runden(max(*_thermostat_grenzen(attrs)[:1],
+                                 min(_thermostat_grenzen(attrs)[1],
+                                     float(entscheidung["ziel"]))))
+            if (ist_soll_jetzt is None
+                    or abs(ist_soll_jetzt - sicher) >= _schritt() / 2):
+                if trockenlauf:
+                    aktionen.append({"entity_id": entity_id, "aktion": "frostschutz",
+                                     "wert": sicher, "trocken": True})
+                elif ha_api.set_temperature(entity_id, sicher):
+                    gedaechtnis.update({"soll": sicher, "gesetzt_am": _iso(jetzt)})
+                    aktionen.append({"entity_id": entity_id,
+                                     "aktion": "frostschutz", "wert": sicher})
             if eintrag.get("state") == "off":
                 gedaechtnis.update({"hvac": "off", "aus_fehlversuche": 0})
                 continue

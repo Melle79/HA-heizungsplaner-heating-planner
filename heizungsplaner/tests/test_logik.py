@@ -1083,11 +1083,14 @@ raum_sommer = store.validate_raum({
     "name": "Testraum", "thermostate": ["climate.stur"], "personen": [],
     "zeitplan": plan})
 
-def umgebung_stur(zustand, minuten_her=60):
+def umgebung_stur(zustand, minuten_her=60, soll=20.0):
+    # `soll` ist der Wert, den das Geraet gerade meldet. Er wird mitgefuehrt,
+    # damit die Flanke stimmt: Steht der Frostschutzwert schon drin, darf der
+    # Planer ihn nicht noch einmal schicken.
     idx = {"climate.stur": {"entity_id": "climate.stur", "state": zustand,
                             "attributes": {"friendly_name": "Sturer",
                                            "hvac_modes": ["off", "heat"],
-                                           "temperature": 20.0,
+                                           "temperature": soll,
                                            "current_temperature": 21.0,
                                            "min_temp": 5, "max_temp": 30}}}
     u = umgebung(montag.replace(hour=14), states_index=idx)
@@ -1104,16 +1107,24 @@ gesendet = []
 ha_api.set_hvac_mode = lambda e, m: (gesendet.append((e, m)), True)[1]
 ha_api.set_temperature = lambda e, t: (gesendet.append((e, t)), True)[1]
 
-# 1. Versuch: Gerät steht auf heat -> wir schalten aus
+# 1. Versuch: Gerät steht auf heat -> Sollwert sichern, dann ausschalten.
+#
+# Der Sollwert muss mit: Springt das Geraet von selbst auf "heat" zurueck - und
+# genau darum geht es hier -, heizt es sonst auf den alten Wert weiter. Bei
+# Luna standen dort 23,5 Grad, und das Ventil oeffnete am 13.09.2026 zweimal
+# mitten im Sommerbetrieb.
 regelung.anwenden(raum_sommer, sommer_entscheidung, zust, umgebung_stur("heat"), sammle)
-pruefe(gesendet == [("climate.stur", "off")], f"erstes Ausschalten ({gesendet})")
+pruefe(gesendet == [("climate.stur", 8.0), ("climate.stur", "off")],
+       f"erst der Frostschutzwert, dann aus ({gesendet})")
 
 # Gerät springt zurück auf heat, Schreibvorgang liegt zurueck -> zweiter Versuch
 zust["thermostate"]["climate.stur"]["gesetzt_am"] = \
     montag.replace(hour=12).isoformat(timespec="seconds")
 gesendet.clear()
-regelung.anwenden(raum_sommer, sommer_entscheidung, zust, umgebung_stur("heat"), sammle)
-pruefe(gesendet == [("climate.stur", "off")], "zweiter Versuch")
+regelung.anwenden(raum_sommer, sommer_entscheidung, zust,
+                  umgebung_stur("heat", soll=8.0), sammle)
+pruefe(gesendet == [("climate.stur", "off")],
+       f"beim zweiten Versuch steht der Frostschutz schon - nur noch aus ({gesendet})")
 
 # Dritter Anlauf: der Planer gibt das Ausschalten auf und stellt den Sollwert
 zust["thermostate"]["climate.stur"]["gesetzt_am"] = \

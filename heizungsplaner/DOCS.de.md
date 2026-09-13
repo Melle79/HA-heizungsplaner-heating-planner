@@ -946,6 +946,21 @@ Der Durchschnitt der letzten vierzehn Tage, hochgerechnet auf die Restmenge.
 Unter drei Tagen mit Verbrauch gibt es keine Zahl, und im Sommer – wenn nichts
 verbraucht wird – steht dort ein Strich statt einer Unendlichkeit.
 
+### Ein geschlossenes Ventil bekommt trotzdem einen sicheren Sollwert
+
+Wo der Planer ein Ventil ganz schließt – Sommerbetrieb, Urlaub, offenes
+Fenster, abgeschalteter Raum –, setzt er **erst den Frostschutzwert und dann
+die Betriebsart auf „aus"**. Beides, nicht nur das eine.
+
+Der Grund ist keine Kosmetik: Manche Thermostate springen von selbst wieder
+auf „heizen". Stünde dort noch der alte Sollwert, heizte das Gerät in dieser
+Sekunde darauf los. Hier ist das passiert – ein Kinderzimmer stand auf „aus"
+mit 23,5 °C im Sollwert, und mitten im Sommerbetrieb öffnete das Ventil
+zweimal für ein paar Minuten.
+
+Nebenbei stimmt damit auch die Anzeige. Ein Thermostat, das „Aus" meldet und
+23,5 °C daneben zeigt, sieht auf jedem Dashboard so aus, als heize es darauf.
+
 ## Handeingriffe
 
 Wird ein Thermostat von Hand verstellt – am Gerät, in Home Assistant oder per

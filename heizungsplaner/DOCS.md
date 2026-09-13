@@ -931,6 +931,21 @@ The average of the last fourteen days, projected onto the remaining quantity.
 With fewer than three days of consumption there is no figure, and in summer –
 when nothing is used – you get a dash instead of an infinity.
 
+### A closed valve still gets a safe setpoint
+
+Wherever the planner closes a valve completely – summer mode, holiday, an open
+window, a room switched off – it sets **the frost protection value first and
+the operating mode to “off” second**. Both, not just one of them.
+
+The reason is not cosmetic: some thermostats return to “heat” on their own. If
+the old setpoint were still in there, the device would start heating towards it
+that very second. That happened here – a child's room was “off” with 23.5 °C in
+its setpoint, and in the middle of summer mode the valve opened twice for a few
+minutes.
+
+It also makes the display honest. A thermostat reporting “off” with 23.5 °C
+next to it looks, on any dashboard, as though it were heating towards that.
+
 ## Manual changes
 
 If a thermostat is adjusted by hand – at the device, in Home Assistant or by

@@ -1,5 +1,21 @@
 # Änderungen
 
+## 1.30.0
+
+- **Behoben: Ein geschlossenes Ventil behielt seinen alten Sollwert.** Wo der
+  Planer ein Thermostat ganz abschaltet – Sommerbetrieb, Urlaub, offenes
+  Fenster –, setzte er nur die Betriebsart auf „aus" und ließ den Sollwert
+  stehen. Das ist gefährlicher, als es klingt: Manche Thermostate springen von
+  selbst wieder auf „heizen", und dann heizt das Gerät sofort auf den alten
+  Wert los.
+  Genau das ist hier passiert. Ein Kinderzimmer stand auf „aus" mit 23,5 °C im
+  Sollwert; mitten im Sommerbetrieb hat das Ventil zweimal geöffnet, bei 22 °C
+  Raumtemperatur.
+- Jetzt geht **erst der Frostschutzwert hinaus, dann das „aus"**. Damit ist
+  auch ein zurückspringendes Gerät harmlos.
+- Nebenbei stimmt die Anzeige: Ein Thermostat, das „Aus" meldet und 23,5 °C
+  daneben zeigt, sieht auf jedem Dashboard so aus, als heize es darauf.
+
 ## 1.29.1
 
 - **Behoben: Der Handeingriff endete nicht, wenn er sich erledigt hatte.** Stand
