@@ -1,5 +1,12 @@
 # Änderungen
 
+## 1.31.2
+
+- **„not_home“ steht nicht mehr in der Übersicht.** Wer keine Zone und keine
+  Entfernung liefert – ein Gerätetracker ohne Ortsangabe –, erschien mit dem
+  rohen Zustand aus Home Assistant. Jetzt steht dort „nicht zu Hause“,
+  „unbekannt“ oder „nicht erreichbar“.
+
 ## 1.31.1
 
 - **Behoben: Die Kesselführung fiel aus, weil die Anlage ihre Aufzählungen

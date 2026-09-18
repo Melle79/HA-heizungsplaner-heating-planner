@@ -1719,6 +1719,16 @@ function karteZeichnen(raum) {
   return karte;
 }
 
+
+// Was ein Gerätetracker meldet, wenn er nichts Näheres weiß. Roh sieht das
+// aus wie ein Programmierfehler – „not_home“ steht in keiner Oberfläche gut.
+const ZUSTAND_TEXT = {
+  not_home: 'nicht zu Hause',
+  home: 'zu Hause',
+  unknown: 'unbekannt',
+  unavailable: 'nicht erreichbar',
+};
+
 function berichtZeichnen(bericht) {
   $('k-fassung').textContent = bericht.version ? 'v' + bericht.version : '';
   const aussen = bericht.aussen;
@@ -1749,7 +1759,7 @@ function berichtZeichnen(bericht) {
     else if (p.in_zone) wo = p.in_zone;
     else if (p.entfernung_km !== null && p.entfernung_km !== undefined) {
       wo = `${zahl(p.entfernung_km)} km` + (p.naehert_sich ? ' · kommt näher' : '');
-    } else wo = p.zustand;
+    } else wo = ZUSTAND_TEXT[p.zustand] || p.zustand || 'unbekannt';
     return `<span class="person${p.zuhause ? ' daheim' : ''}">
       <span class="zu-hause"></span><span>${p.name}</span>
       <span class="wo">${wo}</span></span>`;

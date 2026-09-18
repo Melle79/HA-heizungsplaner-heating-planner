@@ -304,6 +304,9 @@ window.SPRACHEN.en = {
   "Was": "What",
   "Warum": "Why",
   "Wer ist zu Hause": "Who is at home",
+  "nicht zu Hause": "not home",
+  "unbekannt": "unknown",
+  "nicht erreichbar": "unavailable",
 
   // ── Tagesarten im Zeitplan
   "Schule": "School",
