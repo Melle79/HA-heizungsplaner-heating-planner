@@ -1,5 +1,11 @@
 # Änderungen
 
+## 1.31.3
+
+- Handbuch nachgezogen: Unter *Wer ist zu Hause* steht jetzt beschrieben, in
+  welcher Reihenfolge die Übersicht entscheidet, was sie über eine Person
+  zeigt – und was sie sagt, wenn nichts davon vorliegt.
+
 ## 1.31.2
 
 - **„not_home“ steht nicht mehr in der Übersicht.** Wer keine Zone und keine

@@ -438,6 +438,11 @@ schwankt.
 Geprüft wird ausschließlich auf `home`. Tracker, die unterwegs eigene
 Standzonen melden statt `not_home`, funktionieren damit korrekt.
 
+In der Übersicht steht unter *Wer ist zu Hause* je Person das, was am meisten
+sagt: „zu Hause“, sonst die Zone, sonst die Entfernung – und wenn nichts davon
+vorliegt, „nicht zu Hause“. Ein Tracker ohne Koordinaten liefert nämlich nur
+den nackten Zustand, und den zeigt die Oberfläche nicht mehr roh an.
+
 ## Vorheizen
 
 ```

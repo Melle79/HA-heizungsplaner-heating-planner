@@ -390,6 +390,11 @@ would simply stay warm.
 The per-room selection (“Responsible people”) narrows things further within
 the household.
 
+Under *Who is at home* the overview shows whatever says most about a person:
+“at home”, otherwise the zone, otherwise the distance – and if none of that is
+available, “not home”. A tracker without coordinates reports only the bare
+state, and that is no longer shown raw.
+
 
 Every room can have people assigned to it. Without an assignment the whole
 family counts. In addition a presence or motion sensor can report the room as
