@@ -10,8 +10,6 @@
     </linearGradient>
   </defs>
 
-  <rect width="250" height="100" rx="14" fill="url(#grund)"/>
-
   <g transform="translate(14,24) scale(0.40)">
     <g fill="url(#waerme)">
       <rect x="26" y="52" width="76" height="7" rx="3.5"/>
@@ -27,7 +25,7 @@
   </g>
 
   <text x="72" y="48" font-family="Avenir Next, Segoe UI, system-ui, sans-serif"
-        font-size="20" font-weight="600" fill="#e9edf2">Heizungsplaner</text>
+        font-size="20" font-weight="600" fill="#1b2430">Heizungsplaner</text>
   <text x="73" y="66" font-family="Avenir Next, Segoe UI, system-ui, sans-serif"
-        font-size="10.5" fill="#8b95a4">Zeitplan · Wetter · Präsenz</text>
+        font-size="10.5" fill="#5c6470">Zeitplan · Wetter · Präsenz</text>
 </svg>
