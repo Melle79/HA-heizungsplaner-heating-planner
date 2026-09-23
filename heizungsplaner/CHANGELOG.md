@@ -1,5 +1,18 @@
 # Änderungen
 
+## 1.31.4
+
+- **Behoben: Ein Sonderfenster wurde jeden Takt neu geschrieben.** Die
+  Erweiterung für außerplanmäßigen Bedarf – Partytaste, greifende Regel,
+  Vorheizen – begann bisher in jedem Takt wieder bei „jetzt“. Weil das jedes
+  Mal von dem abwich, was in der Regelung stand, ging alle fünf Minuten ein
+  Telegramm für denselben Wochentag hinaus, jedes Mal fünf Minuten kürzer,
+  bis die Tagesbremse zumachte: am 22. und 23.09. je elfmal zwischen 04:45
+  und 05:40. Der Beginn wird jetzt für den Tag gemerkt.
+- Ohne bekannten Schaltpunkt wird die Frist auf die nächste halbe Stunde
+  aufgerundet, statt mit der Uhr mitzuwandern. Auch das sparte sich sonst
+  kein Telegramm.
+
 ## 1.31.3
 
 - Handbuch nachgezogen: Unter *Wer ist zu Hause* steht jetzt beschrieben, in

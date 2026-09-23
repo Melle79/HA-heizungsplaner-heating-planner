@@ -645,6 +645,13 @@ Three things do **not** enter the envelope:
   predicted. They are added once they take effect – and *this* is where the
   only offset of the method arises: up to one cycle.
 
+  Where such an extra window begins is decided once and kept for the day.
+  Otherwise it would start again at “now” in every cycle: the same weekday
+  would go out every few minutes, a little shorter each time. If no switching
+  point is known – the party button without an end – the planner sets a
+  deadline of one hour, rounded up to the next half hour, and recomputes on
+  the next cycle anyway.
+
 For days whose day type is not settled yet – nobody knows today whether the
 week after next is a school holiday – the planner computes **both** cases and
 merges them. The system then stands ready too early rather than too late; on

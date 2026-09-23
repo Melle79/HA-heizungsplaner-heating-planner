@@ -207,20 +207,28 @@ def leer(plan: dict) -> bool:
     return bool(plan) and not any(aus_text(text) for text in plan.values())
 
 
-def erweitern(text: str, bis_minute: int, jetzt: datetime) -> str | None:
+def erweitern(text: str, bis_minute: int, jetzt: datetime,
+              ab_minute: int | None = None) -> str | None:
     """Das laufende Fenster bis ``bis_minute`` verlängern – oder eines anlegen.
 
     Dafür sind die Sonderfälle da, die kein Zeitplan vorhersieht: die
     Partytaste, eine Übersteuerungsregel, die gerade greift, jemand auf dem
     Heimweg. Zurück kommt der neue Text, oder ``None``, wenn ohnehin schon
     Komfort gefahren wird – dann ist nichts zu tun und nichts zu schreiben.
+
+    ``ab_minute`` ist der Beginn eines Sonderfensters, das schon läuft. Ohne
+    ihn begänne das Fenster bei jedem Takt aufs Neue bei „jetzt“, wanderte
+    also alle fünf Minuten nach hinten – und weil das jedes Mal von dem
+    abweicht, was in der Regelung steht, würde jedes Mal geschrieben.
     """
     jetzt_min = jetzt.hour * 60 + jetzt.minute
     bis_minute = min(int(bis_minute), 24 * 60)
     if bis_minute <= jetzt_min:
         return None
+    beginn_neu = jetzt_min if ab_minute is None else min(int(ab_minute),
+                                                        jetzt_min)
     fenster = aus_text(text)
     for beginn, ende in fenster:
         if beginn <= jetzt_min < ende and ende >= bis_minute:
             return None                 # läuft schon lange genug
-    return als_text(eindampfen(fenster + [(jetzt_min, bis_minute)]))
+    return als_text(eindampfen(fenster + [(beginn_neu, bis_minute)]))

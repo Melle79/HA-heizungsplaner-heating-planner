@@ -205,7 +205,11 @@ def bedarf_bis(bericht: dict) -> int | None:
             except ValueError:
                 minute = None
         if minute is None:
-            minute = _jetzt_minute(bericht) + 60
+            # Frist, keine Schätzung – und auf die nächste halbe Stunde
+            # aufgerundet. Ein mit der Uhr mitwandernder Endpunkt ergäbe in
+            # jedem Takt ein neues Telegramm für dieselbe Absicht.
+            frist = _jetzt_minute(bericht) + 60
+            minute = -(-frist // 30) * 30
         spaeteste = minute if spaeteste is None else max(spaeteste, minute)
     return spaeteste
 
@@ -802,11 +806,26 @@ def _heizkreis_fuehren(bericht: dict, config: dict, state: dict, protokoll,
     heute = zeitplan.TAGE[jetzt.weekday()]
     bis = bedarf_bis(bericht)
     erweitert = False
-    if bis is not None:
-        breiter = huellkurve.erweitern(plan[heute], bis, jetzt)
+    # Wo ein Sonderfenster beginnt, wird einmal entschieden und dann behalten.
+    # Ohne dieses Gedächtnis begänne es in jedem Takt bei „jetzt“, wanderte
+    # also alle paar Minuten nach hinten: Jeder Takt schriebe denselben Tag
+    # noch einmal, fünf Minuten kürzer als zuvor, bis die Tagesbremse zumacht.
+    heute_datum = jetzt.date().isoformat()
+    sonder = merker.get("sonderfenster") or {}
+    if bis is None:
+        merker.pop("sonderfenster", None)
+    else:
+        ab = jetzt.hour * 60 + jetzt.minute
+        if sonder.get("datum") == heute_datum:
+            ab = min(int(sonder.get("von", ab)), ab)
+        breiter = huellkurve.erweitern(plan[heute], bis, jetzt, ab)
         if breiter:
             plan[heute] = breiter
             erweitert = True
+            merker["sonderfenster"] = {"datum": heute_datum, "von": ab}
+        else:
+            # Der Wochenplan deckt den Bedarf selbst ab – kein Sonderfenster.
+            merker.pop("sonderfenster", None)
 
     # Eine Woche ganz ohne Komfortzeit wird nicht geschrieben. Sie entsteht
     # nicht durch eine Einstellung, sondern durch ein Versehen – eine leere

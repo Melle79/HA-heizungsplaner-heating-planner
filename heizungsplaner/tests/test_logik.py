@@ -1812,6 +1812,46 @@ pruefe(lage.get("erweitert"), "die Partytaste erweitert den heutigen Tag")
 pruefe(any(nr == "11.4" and "12:00-15:00" in w for nr, w in party.gesetzt),
        f"und zwar nur den Freitag ({party.gesetzt})")
 
+# Ein Sonderfenster wandert nicht mit der Uhr. Ohne Gedaechtnis begaenne es
+# in jedem Takt neu bei "jetzt": Der Freitag wuerde alle fuenf Minuten noch
+# einmal geschrieben, jedes Mal fuenf Minuten kuerzer, bis die Tagesbremse
+# zumacht. Genau das stand am 22. und 23.09.2026 elfmal im Protokoll.
+def _spaet(uhrzeit, wechsel="2026-09-11T15:00:00"):
+    return {"zeit": f"2026-09-11T{uhrzeit}:00", "sommerbetrieb": False,
+            "schulfrei": False, "arbeitstag": True,
+            "raeume": [{"name": "Buero", "zustand": "party",
+                        "naechster_wechsel": wechsel}]}
+
+
+wandern, zw = Anlage(uebernommen=True), {}
+_lauf(wandern, _spaet("12:00"), CONFIG(), zw)
+pruefe(any("12:00-15:00" in w for _, w in wandern.gesetzt),
+       f"das Sonderfenster beginnt, wenn der Bedarf auftritt ({wandern.gesetzt})")
+wandern.gesetzt.clear()
+_lauf(wandern, _spaet("12:05"), CONFIG(), zw)
+_lauf(wandern, _spaet("12:10"), CONFIG(), zw)
+pruefe(wandern.gesetzt == [],
+       f"und die naechsten Takte schreiben es nicht noch einmal kuerzer: "
+       f"{wandern.gesetzt}")
+pruefe(zw["kessel"]["sonderfenster"] == {"datum": "2026-09-11", "von": 720},
+       f"der Beginn wird gemerkt: {zw['kessel'].get('sonderfenster')}")
+vorbei = dict(_spaet("12:15"), raeume=[
+    {"name": "Buero", "zustand": "eco", "naechster_wechsel": None}])
+_lauf(wandern, vorbei, CONFIG(), zw)
+pruefe("sonderfenster" not in zw["kessel"],
+       "faellt der Bedarf weg, wird auch das Gedaechtnis geleert")
+
+# Und ohne bekannten Schaltpunkt wandert wenigstens das Ende nicht im
+# Fuenfminutentakt: Die Frist rueckt auf die naechste halbe Stunde.
+ohne_wechsel = dict(_spaet("12:10"), raeume=[
+    {"name": "Buero", "zustand": "party", "naechster_wechsel": None}])
+pruefe(kessel.bedarf_bis(ohne_wechsel) == 13 * 60 + 30,
+       f"die Frist wird aufgerundet statt mitzuwandern: "
+       f"{kessel.bedarf_bis(ohne_wechsel)}")
+pruefe(kessel.bedarf_bis(dict(ohne_wechsel, zeit="2026-09-11T12:25:00"))
+       == 13 * 60 + 30,
+       "und bleibt dieselbe, solange die halbe Stunde laeuft")
+
 # Ein handgefuehrter Raum darf die Huellkurve nicht ueber die Erweiterung
 # wieder aufspannen – sonst schliesst fuer_tag ihn aus und bedarf_bis holt ihn
 # zurueck. Genau das ist am 11.09.2026 live passiert: Hobbyraum, Flur und

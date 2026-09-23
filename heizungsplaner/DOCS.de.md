@@ -653,6 +653,13 @@ Drei Dinge fließen **nicht** in die Hüllkurve ein:
   nicht vorhersagen. Sie werden nachgetragen, sobald sie greifen – und *hier*
   entsteht der einzige Versatz des Verfahrens: bis zu einer Taktlänge.
 
+  Wo ein solches Sonderfenster beginnt, entscheidet der Planer einmal und
+  behält es für den Tag. Sonst begänne es in jedem Takt wieder bei „jetzt“:
+  Derselbe Wochentag ginge alle paar Minuten erneut hinaus, jedes Mal ein
+  Stück kürzer. Ist kein Schaltpunkt bekannt – die Partytaste ohne Ende –,
+  setzt er eine Frist von einer Stunde, aufgerundet auf die nächste halbe
+  Stunde, und rechnet beim nächsten Takt ohnehin neu.
+
 Für Tage, deren Tagesart noch nicht feststeht – ob übernächste Woche Ferien
 sind, weiß heute niemand –, rechnet der Planer **beide** Fälle und vereinigt
 sie. Die Anlage steht dann eher zu früh bereit als zu spät; am Tag selbst
