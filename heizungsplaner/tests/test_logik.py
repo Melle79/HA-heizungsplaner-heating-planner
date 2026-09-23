@@ -2158,5 +2158,17 @@ try:
 except store.ValidationError:
     pruefe(True, "ungültige Uhrzeit wird abgelehnt")
 
+print("\n=== Die Fassung steht an einer Stelle ===")
+# Sie stand einmal doppelt – in config.yaml und in version.py – und lief
+# auseinander: Die Oberfläche zeigte „v1.31.1“, während das Add-on schon
+# 1.31.4 war. Wer wissen will, ob ein Fehler behoben ist, liest die Nummer
+# oben in der App – sie muss stimmen.
+import pathlib as _pathlib, re as _re, version as _version
+_kopf = _pathlib.Path(__file__).resolve().parent.parent / "config.yaml"
+_aus_yaml = _re.search(r'^version:\s*"?([^"\s]+)"?',
+                       _kopf.read_text(encoding="utf-8"), _re.M)
+pruefe(_aus_yaml is not None and _version.VERSION == _aus_yaml.group(1),
+       f"version.py und config.yaml sagen dasselbe ({_version.VERSION})")
+
 print(f"\n{'ALLE PRÜFUNGEN BESTANDEN' if not fehler else str(len(fehler)) + ' FEHLER'}")
 sys.exit(1 if fehler else 0)

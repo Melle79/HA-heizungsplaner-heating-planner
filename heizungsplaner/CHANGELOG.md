@@ -1,5 +1,15 @@
 # Änderungen
 
+## 1.31.5
+
+- **Behoben: Die Kopfzeile zeigte eine falsche Fassung.** Die Nummer stand an
+  zwei Stellen – in `config.yaml` und in `backend/version.py` – und lief
+  auseinander: Die App sagte über drei Fassungen hinweg „v1.31.1“, während das
+  Add-on längst 1.31.4 war. Dieselbe falsche Nummer stand auch als
+  `sw_version` am MQTT-Gerät in Home Assistant. Jetzt reicht `run.sh` die
+  Nummer des Supervisors durch, und fällt das aus, liest `version.py` sie aus
+  der `config.yaml`. Eine Prüfung hält beide zusammen.
+
 ## 1.31.4
 
 - **Behoben: Ein Sonderfenster wurde jeden Takt neu geschrieben.** Die
