@@ -639,6 +639,18 @@ outwards – start down, end up. A window never gets shorter that way; the
 system stands ready at most nine minutes early, never nine minutes late. What
 the planner shows is what the device holds.
 
+And should the controller do something else than the planner expects: an extra
+window is a **demand** – “comfort at least until then” – not a prescription of
+how the device is to store it. Before every telegram for today the planner
+therefore checks whether the demand is already met. If something else stands
+there that contains every minute asked for and goes at most half an hour
+beyond, there is nothing to do.
+
+The half-hour cap belongs to that: without it the found plan “06:00-22:00”
+would count as covered too, and the planner would never set back again – yet
+setting back is exactly how it saves oil. The exception therefore applies only
+to today's extra window, never to the regular weekly plan.
+
 Three things do **not** enter the envelope:
 
 * Rooms that are switched off.

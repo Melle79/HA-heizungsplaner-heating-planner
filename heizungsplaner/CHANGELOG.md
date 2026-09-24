@@ -1,5 +1,21 @@
 # Änderungen
 
+## 1.31.7
+
+- **Vor dem Schreiben wird nachgesehen, ob der Bedarf schon gedeckt ist.** Ein
+  Sonderfenster ist eine Forderung – „Komfort wenigstens bis dahin" –, keine
+  Vorschrift, wie die Regelung sie ablegt. Steht dort etwas anderes, das aber
+  jede verlangte Minute enthält und höchstens eine halbe Stunde darüber
+  hinausgeht, geht kein Telegramm mehr hinaus. Bisher verglich der Planer
+  Zeichen für Zeichen; jede Eigenart des Geräts wurde so zum Widerspruch.
+- **Dieselbe Unterscheidung schützt jetzt die Sicherung.** „Angenommen und
+  zurechtgelegt" zählt nicht mehr als „verworfen". Nur wer den Bedarf
+  *nicht* deckt, bringt den Planer noch dazu, die Führung abzugeben.
+- Der Deckel von einer halben Stunde ist Absicht: Ohne ihn zählte auch ein
+  vorgefundenes „06:00-22:00" als gedeckt, und es würde nie wieder gekürzt –
+  dabei spart genau das Öl. Für den regulären Wochenplan gilt die Ausnahme
+  deshalb nicht, nur für das Sonderfenster von heute.
+
 ## 1.31.6
 
 - **Behoben: Der Planer gab die Führung ab, weil er das Zeitraster der

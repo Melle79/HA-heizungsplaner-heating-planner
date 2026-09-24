@@ -519,8 +519,11 @@ def _verworfen(merker: dict, ist: dict, gelesen: dict, einstellungen: dict,
         frisch = gelesen.get(nr) or ""
         if not frisch or frisch <= am:
             continue                       # seither nicht neu gelesen
-        if huellkurve.aus_text(ist[nr]) != huellkurve.aus_text(text):
-            abweichung.append(nr)
+        if huellkurve.aus_text(ist[nr]) == huellkurve.aus_text(text):
+            continue
+        if huellkurve.nur_angepasst(ist[nr], text):
+            continue          # angenommen und zurechtgelegt, nicht verworfen
+        abweichung.append(nr)
 
     if not abweichung:
         merker.pop("verworfen", None)
@@ -852,7 +855,7 @@ def _heizkreis_fuehren(bericht: dict, config: dict, state: dict, protokoll,
 
     # -- Schreiben, wo es abweicht -----------------------------------------
     datum = jetzt.date().isoformat()
-    geschrieben, gebremst = [], []
+    geschrieben, gebremst, gedeckt = [], [], []
     for tag, nr in parameter.items():
         soll = plan.get(tag)
         if soll is None:
@@ -860,6 +863,18 @@ def _heizkreis_fuehren(bericht: dict, config: dict, state: dict, protokoll,
         vorhanden = inhalt.get(tag, "")
         if huellkurve.aus_text(vorhanden) == huellkurve.aus_text(soll):
             continue                       # steht schon so – kein Telegramm
+        # Und wenn es nicht Zeichen für Zeichen dasselbe ist: Deckt die
+        # Regelung den heutigen Bedarf trotzdem schon ab? Ein Sonderfenster
+        # ist eine Forderung – „Komfort wenigstens bis dahin“ –, keine
+        # Vorschrift, wie das Gerät sie ablegt. Rundet es auf sein Raster,
+        # legt es Phasen zusammen: Solange jede verlangte Minute drin ist und
+        # nicht mehr als eine halbe Stunde dazukommt, ist nichts zu tun.
+        # Der reguläre Wochenplan bleibt davon unberührt – gerade das Kürzen
+        # ist ja der Sinn der Sache.
+        if (erweitert and tag == heute
+                and huellkurve.nur_angepasst(vorhanden, soll)):
+            gedeckt.append(tag)
+            continue
         # Die Bremse hält nur auf, was Wärme wegnimmt. Eine Änderung, die
         # jede bisherige Komfortminute behält und nur ergänzt, geht immer
         # durch: Sonst bliebe bei erschöpftem Zähler ausgerechnet die
@@ -898,6 +913,8 @@ def _heizkreis_fuehren(bericht: dict, config: dict, state: dict, protokoll,
         protokoll(texte.t("log_alle_raeume"),
                   texte.t("kessel_gestellt", anzahl=len(geschrieben)),
                   texte.t("kessel_gestellt_warum", plan=plan[heute]))
+    if gedeckt:
+        ergebnis["gedeckt"] = gedeckt
     if gebremst:
         ergebnis["gebremst"] = gebremst
         ergebnis["hinweis"] = texte.t("kessel_gebremst", grenze=SCHREIBGRENZE)

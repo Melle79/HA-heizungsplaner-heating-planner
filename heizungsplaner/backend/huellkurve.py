@@ -227,6 +227,38 @@ def deckt(soll: str, ist: str) -> bool:
     return all(any(nb <= b and e <= ne for nb, ne in neu_) for b, e in haben)
 
 
+# Wie viel mehr Komfort als geplant noch als „angepasst“ durchgeht. Eine
+# Regelung darf runden, zusammenlegen, auf ihre drei Phasen kürzen – solange
+# das Ergebnis den Bedarf deckt und nicht mehr als eine halbe Stunde darüber
+# hinausgeht, ist das keine Verweigerung, sondern ihre Bauart.
+ANPASSUNG_MIN = 30
+
+
+def dauer(text: str) -> int:
+    """Wie viele Komfortminuten in einem Tagesprogramm stehen."""
+    return sum(ende - beginn for beginn, ende in aus_text(text))
+
+
+def nur_angepasst(ist: str, soll: str, toleranz: int = ANPASSUNG_MIN) -> bool:
+    """Hat die Regelung den Befehl angenommen und nur zurechtgelegt?
+
+    Ein Telegramm kann auf drei Arten enden: befolgt, verweigert – oder
+    *angepasst*. Der dritte Fall hat am 24.09.2026 zwei Schäden angerichtet,
+    weil ihn niemand vorgesehen hatte: Geschrieben war 04:58, abgelegt wurde
+    04:50, und weil das nicht Zeichen für Zeichen dasselbe war, schrieb der
+    Planer im Fünfminutentakt weiter und gab am Ende die Führung ab.
+
+    Angepasst heißt hier: Die Anlage liefert **jede** Komfortminute, die
+    verlangt war, und höchstens ``toleranz`` darüber hinaus. Dann ist der
+    Bedarf gedeckt, und ein weiteres Telegramm brächte nichts.
+
+    Der Deckel ist wichtig. Ohne ihn zählte auch ein vorgefundenes
+    „06:00-22:00“ als angepasst, und der Planer setzte nie wieder ab – er
+    spart ja gerade dadurch Öl, dass er Komfortzeiten *kürzt*.
+    """
+    return deckt(ist, soll) and dauer(ist) - dauer(soll) <= toleranz
+
+
 def leer(plan: dict) -> bool:
     """Ist für die ganze Woche keine einzige Komfortzeit vorgesehen?
 

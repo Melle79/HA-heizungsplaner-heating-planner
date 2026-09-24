@@ -1685,7 +1685,7 @@ SVENS_PLAN = {nr: ("06:00-22:00 ##:##-##:## ##:##-##:##" if i < 5
               for i, nr in enumerate(WOCHENTAGE)}
 
 
-def _wie_die_anlage(text: str) -> str:
+def _wie_die_anlage(text: str, raster: int = 10) -> str:
     """Schaltzeiten so ablegen, wie ein Albatros sie ablegt: auf zehn Minuten
     abgerundet, Beginn wie Ende."""
     teile = []
@@ -1697,7 +1697,7 @@ def _wie_die_anlage(text: str) -> str:
         def ab(uhr):
             std, min_ = uhr.split(":")
             gesamt = int(std) * 60 + int(min_)
-            gesamt = gesamt // 10 * 10
+            gesamt = gesamt // raster * raster
             return f"{gesamt // 60 % 24:02d}:{gesamt % 60:02d}"
         teile.append(f"{ab(von)}-{ab(bis)}")
     return " ".join(teile)
@@ -1714,6 +1714,7 @@ class Anlage:
         self.uebernommen = uebernommen
         self.antwort = antwort
         self.stur = stur                  # nimmt an, behaelt aber das Seine
+        self.raster = 10                  # das Zeitraster, auf dem sie ablegt
         self.traege = traege              # liest nach dem Schreiben nicht nach
         self.gesetzt = []
         self.anmeldungen = 0
@@ -1773,7 +1774,8 @@ class Anlage:
                 # Zehn-Minuten-Raster. Was dazwischen ankommt, wird abgerundet
                 # - und wer das nicht weiss, liest ewig etwas anderes zurueck,
                 # als er geschrieben hat.
-                self.werte[nutzlast["nr"]] = _wie_die_anlage(nutzlast["wert"])
+                self.werte[nutzlast["nr"]] = _wie_die_anlage(
+                    nutzlast["wert"], self.raster)
             return {"gesetzt": True}
         raise AssertionError(adresse)
 
@@ -1904,6 +1906,31 @@ pruefe(lage.get("aktiv") and vorheizen.abmeldungen == 0,
        "vor allem gibt der Planer die Fuehrung nicht ab")
 pruefe(not zv["kessel"].get("verworfen"),
        "die Anlage hat nichts verworfen - es sah nur so aus")
+
+# Und falls die Regelung doch etwas anderes tut, als der Planer denkt: Ein
+# Sonderfenster ist eine Forderung, keine Vorschrift ueber die Schreibweise.
+# Deckt die Anlage den Bedarf bereits, wird nicht noch einmal geschrieben -
+# und schon gar nicht die Fuehrung abgegeben. Hier rundet sie auf eine
+# Viertelstunde, von der der Planer nichts weiss.
+pruefe(hk.nur_angepasst("04:45-07:30 12:30-21:00", "04:50-07:30 12:30-21:00"),
+       "ein bisschen mehr Waerme als verlangt ist angepasst, nicht verworfen")
+pruefe(not hk.nur_angepasst("06:00-22:00", "05:30-07:30 09:00-21:00"),
+       "ein ganz anderer Plan dagegen nicht - sonst wuerde nie mehr gekuerzt")
+pruefe(not hk.nur_angepasst("04:00-08:00", "05:00-08:00"),
+       "und eine Stunde zu viel ist keine Anpassung mehr")
+
+fremd, zf = Anlage(uebernommen=True), {}
+fremd.raster = 15
+_lauf(fremd, _vier58, CONFIG(), zf)
+pruefe(fremd.gesetzt, "auch die fremde Anlage bekommt ihr Telegramm")
+fremd.gesetzt.clear()
+for minute in ("05:03", "05:09", "05:14"):
+    lage = _lauf(fremd, dict(_vier58, zeit=f"2026-09-24T{minute}:00"),
+                 CONFIG(), zf)
+pruefe(fremd.gesetzt == [],
+       f"deckt sie den Bedarf, wird nicht nachgeschrieben: {fremd.gesetzt}")
+pruefe(lage.get("aktiv") and fremd.abmeldungen == 0,
+       "und die Fuehrung bleibt, auch wenn die Anlage anders rundet als gedacht")
 
 # Ein handgefuehrter Raum darf die Huellkurve nicht ueber die Erweiterung
 # wieder aufspannen – sonst schliesst fuer_tag ihn aus und bedarf_bis holt ihn

@@ -647,6 +647,19 @@ zwar nach außen – Beginn abwärts, Ende aufwärts. Ein Fenster wird dadurch n
 kürzer; die Anlage steht höchstens neun Minuten zu früh bereit, nie neun
 Minuten zu spät. Was im Planer steht, ist damit auch das, was im Gerät steht.
 
+Und falls die Regelung doch etwas anderes tut, als der Planer denkt: Ein
+Sonderfenster ist eine **Forderung** – „Komfort wenigstens bis dahin" –, keine
+Vorschrift, wie das Gerät sie ablegen soll. Vor jedem Telegramm für den
+heutigen Tag sieht der Planer deshalb nach, ob der Bedarf schon gedeckt ist.
+Steht dort etwas anderes, das aber jede verlangte Minute enthält und
+höchstens eine halbe Stunde darüber hinausgeht, ist nichts zu tun.
+
+Der Deckel von einer halben Stunde gehört dazu: Ohne ihn zählte auch der
+vorgefundene Plan „06:00-22:00" als gedeckt, und der Planer würde nie wieder
+kürzen – dabei spart er gerade durchs Kürzen das Öl. Für den regulären
+Wochenplan gilt die Ausnahme deshalb nicht, nur für das Sonderfenster von
+heute.
+
 Drei Dinge fließen **nicht** in die Hüllkurve ein:
 
 * Räume, die abgeschaltet sind.
