@@ -1,51 +1,57 @@
 # Änderungen
 
+## 1.31.9
+
+- **Behoben: Nach einer Rückgabe hatte der Planer ein falsches Bild von der
+  Anlage.** Wird die Kesselführung abgeschaltet, stellt der Planer den alten
+  Wochenplan wieder her – er sagte dem Anlagenmanager davon aber nichts. Der
+  zeigte deshalb tagelang weiter die Zeiten, die vorher drinstanden. Schaltet
+  man die Führung später wieder ein, hält der Planer diesen veralteten Stand
+  für den echten und schreibt nichts mehr: Die Anlage läuft still auf dem
+  alten Programm weiter. Am 24.09.2026 betraf das sechs von sieben
+  Wochentagen. Jetzt liest der Manager nach jeder Rückgabe sofort nach.
+
 ## 1.31.8
 
-- **Gemessen wird ab jetzt.** Ein Fenster, das bei „jetzt" beginnt, sagt
-  nichts über die Vergangenheit: Legt die Regelung es eine Viertelstunde
-  früher an, ist dieses Öl längst verbrannt. Diesen Zuschlag als Abweichung
-  zu zählen hieße, wegen verbrauchten Öls neues zu verbrennen. Was noch
-  kommt, zählt dagegen unverändert voll: eine Stunde zu viel ab jetzt ist
-  weiter keine Anpassung, und ein Programm, das den laufenden Bedarf gar nicht
-  deckt, erst recht nicht.
+- **Zu früh ist kein Fehler, wenn das „zu früh" schon vorbei ist.** Fordert
+  der Planer für heute zusätzliche Warmzeit ab sofort an, darf die Regelung
+  sie ein paar Minuten früher beginnen lassen. Diese Minuten sind dann schon
+  gelaufen – daran ist nichts mehr zu ändern und nichts mehr zu sparen.
+  Verglichen wird deshalb nur noch das, was noch bevorsteht. Vorher hätte der
+  Planer wegen einer längst vergangenen Viertelstunde erneut geschrieben.
+- Was noch kommt, zählt unverändert: Läuft die Anlage von jetzt an eine
+  Stunde länger warm als geplant, bleibt das eine Abweichung, und der Planer
+  stellt sie richtig.
 
 ## 1.31.7
 
-- **Vor dem Schreiben wird nachgesehen, ob der Bedarf schon gedeckt ist.** Ein
-  Sonderfenster ist eine Forderung – „Komfort wenigstens bis dahin" –, keine
-  Vorschrift, wie die Regelung sie ablegt. Steht dort etwas anderes, das aber
-  jede verlangte Minute enthält und höchstens eine halbe Stunde darüber
-  hinausgeht, geht kein Telegramm mehr hinaus. Bisher verglich der Planer
-  Zeichen für Zeichen; jede Eigenart des Geräts wurde so zum Widerspruch.
-- **Dieselbe Unterscheidung schützt jetzt die Sicherung.** „Angenommen und
-  zurechtgelegt" zählt nicht mehr als „verworfen". Nur wer den Bedarf
-  *nicht* deckt, bringt den Planer noch dazu, die Führung abzugeben.
-- Der Deckel von einer halben Stunde ist Absicht: Ohne ihn zählte auch ein
-  vorgefundenes „06:00-22:00" als gedeckt, und es würde nie wieder gekürzt –
-  dabei spart genau das Öl. Für den regulären Wochenplan gilt die Ausnahme
-  deshalb nicht, nur für das Sonderfenster von heute.
-- Der Deckel von einer halben Stunde ist Absicht: Ohne ihn zählte auch ein
-  vorgefundenes „06:00-22:00" als gedeckt, und es würde nie wieder gekürzt –
-  dabei spart genau das Öl. Für den regulären Wochenplan gilt die Ausnahme
-  deshalb nicht, nur für das Sonderfenster von heute.
+- **Der Planer fragt jetzt „ist es warm genug?" statt „steht dort genau mein
+  Text?".** Wenn er für heute zusätzliche Warmzeit braucht – Partytaste,
+  Vorheizen, eine greifende Regel –, kommt es nur darauf an, dass die
+  Regelung diese Zeit auch liefert, nicht darauf, wie sie sie aufschreibt.
+  Steht im Gerät bereits ein Programm, das jede angeforderte Minute enthält
+  und höchstens eine halbe Stunde mehr, wird nichts geschrieben.
+- **Dasselbe gilt für die Sicherung.** Bisher wertete der Planer jede
+  Abweichung als „die Regelung befolgt mich nicht" und gab nach drei Anläufen
+  die Führung ganz ab. Jetzt zählt nur noch, was die angeforderte Warmzeit
+  wirklich nicht liefert.
+- Die halbe Stunde ist eine bewusste Grenze. Ohne sie ginge auch ein
+  durchgehendes „06:00-22:00" als „passt schon" durch, und der Planer würde
+  nie wieder absenken – dabei ist das Absenken der Sinn der Sache. Für den
+  normalen Wochenplan gilt die Ausnahme deshalb gar nicht, nur für die
+  Zusatzzeit von heute.
 
 ## 1.31.6
 
-- **Behoben: Der Planer gab die Führung ab, weil er das Zeitraster der
-  Regelung nicht kannte.** Ein Albatros führt seine Schaltzeiten in
-  Zehn-Minuten-Schritten: Geschrieben wurde 04:58, abgelegt hat das Gerät
-  04:50. Der Planer las zurück, fand etwas anderes, als er geschickt hatte,
-  und schrieb erneut – am 24.09.2026 sieben Mal – bis seine Sicherung griff
-  („die Regelung nimmt zurück, was ich schreibe“) und er den vorgefundenen
-  Plan wiederherstellte und sich abschaltete. Die Regelung hatte nichts
-  zurückgenommen; sie kann nur keine 04:58.
-- Geschriebene Zeiten liegen jetzt auf dem Raster der Regelung, gerundet
-  **nach außen**: Beginn abwärts, Ende aufwärts. Ein Fenster wird dabei nie
-  kürzer – höchstens neun Minuten zu früh warm, nie neun zu spät. Berühren
-  sich zwei Fenster durchs Runden, werden sie zusammengelegt.
-- Die Prüfungen fälschen die Anlage jetzt mitsamt ihrem Raster. Ohne die
-  Rundung fallen sieben davon durch.
+- **Behoben: Der Planer hat sich selbst abgeschaltet.** Die Heizungsregelung
+  kennt Schaltzeiten nur im Zehn-Minuten-Takt. Der Planer schrieb 04:58, die
+  Regelung machte daraus 04:50. Weil beim Nachlesen nicht dasselbe dastand,
+  schrieb er es neu – am 24.09.2026 sieben Mal – und schloss daraus
+  schließlich, die Regelung befolge ihn nicht. Daraufhin stellte er den alten
+  Wochenplan wieder her und schaltete die Kesselführung ab.
+- Geschriebene Zeiten passen jetzt in diesen Takt: Der Beginn rutscht auf die
+  vorherige volle Zehnerstelle, das Ende auf die nächste. Die Anlage wird
+  dadurch eher ein paar Minuten zu früh warm als zu spät.
 
 ## 1.31.5
 

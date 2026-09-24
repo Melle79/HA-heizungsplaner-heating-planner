@@ -1717,6 +1717,7 @@ class Anlage:
         self.raster = 10                  # das Zeitraster, auf dem sie ablegt
         self.traege = traege              # liest nach dem Schreiben nicht nach
         self.gesetzt = []
+        self.nachgelesen = []             # wozu der Manager nachlesen soll
         self.anmeldungen = 0
         self.abmeldungen = 0
         # Die Lesezeitpunkte, die der Anlagenmanager je Wert mitliefert.
@@ -1749,6 +1750,7 @@ class Anlage:
         if adresse.endswith("/api/lesen"):
             # Nachlesen frischt die Zeitstempel auf – ausser bei einer traegen
             # Anlage, die genau das nicht tut.
+            self.nachgelesen += list((nutzlast or {}).get("nr") or [])
             if not self.traege:
                 for nr in (nutzlast or {}).get("nr") or []:
                     self.gelesen[nr] = self._stempel()
@@ -2207,6 +2209,21 @@ cfg2["einstellungen"]["kessel"]["warmwasser_urlaub"] = False
 _lauf(ww2, WWBERICHT(True), cfg2, zw2)
 pruefe({nr: w for nr, w in ww2.gesetzt} == SVENS_WW,
        "beim Abschalten kommen die gewohnten Zeiten zurueck, auch mitten im Urlaub")
+
+# Nach der Rueckgabe muss der Manager nachlesen. Sonst behaelt er tagelang
+# den Stand, den der Planer geschrieben hatte - und ein Planer, der spaeter
+# wieder uebernimmt, findet dort scheinbar schon seinen eigenen Plan vor und
+# schreibt nichts mehr. Am 24.09.2026 standen deshalb sechs von sieben
+# Wochentagen nach dem Wiedereinschalten still auf dem alten Programm.
+rueck, zr = Anlage(), {}          # noch nicht uebernommen: sichert das Original
+cfgr = CONFIG()
+_lauf(rueck, BERICHT(), cfgr, zr)
+rueck.nachgelesen.clear()
+rueck.gesetzt.clear()
+cfgr["einstellungen"]["kessel"]["aktiv"] = False
+_lauf(rueck, BERICHT(), cfgr, zr)
+pruefe(set(rueck.nachgelesen) >= set(WOCHENTAGE),
+       f"das Zurueckgestellte wird sofort nachgelesen: {rueck.nachgelesen}")
 
 # Trockenlauf: rechnen ja, stellen nein.
 ww3, zw3 = Anlage(uebernommen=True), {}

@@ -446,13 +446,26 @@ def zurueckgeben(einstellungen: dict, merker: dict) -> int:
         # sein alter Plan käme wieder.
         _LOGGER.warning("Kein gesicherter Wochenplan – nichts zurückzustellen")
         return 0
-    zurueck = 0
+    zurueck, gestellt = 0, []
     for nr, text in original.items():
         try:
             schreiben(einstellungen, nr, text)
             zurueck += 1
+            gestellt.append(nr)
         except (Abgelehnt, urllib.error.URLError, OSError, ValueError) as fehler:
             _LOGGER.warning("Wochentag %s nicht zurückgestellt: %s", nr, fehler)
+    if gestellt:
+        # Den Manager bitten, das Zurückgestellte gleich nachzulesen. Ohne das
+        # behält er tagelang den Stand, den der Planer geschrieben hatte – und
+        # ein Planer, der später wieder übernimmt, findet dort scheinbar schon
+        # seinen eigenen Plan vor und schreibt nichts mehr. Am 24.09.2026 haben
+        # sechs von sieben Wochentagen deshalb nach dem Wiedereinschalten
+        # stillschweigend weiter auf dem alten Programm gestanden.
+        try:
+            _json("POST", f"{basis(einstellungen)}/api/lesen",
+                  {"nr": gestellt})
+        except (Abgelehnt, urllib.error.URLError, OSError, ValueError) as fehler:
+            _LOGGER.info("Nachlesen nach der Rückgabe nicht ausgelöst: %s", fehler)
     if zurueck:
         _LOGGER.info("%d Wochentage auf den vorgefundenen Stand gebracht", zurueck)
     return zurueck
