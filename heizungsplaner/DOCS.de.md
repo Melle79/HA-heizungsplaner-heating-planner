@@ -638,8 +638,14 @@ verteilen tun die Ventile. Und wo *kein* Raum mehr Komfort will, senkt die
 Regelung ab, statt weiter bereitzustehen.
 
 Weil der Planer seinen Plan im Voraus kennt, entsteht dabei **kein Versatz**:
-Die Regelung schaltet auf die Minute mit ihm. Geschrieben wird selten – nur
-wenn sich der Plan tatsächlich ändert.
+Die Regelung schaltet mit ihm. Geschrieben wird selten – nur wenn sich der
+Plan tatsächlich ändert.
+
+Eine Einschränkung hat die Regelung dabei: Sie führt ihre Schaltzeiten in
+**Zehn-Minuten-Schritten**. Der Planer rundet deshalb, bevor er schreibt, und
+zwar nach außen – Beginn abwärts, Ende aufwärts. Ein Fenster wird dadurch nie
+kürzer; die Anlage steht höchstens neun Minuten zu früh bereit, nie neun
+Minuten zu spät. Was im Planer steht, ist damit auch das, was im Gerät steht.
 
 Drei Dinge fließen **nicht** in die Hüllkurve ein:
 

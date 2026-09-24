@@ -630,8 +630,14 @@ house, and the valves do the distributing. And where *no* room wants comfort
 any more, the controller sets back instead of standing ready.
 
 Because the planner knows its schedule in advance, there is **no offset**: the
-controller switches to the minute with it. Writing is rare – only when the
-schedule actually changes.
+controller switches with it. Writing is rare – only when the schedule actually
+changes.
+
+The controller has one limitation here: it keeps its switching times in
+**ten-minute steps**. The planner therefore rounds before it writes, and
+outwards – start down, end up. A window never gets shorter that way; the
+system stands ready at most nine minutes early, never nine minutes late. What
+the planner shows is what the device holds.
 
 Three things do **not** enter the envelope:
 

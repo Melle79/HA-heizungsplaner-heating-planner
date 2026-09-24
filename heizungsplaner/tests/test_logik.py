@@ -1685,6 +1685,24 @@ SVENS_PLAN = {nr: ("06:00-22:00 ##:##-##:## ##:##-##:##" if i < 5
               for i, nr in enumerate(WOCHENTAGE)}
 
 
+def _wie_die_anlage(text: str) -> str:
+    """Schaltzeiten so ablegen, wie ein Albatros sie ablegt: auf zehn Minuten
+    abgerundet, Beginn wie Ende."""
+    teile = []
+    for stueck in str(text).split():
+        if "#" in stueck or "-" not in stueck:
+            teile.append(stueck)
+            continue
+        von, bis = stueck.split("-", 1)
+        def ab(uhr):
+            std, min_ = uhr.split(":")
+            gesamt = int(std) * 60 + int(min_)
+            gesamt = gesamt // 10 * 10
+            return f"{gesamt // 60 % 24:02d}:{gesamt % 60:02d}"
+        teile.append(f"{ab(von)}-{ab(bis)}")
+    return " ".join(teile)
+
+
 class Anlage:
     """Ein Anlagenmanager auf dem Papier – merkt sich, was ihm gesagt wird."""
 
@@ -1751,7 +1769,11 @@ class Anlage:
                 raise self.antwort
             self.gesetzt.append((nutzlast["nr"], nutzlast["wert"]))
             if not self.stur:
-                self.werte[nutzlast["nr"]] = nutzlast["wert"]
+                # Wie das echte Geraet: Schaltzeiten liegen auf dem
+                # Zehn-Minuten-Raster. Was dazwischen ankommt, wird abgerundet
+                # - und wer das nicht weiss, liest ewig etwas anderes zurueck,
+                # als er geschrieben hat.
+                self.werte[nutzlast["nr"]] = _wie_die_anlage(nutzlast["wert"])
             return {"gesetzt": True}
         raise AssertionError(adresse)
 
@@ -1851,6 +1873,37 @@ pruefe(kessel.bedarf_bis(ohne_wechsel) == 13 * 60 + 30,
 pruefe(kessel.bedarf_bis(dict(ohne_wechsel, zeit="2026-09-11T12:25:00"))
        == 13 * 60 + 30,
        "und bleibt dieselbe, solange die halbe Stunde laeuft")
+
+# Das Zehn-Minuten-Raster der Regelung. Am 24.09.2026 hat der Planer um 04:58
+# ein Vorheizfenster geschrieben, die Anlage legte 04:50 ab - und weil das
+# nicht war, was er geschickt hatte, schrieb er es sieben Mal neu und gab
+# danach die Fuehrung ganz ab. Die gefaelschte Anlage rundet seitdem genauso.
+pruefe(hk.als_text([(298, 450), (750, 1260)]) == "04:50-07:30 12:30-21:00 ##:##-##:##",
+       f"Beginn abwaerts, Ende aufwaerts: {hk.als_text([(298, 450), (750, 1260)])}")
+pruefe(hk.als_text([(365, 472)]) == "06:00-08:00 ##:##-##:## ##:##-##:##",
+       "gerundet wird nach aussen - ein Fenster wird nie kuerzer")
+pruefe(hk.als_text([(365, 472), (475, 600)]) == "06:00-10:00 ##:##-##:## ##:##-##:##",
+       "und was sich durchs Runden beruehrt, wird zusammengelegt")
+
+vorheizen, zv = Anlage(uebernommen=True), {}
+_vier58 = {"zeit": "2026-09-24T04:58:00", "sommerbetrieb": False,
+           "schulfrei": False, "arbeitstag": True,
+           "raeume": [{"name": "Buero", "zustand": "komfort",
+                       "naechster_wechsel": "2026-09-24T07:30:00"}]}
+_lauf(vorheizen, _vier58, CONFIG(), zv)
+pruefe(any(nr == "11.3" and w.startswith("04:50-")
+           for nr, w in vorheizen.gesetzt),
+       f"geschrieben wird, was die Anlage auch ablegen kann ({vorheizen.gesetzt})")
+vorheizen.gesetzt.clear()
+for minute in ("05:03", "05:09", "05:14"):
+    lage = _lauf(vorheizen, dict(_vier58, zeit=f"2026-09-24T{minute}:00"),
+                 CONFIG(), zv)
+pruefe(vorheizen.gesetzt == [],
+       f"und danach kein Telegramm mehr: {vorheizen.gesetzt}")
+pruefe(lage.get("aktiv") and vorheizen.abmeldungen == 0,
+       "vor allem gibt der Planer die Fuehrung nicht ab")
+pruefe(not zv["kessel"].get("verworfen"),
+       "die Anlage hat nichts verworfen - es sah nur so aus")
 
 # Ein handgefuehrter Raum darf die Huellkurve nicht ueber die Erweiterung
 # wieder aufspannen – sonst schliesst fuer_tag ihn aus und bedarf_bis holt ihn

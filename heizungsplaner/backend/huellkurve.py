@@ -37,6 +37,30 @@ KOMFORT = ("komfort",)
 
 LEER = "##:##-##:##"
 
+# Das Zeitraster der Regelung. Ein Albatros führt seine Schaltzeiten in
+# Zehn-Minuten-Schritten: Schreibt man 04:58, steht danach 04:50 im Gerät.
+# Wer das nicht weiß, schreibt in jedem Takt aufs Neue – der Planer las
+# zurück, fand etwas anderes, als er geschickt hatte, und hielt es für einen
+# Widerspruch. Am 24.09.2026 hat er deshalb nach drei Versuchen die Führung
+# abgegeben, obwohl die Regelung alles getan hatte, was sie konnte.
+#
+# Gerundet wird darum vor dem Schreiben, und zwar **nach außen**: Beginn
+# abwärts, Ende aufwärts. Ein Fenster wird dabei nie kleiner – höchstens neun
+# Minuten zu früh warm, nie neun Minuten zu spät.
+RASTER_MIN = 10
+
+
+def rasten(fenster: list[tuple[int, int]],
+           raster: int = RASTER_MIN) -> list[tuple[int, int]]:
+    """Jedes Fenster auf das Raster der Regelung legen, nach außen."""
+    if raster <= 1:
+        return list(fenster)
+    gerastet = []
+    for beginn, ende in fenster:
+        gerastet.append((int(beginn) // raster * raster,
+                         min(-(-int(ende) // raster) * raster, 24 * 60)))
+    return gerastet
+
 
 def _minuten(text: str) -> int:
     stunde, minute = str(text).split(":")[:2]
@@ -116,7 +140,14 @@ def eindampfen(fenster: list[tuple[int, int]],
 
 
 def als_text(fenster: list[tuple[int, int]], phasen: int = PHASEN) -> str:
-    """Die Schreibweise der Regelung: ``06:00-08:00 17:00-22:00 ##:##-##:##``."""
+    """Die Schreibweise der Regelung: ``06:00-08:00 17:00-22:00 ##:##-##:##``.
+
+    Hier – und nur hier – wird auf das Raster der Regelung gelegt: Durch diese
+    Zeile geht alles, was geschrieben, angezeigt und verglichen wird. Damit
+    steht im Planer dieselbe Zeit wie im Gerät, und der Vergleich nach dem
+    Schreiben findet keinen Widerspruch mehr, wo keiner ist.
+    """
+    fenster = eindampfen(rasten(list(fenster)), max(phasen, 1))
     teile = [f"{_uhr(b)}-{_uhr(e)}" for b, e in fenster[:phasen]]
     teile += [LEER] * (phasen - len(teile))
     return " ".join(teile)
@@ -227,6 +258,12 @@ def erweitern(text: str, bis_minute: int, jetzt: datetime,
         return None
     beginn_neu = jetzt_min if ab_minute is None else min(int(ab_minute),
                                                         jetzt_min)
+    # Auf dasselbe Raster wie das Geschriebene: Sonst hielte ein Fenster, das
+    # bis 07:30 reicht, einen Bedarf bis 07:32 für ungedeckt und schriebe
+    # jeden Takt aufs Neue.
+    beginn_neu, bis_minute = rasten([(beginn_neu, bis_minute)])[0]
+    if bis_minute <= jetzt_min:
+        return None
     fenster = aus_text(text)
     for beginn, ende in fenster:
         if beginn <= jetzt_min < ende and ende >= bis_minute:

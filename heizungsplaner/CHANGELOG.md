@@ -1,5 +1,22 @@
 # Änderungen
 
+## 1.31.6
+
+- **Behoben: Der Planer gab die Führung ab, weil er das Zeitraster der
+  Regelung nicht kannte.** Ein Albatros führt seine Schaltzeiten in
+  Zehn-Minuten-Schritten: Geschrieben wurde 04:58, abgelegt hat das Gerät
+  04:50. Der Planer las zurück, fand etwas anderes, als er geschickt hatte,
+  und schrieb erneut – am 24.09.2026 sieben Mal – bis seine Sicherung griff
+  („die Regelung nimmt zurück, was ich schreibe“) und er den vorgefundenen
+  Plan wiederherstellte und sich abschaltete. Die Regelung hatte nichts
+  zurückgenommen; sie kann nur keine 04:58.
+- Geschriebene Zeiten liegen jetzt auf dem Raster der Regelung, gerundet
+  **nach außen**: Beginn abwärts, Ende aufwärts. Ein Fenster wird dabei nie
+  kürzer – höchstens neun Minuten zu früh warm, nie neun zu spät. Berühren
+  sich zwei Fenster durchs Runden, werden sie zusammengelegt.
+- Die Prüfungen fälschen die Anlage jetzt mitsamt ihrem Raster. Ohne die
+  Rundung fallen sieben davon durch.
+
 ## 1.31.5
 
 - **Behoben: Die Kopfzeile zeigte eine falsche Fassung.** Die Nummer stand an
