@@ -1,5 +1,16 @@
 # Änderungen
 
+## 1.31.10
+
+- **Behoben: Ein gemerkter Fensterbeginn konnte Stunden später wieder
+  auftauchen.** Seit 1.31.4 merkt sich der Planer, wo eine Zusatzzeit begonnen
+  hat, damit sie nicht in jedem Takt nach hinten wandert. Gemerkt wurde sie
+  aber für den ganzen Tag: Meldete am Nachmittag ein Raum neuen Bedarf, zog
+  der Planer das Fenster bis zum Beginn des Vorheizens von morgens zurück –
+  aus „05:30-07:30 12:30-21:00“ wäre „04:50-21:00“ geworden und die Absenkung
+  über Mittag verschluckt. Der gemerkte Beginn gilt jetzt nur noch für ein
+  Fenster, das ohne Unterbrechung läuft (längstens 20 Minuten Pause).
+
 ## 1.31.9
 
 - **Behoben: Nach einer Rückgabe hatte der Planer ein falsches Bild von der

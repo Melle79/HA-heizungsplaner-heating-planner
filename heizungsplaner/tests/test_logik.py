@@ -1859,8 +1859,22 @@ _lauf(wandern, _spaet("12:10"), CONFIG(), zw)
 pruefe(wandern.gesetzt == [],
        f"und die naechsten Takte schreiben es nicht noch einmal kuerzer: "
        f"{wandern.gesetzt}")
-pruefe(zw["kessel"]["sonderfenster"] == {"datum": "2026-09-11", "von": 720},
-       f"der Beginn wird gemerkt: {zw['kessel'].get('sonderfenster')}")
+gemerkt = zw["kessel"]["sonderfenster"]
+pruefe(gemerkt.get("datum") == "2026-09-11" and gemerkt.get("von") == 720,
+       f"der Beginn wird gemerkt: {gemerkt}")
+
+# Aber nur fuer ein Fenster, das durchlaeuft. Nach einer Pause faengt das
+# naechste bei sich selbst an - sonst holt ein Bedarf am Nachmittag den
+# Beginn des Vorheizens von heute frueh zurueck und verschluckt die
+# Absenkung dazwischen.
+pruefe(hk.erweitern("05:30-07:30 12:30-21:00", 21 * 60,
+                    datetime(2026, 9, 24, 10, 30), 4 * 60 + 50)
+       == "04:50-21:00 ##:##-##:## ##:##-##:##",
+       "mit altem Beginn wuerde alles zu einem Block")
+pruefe(not kessel._frisch("2026-09-24T04:58:00", datetime(2026, 9, 24, 10, 30)),
+       "ein Beginn von vor Stunden gilt darum nicht mehr")
+pruefe(kessel._frisch("2026-09-24T10:25:00", datetime(2026, 9, 24, 10, 30)),
+       "der aus dem vorigen Takt dagegen schon")
 vorbei = dict(_spaet("12:15"), raeume=[
     {"name": "Buero", "zustand": "eco", "naechster_wechsel": None}])
 _lauf(wandern, vorbei, CONFIG(), zw)

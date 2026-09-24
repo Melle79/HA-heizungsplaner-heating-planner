@@ -178,6 +178,22 @@ def basis(einstellungen: dict) -> str | None:
     return _gefunden or None
 
 
+# Wie lange die Erinnerung an ein Sonderfenster überlebt. Ein Takt dauert
+# fünf Minuten; drei verpasste Takte heißen: Das Fenster lief nicht durch.
+SONDERFENSTER_FRIST_MIN = 20
+
+
+def _frisch(zuletzt: str | None, jetzt: datetime) -> bool:
+    """Lief das gemerkte Sonderfenster eben noch?"""
+    if not zuletzt:
+        return False
+    try:
+        vorher = datetime.fromisoformat(str(zuletzt))
+    except ValueError:
+        return False
+    return 0 <= (jetzt - vorher).total_seconds() <= SONDERFENSTER_FRIST_MIN * 60
+
+
 def bedarf_bis(bericht: dict) -> int | None:
     """Bis wann ein Raum Komfort verlangt, den kein Wochenplan vorhersieht.
 
@@ -833,13 +849,22 @@ def _heizkreis_fuehren(bericht: dict, config: dict, state: dict, protokoll,
         merker.pop("sonderfenster", None)
     else:
         ab = jetzt.hour * 60 + jetzt.minute
-        if sonder.get("datum") == heute_datum:
+        # Der gemerkte Beginn gilt nur für ein Fenster, das **ohne
+        # Unterbrechung** läuft. Sonst holt ein neuer Bedarf am Nachmittag den
+        # Beginn des Vorheizens von heute früh zurück, und aus zwei Fenstern
+        # wird eines, das die Absenkung dazwischen verschluckt: aus
+        # „05:30-07:30 12:30-21:00“ würde „04:50-21:00“ – fünf Stunden Komfort,
+        # die niemand verlangt hat.
+        if (sonder.get("datum") == heute_datum
+                and _frisch(sonder.get("zuletzt"), jetzt)):
             ab = min(int(sonder.get("von", ab)), ab)
         breiter = huellkurve.erweitern(plan[heute], bis, jetzt, ab)
         if breiter:
             plan[heute] = breiter
             erweitert = True
-            merker["sonderfenster"] = {"datum": heute_datum, "von": ab}
+            merker["sonderfenster"] = {
+                "datum": heute_datum, "von": ab,
+                "zuletzt": jetzt.isoformat(timespec="seconds")}
         else:
             # Der Wochenplan deckt den Bedarf selbst ab – kein Sonderfenster.
             merker.pop("sonderfenster", None)
