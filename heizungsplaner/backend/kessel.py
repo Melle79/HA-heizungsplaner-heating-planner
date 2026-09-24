@@ -491,7 +491,7 @@ def _gezaehlt(merker: dict, nr: str) -> int:
 
 
 def _verworfen(merker: dict, ist: dict, gelesen: dict, einstellungen: dict,
-               protokoll) -> dict | None:
+               protokoll, jetzt_min: int | None = None) -> dict | None:
     """Hat die Regelung zurückgenommen, was der Planer geschrieben hat?
 
     Ein Telegramm anzunehmen und ein Telegramm zu befolgen sind zweierlei.
@@ -521,7 +521,7 @@ def _verworfen(merker: dict, ist: dict, gelesen: dict, einstellungen: dict,
             continue                       # seither nicht neu gelesen
         if huellkurve.aus_text(ist[nr]) == huellkurve.aus_text(text):
             continue
-        if huellkurve.nur_angepasst(ist[nr], text):
+        if huellkurve.nur_angepasst(ist[nr], text, seit=jetzt_min):
             continue          # angenommen und zurechtgelegt, nicht verworfen
         abweichung.append(nr)
 
@@ -793,7 +793,8 @@ def _heizkreis_fuehren(bericht: dict, config: dict, state: dict, protokoll,
     # -- Hat gehalten, was wir geschrieben haben? ---------------------------
     nach_nr = {parameter[tag]: text for tag, text in inhalt.items()}
     aufgegeben = _verworfen(merker, nach_nr, stand["gelesen"],
-                            einstellungen, protokoll)
+                            einstellungen, protokoll,
+                            _jetzt_minute(bericht))
     if aufgegeben is not None:
         return aufgegeben
 
@@ -872,7 +873,8 @@ def _heizkreis_fuehren(bericht: dict, config: dict, state: dict, protokoll,
         # Der reguläre Wochenplan bleibt davon unberührt – gerade das Kürzen
         # ist ja der Sinn der Sache.
         if (erweitert and tag == heute
-                and huellkurve.nur_angepasst(vorhanden, soll)):
+                and huellkurve.nur_angepasst(
+                    vorhanden, soll, seit=jetzt.hour * 60 + jetzt.minute)):
             gedeckt.append(tag)
             continue
         # Die Bremse hält nur auf, was Wärme wegnimmt. Eine Änderung, die

@@ -646,6 +646,11 @@ therefore checks whether the demand is already met. If something else stands
 there that contains every minute asked for and goes at most half an hour
 beyond, there is nothing to do.
 
+Measuring starts **from now**. A window that begins at “now” says nothing
+about the past: if the controller starts it a quarter of an hour earlier, that
+oil is long burnt – there is nothing left to save there and nothing left to
+change. What is still ahead counts in full.
+
 The half-hour cap belongs to that: without it the found plan “06:00-22:00”
 would count as covered too, and the planner would never set back again – yet
 setting back is exactly how it saves oil. The exception therefore applies only

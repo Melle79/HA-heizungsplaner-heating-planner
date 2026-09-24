@@ -1918,6 +1918,17 @@ pruefe(not hk.nur_angepasst("06:00-22:00", "05:30-07:30 09:00-21:00"),
        "ein ganz anderer Plan dagegen nicht - sonst wuerde nie mehr gekuerzt")
 pruefe(not hk.nur_angepasst("04:00-08:00", "05:00-08:00"),
        "und eine Stunde zu viel ist keine Anpassung mehr")
+# Gemessen wird ab jetzt. Ein Fenster, das bei "jetzt" beginnt, sagt nichts
+# ueber die Vergangenheit: Legt die Regelung es eine Viertelstunde frueher an,
+# ist dieses Oel laengst verbrannt - daran ist nichts mehr zu sparen.
+_fuenf03 = 5 * 60 + 3
+pruefe(hk.nur_angepasst("04:00-08:00", "05:00-08:00", seit=_fuenf03),
+       "was hinter uns liegt, zaehlt nicht als Abweichung")
+pruefe(not hk.nur_angepasst("05:00-08:30", "05:00-07:30", seit=_fuenf03),
+       "eine Stunde, die erst noch kommt, dagegen schon")
+pruefe(not hk.nur_angepasst("06:00-22:00", "05:30-07:30 09:00-21:00",
+                            seit=_fuenf03),
+       "und ein Plan, der den laufenden Bedarf nicht deckt, erst recht")
 
 fremd, zf = Anlage(uebernommen=True), {}
 fremd.raster = 15

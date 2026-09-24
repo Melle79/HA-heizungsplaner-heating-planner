@@ -654,6 +654,11 @@ heutigen Tag sieht der Planer deshalb nach, ob der Bedarf schon gedeckt ist.
 Steht dort etwas anderes, das aber jede verlangte Minute enthält und
 höchstens eine halbe Stunde darüber hinausgeht, ist nichts zu tun.
 
+Gemessen wird dabei **ab jetzt**. Ein Fenster, das bei „jetzt" beginnt, sagt
+nichts über die Vergangenheit: Legt die Regelung es eine Viertelstunde früher
+an, ist dieses Öl längst verbrannt – daran ist nichts mehr zu sparen und
+nichts mehr zu ändern. Was noch kommt, zählt weiterhin voll.
+
 Der Deckel von einer halben Stunde gehört dazu: Ohne ihn zählte auch der
 vorgefundene Plan „06:00-22:00" als gedeckt, und der Planer würde nie wieder
 kürzen – dabei spart er gerade durchs Kürzen das Öl. Für den regulären

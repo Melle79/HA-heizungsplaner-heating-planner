@@ -234,12 +234,29 @@ def deckt(soll: str, ist: str) -> bool:
 ANPASSUNG_MIN = 30
 
 
-def dauer(text: str) -> int:
-    """Wie viele Komfortminuten in einem Tagesprogramm stehen."""
-    return sum(ende - beginn for beginn, ende in aus_text(text))
+def ab(fenster: list[tuple[int, int]], minute: int) -> list[tuple[int, int]]:
+    """Nur der Teil, der noch kommt – alles vor ``minute`` fällt weg."""
+    beschnitten = []
+    for beginn, ende in fenster:
+        if ende <= minute:
+            continue
+        beschnitten.append((max(beginn, minute), ende))
+    return beschnitten
 
 
-def nur_angepasst(ist: str, soll: str, toleranz: int = ANPASSUNG_MIN) -> bool:
+def dauer(text: str, seit: int | None = None) -> int:
+    """Wie viele Komfortminuten in einem Tagesprogramm stehen.
+
+    Mit ``seit`` nur die, die noch bevorstehen.
+    """
+    fenster = aus_text(text)
+    if seit is not None:
+        fenster = ab(fenster, seit)
+    return sum(ende - beginn for beginn, ende in fenster)
+
+
+def nur_angepasst(ist: str, soll: str, toleranz: int = ANPASSUNG_MIN,
+                  seit: int | None = None) -> bool:
     """Hat die Regelung den Befehl angenommen und nur zurechtgelegt?
 
     Ein Telegramm kann auf drei Arten enden: befolgt, verweigert – oder
@@ -255,7 +272,18 @@ def nur_angepasst(ist: str, soll: str, toleranz: int = ANPASSUNG_MIN) -> bool:
     Der Deckel ist wichtig. Ohne ihn zählte auch ein vorgefundenes
     „06:00-22:00“ als angepasst, und der Planer setzte nie wieder ab – er
     spart ja gerade dadurch Öl, dass er Komfortzeiten *kürzt*.
+
+    ``seit`` schneidet beides auf das ab, was noch kommt. Das gehört dazu,
+    sobald ein Fenster bei „jetzt“ beginnt: Legt die Regelung es fünfzehn
+    Minuten früher an, liegt dieser Zuschlag in der Vergangenheit. Daran ist
+    nichts mehr zu sparen und nichts mehr zu ändern – es als Abweichung zu
+    zählen hieße, wegen verbrauchten Öls neues zu verbrennen.
     """
+    if seit is not None:
+        gestutzt_ist = als_text(ab(aus_text(ist), seit))
+        gestutzt_soll = als_text(ab(aus_text(soll), seit))
+        return (deckt(gestutzt_ist, gestutzt_soll)
+                and dauer(gestutzt_ist) - dauer(gestutzt_soll) <= toleranz)
     return deckt(ist, soll) and dauer(ist) - dauer(soll) <= toleranz
 
 

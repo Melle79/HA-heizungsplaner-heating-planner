@@ -15,6 +15,15 @@
   vorgefundenes „06:00-22:00" als gedeckt, und es würde nie wieder gekürzt –
   dabei spart genau das Öl. Für den regulären Wochenplan gilt die Ausnahme
   deshalb nicht, nur für das Sonderfenster von heute.
+- **Gemessen wird ab jetzt.** Ein Fenster, das bei „jetzt" beginnt, sagt
+  nichts über die Vergangenheit: Legt die Regelung es eine Viertelstunde
+  früher an, ist dieses Öl längst verbrannt. Diesen Zuschlag als Abweichung
+  zu zählen hieße, wegen verbrauchten Öls neues zu verbrennen. Was noch
+  kommt, zählt weiterhin voll.
+- Der Deckel von einer halben Stunde ist Absicht: Ohne ihn zählte auch ein
+  vorgefundenes „06:00-22:00" als gedeckt, und es würde nie wieder gekürzt –
+  dabei spart genau das Öl. Für den regulären Wochenplan gilt die Ausnahme
+  deshalb nicht, nur für das Sonderfenster von heute.
 
 ## 1.31.6
 
