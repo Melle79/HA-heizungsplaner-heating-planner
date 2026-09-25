@@ -1,5 +1,19 @@
 # Änderungen
 
+## 1.31.11
+
+- **Behoben: Ein Handeingriff wurde bis zu einer Viertelstunde lang nicht
+  angezeigt.** Nach jedem eigenen Schreibvorgang wartet der Planer 15 Minuten,
+  bevor er eine Abweichung als Handeingriff wertet – Funkthermostate melden
+  verzögert, und eine späte Rückmeldung als Hand zu deuten wäre der teurere
+  Irrtum. Diese Frist galt aber pauschal: Wer in dieser Zeit am Thermostat
+  drehte, sah auf der Kachel weiter den Wunsch des Planers und hielt es für
+  eine hängende Anzeige.
+- Jetzt gilt die Frist nur noch, solange der eigene Wert **unbestätigt** ist.
+  Hat das Gerät ihn einmal gemeldet, kann eine Abweichung danach nur von Hand
+  kommen – und wird sofort erkannt, beim nächsten Takt.
+- Am Verhalten bei einem noch unbestätigten Schreibvorgang ändert sich nichts.
+
 ## 1.31.10
 
 - **Behoben: Ein gemerkter Fensterbeginn konnte Stunden später wieder

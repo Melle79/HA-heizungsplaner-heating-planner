@@ -786,7 +786,18 @@ def anwenden(raum: dict, entscheidung: dict, state: dict, umgebung: dict,
         # ab, hat jemand von Hand gedreht. Das gilt bis zum nächsten
         # Zeitplanwechsel, danach führt wieder der Plan.
         erzwingen = bool(entscheidung.get("erzwingen"))
-        if einst.get("manuell_respektieren") and not frisch and not erzwingen:
+        # Die Bestätigungsfrist gilt nur, solange der eigene Wert noch
+        # unbestätigt ist. `vor_schreiben` wird beim Schreiben gesetzt und
+        # geleert, sobald das Gerät den Wert gemeldet hat – ist es leer, stand
+        # unser Wert zuletzt nachweislich im Gerät, und jede Abweichung danach
+        # kann nur eine Hand sein.
+        #
+        # Vorher wartete der Planer pauschal fünfzehn Minuten. Wer an einem
+        # Thermostat dreht, sah in dieser Zeit weiter den Wunsch des Planers
+        # auf der Kachel und hielt es für eine hängende Anzeige.
+        bestaetigt = gedaechtnis.get("vor_schreiben") is None
+        if einst.get("manuell_respektieren") and (bestaetigt or not frisch) \
+                and not erzwingen:
             geschrieben = gedaechtnis.get("soll")
             vor_schreiben = gedaechtnis.get("vor_schreiben")
             # Steht am Gerät noch genau der Wert, den es vor unserem Befehl

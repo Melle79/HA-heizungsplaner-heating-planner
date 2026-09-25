@@ -891,6 +891,37 @@ regelung.anwenden(raum_nu, {"zustand": "komfort", "ziel": 23.0, "begruendung": "
                   zust_h, umg_nu(19.5), lambda *a, **k: None)
 pruefe(zust_h["thermostate"]["climate.n"].get("manuell_bis") is not None,
        "ein dritter Wert gilt weiterhin als Handeingriff")
+
+# --- Ein Handeingriff auf einen bestaetigten Wert wird sofort erkannt -----
+#
+# Die Bestaetigungsfrist ist gegen verzoegerte Funkmeldungen gedacht. Wer an
+# einem Thermostat dreht, sah dadurch bis zu einer Viertelstunde lang weiter
+# den Wunsch des Planers auf der Kachel - und hielt es fuer eine haengende
+# Anzeige. Steht unser Wert nachweislich im Geraet (vor_schreiben geleert),
+# kann eine Abweichung danach nur eine Hand sein.
+zust_sofort = {"thermostate": {"climate.n": {
+    "soll": 23.0, "vor_schreiben": None,           # bestaetigt angekommen
+    "gesetzt_am": montag.replace(hour=13, minute=58).isoformat(timespec="seconds")}},
+    "raeume": {}}
+gesendet_nu.clear()
+regelung.anwenden(raum_nu, {"zustand": "komfort", "ziel": 23.0, "begruendung": "x"},
+                  zust_sofort, umg_nu(17.5), lambda *a, **k: None)
+pruefe(zust_sofort["thermostate"]["climate.n"].get("manuell_bis") is not None,
+       "am bestaetigten Wert gedreht: sofort erkannt, ohne die Frist abzuwarten")
+pruefe(not gesendet_nu, "und nicht ueberschrieben")
+
+# Unbestaetigt bleibt es bei der Frist: Hier kann es die verzoegerte Meldung
+# des eigenen Schreibvorgangs sein, und die als Hand zu werten waere der
+# teurere Irrtum.
+zust_warte = {"thermostate": {"climate.n": {
+    "soll": 23.0, "vor_schreiben": 19.0,           # noch unbestaetigt
+    "gesetzt_am": montag.replace(hour=13, minute=58).isoformat(timespec="seconds")}},
+    "raeume": {}}
+gesendet_nu.clear()
+regelung.anwenden(raum_nu, {"zustand": "komfort", "ziel": 23.0, "begruendung": "x"},
+                  zust_warte, umg_nu(17.5), lambda *a, **k: None)
+pruefe(zust_warte["thermostate"]["climate.n"].get("manuell_bis") is None,
+       "bei noch unbestaetigtem Wert wird die Frist weiter abgewartet")
 pruefe(not gesendet_nu, "und wird nicht ueberschrieben")
 
 # Steht das Geraet wieder auf dem Zielwert, ist der Handeingriff erledigt.
