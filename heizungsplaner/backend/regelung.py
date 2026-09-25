@@ -127,7 +127,8 @@ def raumtemperatur(raum: dict, states_index: dict) -> float | None:
 
 
 def fenster_offen(raum: dict, states_index: dict, rz: dict, ist: float | None,
-                  jetzt: datetime, fenster_cfg: dict) -> tuple[bool, str, str]:
+                  jetzt: datetime,
+                  fenster_cfg: dict) -> tuple[bool, str, str, bool]:
     """Fenstererkennung: erst die Kontakte, dann ersatzweise der Temperatursturz.
 
     Rückgabe: offen, Begründung, Hinweis zum Verfahren.
@@ -169,15 +170,16 @@ def fenster_offen(raum: dict, states_index: dict, rz: dict, ist: float | None,
         if not geraeteeigen:
             verlaesslich += 1
         if zustand:
+            # Ein Kontakt ist eine Messung, kein Schluss: Er gilt sofort.
             return True, (texte.t("fenster_geraet", name=name) if geraeteeigen
-                          else texte.t("fenster_kontakt", name=name)), ""
+                          else texte.t("fenster_kontakt", name=name)), "", True
 
     hinweis = ""
     if stumm:
         hinweis = texte.t("fenster_stumm", anzahl=len(stumm))
     sturz_erlaubt = verlaesslich == 0 or raum.get("sturz_auch_mit_kontakten") or stumm
     if not sturz_erlaubt or ist is None:
-        return False, "", hinweis
+        return False, "", hinweis, True
 
     fenster_min = int(fenster_cfg.get("sturz_min", 10))
     schwelle = float(fenster_cfg.get("sturz_k", 1.2))
@@ -188,10 +190,11 @@ def fenster_offen(raum: dict, states_index: dict, rz: dict, ist: float | None,
     if frueher:
         hoechster = max(frueher)
         if hoechster - ist >= schwelle:
+            # Nur ein Schluss aus zwei Messwerten – deshalb „nicht sicher“.
             return True, texte.t("fenster_sturz",
                                  grad=f"{hoechster - ist:.1f}",
-                                 minuten=fenster_min), hinweis
-    return False, "", hinweis
+                                 minuten=fenster_min), hinweis, False
+    return False, "", hinweis, True
 
 
 def _im_fenster(von: str | None, bis: str | None, jetzt: datetime) -> bool:
@@ -428,8 +431,28 @@ def entscheide(raum: dict, rz: dict, umgebung: dict) -> dict:
 
     # 2 — Fenster
     sperre_bis = _aus_iso(rz.get("fenster_bis"))
-    offen, fenster_grund, fenster_hinweis = fenster_offen(
+    offen, fenster_grund, fenster_hinweis, sicher = fenster_offen(
         raum, states_index, rz, ist, jetzt, einst["fenster"])
+
+    # Ein Temperatursturz ohne Fensterkontakt muss zwei Takte lang bestehen.
+    #
+    # Er ist ein Schluss aus zwei Messwerten, kein Messwert. Wo die
+    # Raumtemperatur vom Thermostat selbst kommt, ist das riskant: Solche
+    # Geräte melden grob – oft nur in ganzen Grad und alle paar Stunden –, und
+    # dann ist ein einziger Zählschritt schon ein „Sturz“ von zwei Kelvin.
+    #
+    # Genau das ist hier passiert: 22 °C, dann 20 °C, dreißig Minuten
+    # Frostschutz im Kinderzimmer – und elf Minuten später stand der Fühler
+    # wieder auf 21, dann auf 22. Bei offenem Fenster bleibt es kalt; ein
+    # Fühlersprung kommt zurück. Ein Takt Geduld unterscheidet beides, und ein
+    # verspäteter Fenstersperre kostet weniger als ein grundloser Frostschutz.
+    if offen and not sicher:
+        if not rz.get("sturz_seit"):
+            rz["sturz_seit"] = _iso(jetzt)
+            offen = False                  # erst beim nächsten Takt bestätigt
+    else:
+        rz.pop("sturz_seit", None)
+
     if offen:
         sperre_bis = jetzt + timedelta(minutes=int(einst["fenster"]["sperre_min"]))
         rz["fenster_bis"] = _iso(sperre_bis)

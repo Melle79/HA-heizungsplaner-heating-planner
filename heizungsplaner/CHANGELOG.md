@@ -1,5 +1,21 @@
 # Änderungen
 
+## 1.32.0
+
+- **Behoben: Ein Fühlersprung löste eine halbe Stunde Frostschutz aus.** Wo ein
+  Raum keine Fensterkontakte hat, erkennt der Planer ein offenes Fenster am
+  Temperatursturz. Kommt die Raumtemperatur vom Thermostat selbst, ist das
+  riskant: Solche Geräte melden grob – oft nur in ganzen Grad und bloß alle
+  paar Stunden –, und dann ist ein einziger Zählschritt schon ein „Sturz“ von
+  zwei Kelvin.
+- Im Betrieb sah das so aus: 22 °C, dann 20 °C, dreißig Minuten Frostschutz in
+  einem Kinderzimmer – und elf Minuten später stand der Fühler wieder auf 21,
+  dann auf 22. Bei offenem Fenster bleibt es kalt; ein Fühlersprung kommt
+  zurück.
+- **Ein Sturz ohne Fensterkontakt muss jetzt zwei Takte lang bestehen.** Für
+  Kontakte ändert sich nichts – die sind eine Messung und greifen sofort. Ein
+  verspäteter Fenstersperre kostet weniger als ein grundloser Frostschutz.
+
 ## 1.31.11
 
 - **Behoben: Ein Handeingriff wurde bis zu einer Viertelstunde lang nicht

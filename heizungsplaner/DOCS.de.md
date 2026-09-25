@@ -483,6 +483,21 @@ der `current_temperature` aller Thermostate des Raumes.
 Nach beiden Wegen bleibt der Raum für die Sperrzeit auf Frostschutz, damit ein
 kurzes Stoßlüften nicht sofort wieder gegengeheizt wird.
 
+### Ein Sturz muss zwei Takte bestehen
+
+Ein Fensterkontakt ist eine Messung – er gilt sofort. Der Temperatursturz ist
+dagegen ein **Schluss aus zwei Messwerten**, und der kann danebenliegen.
+
+Besonders dort, wo die Raumtemperatur vom Thermostat selbst kommt: Solche
+Geräte melden grob, oft nur in ganzen Grad und bloß alle paar Stunden. Ein
+einziger Zählschritt ist dann schon ein „Sturz“ von zwei Kelvin – mehr als
+jede sinnvolle Schwelle.
+
+Deshalb wartet der Planer bei einem Sturz **ohne Kontakt** einen Takt ab. Bei
+offenem Fenster bleibt es kalt, und beim nächsten Durchlauf wird gesperrt; ein
+Fühlersprung ist bis dahin zurück, und nichts passiert. Ein verspätetes
+Zumachen kostet weniger als eine halbe Stunde Frostschutz, die niemand wollte.
+
 ### Kontakte nachrüsten
 
 Neue Kontakte müssen nur in Home Assistant einem **Bereich** zugeordnet sein,

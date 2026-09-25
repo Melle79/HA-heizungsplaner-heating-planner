@@ -477,6 +477,22 @@ of the `current_temperature` of all thermostats in the room.
 After either route the room stays on frost protection for the lock period, so
 that brief airing is not immediately heated against.
 
+### A drop has to last two cycles
+
+A window contact is a measurement – it applies immediately. The temperature
+drop, by contrast, is a **conclusion drawn from two readings**, and that can be
+wrong.
+
+Especially where the room temperature comes from the thermostat itself: such
+devices report coarsely, often only in whole degrees and just every few hours.
+A single counting step is then already a “drop” of two kelvin – more than any
+sensible threshold.
+
+So for a drop **without a contact** the planner waits one cycle. With a window
+open it stays cold and the lock follows on the next pass; a sensor jump is back
+by then and nothing happens. Closing late costs less than half an hour of frost
+protection nobody wanted.
+
 ### Retrofitting contacts
 
 New contacts only need to be assigned in Home Assistant to an **area** that

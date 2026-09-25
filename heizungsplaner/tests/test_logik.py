@@ -332,6 +332,14 @@ e = regelung.entscheide(wohnzimmer, {}, umgebung(montag.replace(hour=5, minute=0
 pruefe(e["ziel"] > 22, f"05:00 Uhr wird für 05:30 vorgeheizt ({e['ziel']}, {e['begruendung']})")
 
 # Fenstersturz
+#
+# Ein Sturz ohne Fensterkontakt gilt erst, wenn er zwei Takte lang besteht:
+# Wo die Raumtemperatur vom Thermostat kommt, ist ein einzelner Zaehlschritt
+# schon ein "Sturz" von zwei Kelvin. Darum hier immer zweimal entscheiden.
+def sturz_entscheiden(raum, rz, umg):
+    regelung.entscheide(raum, rz, umg)      # erster Takt: nur gemerkt
+    return regelung.entscheide(raum, rz, umg)
+
 rz_fenster = {"temperaturquelle": "thermostate", "verlauf": [
     [(montag.replace(hour=13, minute=55)).isoformat(timespec="seconds"), 22.5],
     [(montag.replace(hour=13, minute=58)).isoformat(timespec="seconds"), 21.6],
@@ -341,10 +349,54 @@ states_index = {"climate.a": {"entity_id": "climate.a", "state": "heat",
                                              "temperature": 23.0,
                                              "min_temp": 5, "max_temp": 30,
                                              "hvac_modes": ["off", "heat"]}}}
-e = regelung.entscheide(wohnzimmer, rz_fenster,
-                        umgebung(montag.replace(hour=14), states_index=states_index))
+e = sturz_entscheiden(wohnzimmer, rz_fenster,
+                      umgebung(montag.replace(hour=14), states_index=states_index))
 pruefe(e["zustand"] == "fenster" and e["ziel"] == 8.0,
-       f"Temperatursturz erkannt ({e['begruendung']})")
+       f"Temperatursturz erkannt, nachdem er zwei Takte bestand ({e['begruendung']})")
+
+# Ein Fuehlersprung, der zurueckkommt, ist kein offenes Fenster.
+#
+# Der Fall aus dem Betrieb: Ein Thermostat meldet nur in ganzen Grad und bloss
+# alle paar Stunden. Es sprang von 22 auf 20 - ein einziger Zaehlschritt, aber
+# 2 K und damit ueber der Schwelle von 1,2 K. Ergebnis waren dreissig Minuten
+# Frostschutz in einem Kinderzimmer, und elf Minuten spaeter stand der Fuehler
+# wieder auf 21, dann auf 22. Bei offenem Fenster bleibt es kalt.
+rz_sprung = {"temperaturquelle": "thermostate", "verlauf": [
+    [(montag.replace(hour=13, minute=55)).isoformat(timespec="seconds"), 22.0],
+]}
+idx_tief = {"climate.a": {"entity_id": "climate.a", "state": "heat",
+                          "attributes": {"current_temperature": 20.0,
+                                         "temperature": 23.0, "min_temp": 5,
+                                         "max_temp": 30,
+                                         "hvac_modes": ["off", "heat"]}}}
+e1 = regelung.entscheide(wohnzimmer, rz_sprung,
+                         umgebung(montag.replace(hour=14), states_index=idx_tief))
+pruefe(e1["zustand"] != "fenster",
+       f"ein einzelner Sturz sperrt noch nicht ({e1['zustand']})")
+pruefe(rz_sprung.get("sturz_seit"), "er wird aber gemerkt")
+
+# Der Fuehler kommt zurueck -> kein Fenster, und der Verdacht faellt weg.
+idx_zurueck = {"climate.a": {"entity_id": "climate.a", "state": "heat",
+                             "attributes": {"current_temperature": 22.0,
+                                            "temperature": 23.0, "min_temp": 5,
+                                            "max_temp": 30,
+                                            "hvac_modes": ["off", "heat"]}}}
+e2 = regelung.entscheide(wohnzimmer, rz_sprung,
+                         umgebung(montag.replace(hour=14, minute=5),
+                                  states_index=idx_zurueck))
+pruefe(e2["zustand"] != "fenster",
+       f"kommt der Fuehler zurueck, gibt es keine Sperre ({e2['zustand']})")
+pruefe(not rz_sprung.get("sturz_seit"), "und der Verdacht wird geloescht")
+
+# Bleibt es dagegen kalt, greift die Sperre beim zweiten Takt.
+rz_echt = {"temperaturquelle": "thermostate", "verlauf": [
+    [(montag.replace(hour=13, minute=55)).isoformat(timespec="seconds"), 22.0],
+]}
+umg_kalt = umgebung(montag.replace(hour=14), states_index=idx_tief)
+regelung.entscheide(wohnzimmer, rz_echt, umg_kalt)
+e3 = regelung.entscheide(wohnzimmer, rz_echt, umg_kalt)
+pruefe(e3["zustand"] == "fenster" and e3["ziel"] == 8.0,
+       f"bleibt es kalt, wird gesperrt ({e3['zustand']})")
 
 # Sperre wirkt nach
 rz_sperre = {"temperaturquelle": "thermostate", "fenster_bis": (montag.replace(hour=14, minute=20)).isoformat(timespec="seconds")}
@@ -516,8 +568,12 @@ def fensterlage(kontakte, zustaende, verlauf_sturz=True, zusatz=False):
     rz = {"temperaturquelle": "thermostate", "verlauf": [
         [(montag.replace(hour=13, minute=55)).isoformat(timespec="seconds"), 22.5],
     ]} if verlauf_sturz else {"temperaturquelle": "thermostate"}
-    return regelung.entscheide(r, rz, umgebung(montag.replace(hour=14),
-                                               states_index=idx))
+    # Zweimal entscheiden: Ein Sturz ohne verlaesslichen Kontakt gilt erst,
+    # wenn er zwei Takte lang besteht. Fuer Kontakte aendert das nichts – die
+    # sind eine Messung und greifen sofort.
+    umg = umgebung(montag.replace(hour=14), states_index=idx)
+    regelung.entscheide(r, rz, umg)
+    return regelung.entscheide(r, rz, umg)
 
 e = fensterlage(["binary_sensor.fenster_wz"], {"binary_sensor.fenster_wz": "on"})
 pruefe(e["zustand"] == "fenster" and "offen" in e["begruendung"],
