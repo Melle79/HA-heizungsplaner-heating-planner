@@ -483,6 +483,17 @@ der `current_temperature` aller Thermostate des Raumes.
 Nach beiden Wegen bleibt der Raum für die Sperrzeit auf Frostschutz, damit ein
 kurzes Stoßlüften nicht sofort wieder gegengeheizt wird.
 
+### Räume, in denen sich nichts öffnen lässt
+
+Unter *Räume → Melder* steht der Haken **„Fenster in diesem Raum überwachen"**.
+Abgehakt meldet der Raum nie ein offenes Fenster – weder über Kontakte noch
+über den Temperatursturz.
+
+Das ist für Zimmer mit festverglasten Fenstern gedacht. Dort kann die
+Sturzerkennung nur falschliegen, denn ein Fenster, das sich nicht öffnen lässt,
+kann auch nicht offen stehen. Jede Auslösung ist ein Fehlalarm – und kostet
+eine halbe Stunde Frostschutz.
+
 ### Ein Sturz muss zwei Takte bestehen
 
 Ein Fensterkontakt ist eine Messung – er gilt sofort. Der Temperatursturz ist

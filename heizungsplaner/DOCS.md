@@ -477,6 +477,16 @@ of the `current_temperature` of all thermostats in the room.
 After either route the room stays on frost protection for the lock period, so
 that brief airing is not immediately heated against.
 
+### Rooms where nothing can be opened
+
+Under *Rooms → Sensors* there is the tick **“Watch windows in this room”**.
+Unticked, the room never reports an open window – neither from contacts nor
+from the temperature drop.
+
+This is meant for rooms with fixed glazing. There the drop detection can only
+be wrong, because a window that cannot be opened cannot stand open. Every
+trigger is a false alarm – and costs half an hour of frost protection.
+
 ### A drop has to last two cycles
 
 A window contact is a measurement – it applies immediately. The temperature

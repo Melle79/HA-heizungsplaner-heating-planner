@@ -1,5 +1,17 @@
 # Änderungen
 
+## 1.33.0
+
+- **Neu: Die Fensterüberwachung lässt sich je Raum abschalten.** Unter *Räume →
+  Melder* gibt es den Haken *Fenster in diesem Raum überwachen*. Abgehakt
+  meldet der Raum nie ein offenes Fenster – weder über Kontakte noch über den
+  Temperatursturz.
+- Gedacht für Zimmer mit festverglasten Fenstern. Dort ist die
+  Sturzerkennung reiner Fehlalarm-Erzeuger: Sie ist ein Schluss aus zwei
+  Messwerten, und wo die Raumtemperatur vom Thermostat selbst kommt, meldet
+  das Gerät oft nur in ganzen Grad.
+- Ab Werk bleibt die Überwachung an; an bestehenden Räumen ändert sich nichts.
+
 ## 1.32.0
 
 - **Behoben: Ein Fühlersprung löste eine halbe Stunde Frostschutz aus.** Wo ein

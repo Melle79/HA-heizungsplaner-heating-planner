@@ -1036,6 +1036,15 @@
           <input type="checkbox" id="r-sturz">
           <span>Zusätzlich auf Temperatursturz achten, auch wenn alle Kontakte
             geschlossen melden</span></label>
+        <label class="haken" style="margin-top:var(--l2)">
+          <input type="checkbox" id="r-fenster-erkennung">
+          <span>Fenster in diesem Raum überwachen</span></label>
+        <div class="notiz">Abhaken, wenn sich hier nichts öffnen lässt. Dann
+          meldet der Raum nie ein offenes Fenster – weder über Kontakte noch
+          über den Temperatursturz. Das erspart Fehlalarme in Räumen mit
+          festverglasten Fenstern: Der Sturz ist ein Schluss aus zwei
+          Messwerten, und wo die Raumtemperatur vom Thermostat kommt, meldet
+          das oft nur in ganzen Grad.</div>
       </div>
     </div>
   </div>
@@ -2335,7 +2344,8 @@ function raumOeffnen(raum, startblatt) {
     name:'', aktiv:true, betriebsart:'plan', thermostate:[], personen:[], praesenz:[],
     fenster:[], raumtemp:'', komfort:21, eco:19, nacht:18, abwesend:17, min:5, max:26,
     heizkurve:true, anwesenheit:true, nur_praesenz:false, karenz_min:null,
-    freigabe_entity:'', sturz_auch_mit_kontakten:false, zeitplan:[],
+    freigabe_entity:'', sturz_auch_mit_kontakten:false,
+    fenster_erkennung:true, zeitplan:[],
   };
   $('d-titel').textContent = neu ? 'Neuer Raum' : d.name;
   $('d-titel').toggleAttribute('data-roh', !neu);
@@ -2353,6 +2363,7 @@ function raumOeffnen(raum, startblatt) {
   $('r-nur-praesenz').checked = d.nur_praesenz;
   $('r-party').checked = d.party !== false;
   $('r-sturz').checked = d.sturz_auch_mit_kontakten;
+  $('r-fenster-erkennung').checked = d.fenster_erkennung !== false;
   $('r-karenz').value = d.karenz_min === null || d.karenz_min === undefined
     ? '' : d.karenz_min;
   $('btn-raum-loeschen').style.display = neu ? 'none' : 'inline-block';
@@ -2440,6 +2451,7 @@ $('btn-raum-speichern').onclick = async () => {
     karenz_min: $('r-karenz').value === '' ? null : parseInt($('r-karenz').value, 10),
     freigabe_entity: $('r-freigabe').value,
     sturz_auch_mit_kontakten: $('r-sturz').checked,
+    fenster_erkennung: $('r-fenster-erkennung').checked,
     zeitplan: zeitplanEntwurf,
     uebersteuerung: uebersteuerungEntwurf,
   };

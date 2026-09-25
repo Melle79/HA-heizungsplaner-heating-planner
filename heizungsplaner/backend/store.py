@@ -228,6 +228,11 @@ STANDARD_RAUM = {
     "karenz_min": None,        # None = die globale Karenzzeit gilt
     "freigabe_entity": "",     # leer = der Raum ist immer freigegeben
     "sturz_auch_mit_kontakten": False,
+    # Räume, in denen sich nichts öffnen lässt, brauchen keine
+    # Fenstererkennung. Ohne diesen Schalter bliebe dort die
+    # Temperatursturz-Erkennung scharf – und die ist ein Schluss aus zwei
+    # Messwerten, der bei grob meldenden Fühlern zwangsläufig danebengreift.
+    "fenster_erkennung": True,
     # Regeln, die den Zeitplan übersteuern, solange ihre Bedingungen alle
     # zutreffen – etwa „Werktag, keine Ferien, Isabel zu Hause“ für ein
     # Wohnzimmer, das sonst vormittags absinken würde.
@@ -517,6 +522,7 @@ def validate_raum(raum: dict, vorhandene_id: str | None = None) -> dict:
         "karenz_min": karenz,
         "freigabe_entity": str(raum.get("freigabe_entity") or "").strip(),
         "sturz_auch_mit_kontakten": bool(raum.get("sturz_auch_mit_kontakten", False)),
+        "fenster_erkennung": bool(raum.get("fenster_erkennung", True)),
         "uebersteuerung": uebersteuerung,
         "zeitplan": validate_zeitplan(raum.get("zeitplan") or []),
         **temperaturen,

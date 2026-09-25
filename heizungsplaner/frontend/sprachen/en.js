@@ -148,6 +148,9 @@ window.SPRACHEN.en = {
   "geräteeigene Erkennung": "device's own detection",
   "eines Thermostats löst zwar mit aus, verdrängt die Sturz-Erkennung aber nicht: Sie schweigt, sobald das Gerät abgeschaltet ist.":
     "of a thermostat does trigger as well, but does not replace the drop detection: it goes quiet as soon as the device is switched off.",
+  "Fenster in diesem Raum überwachen": "Watch windows in this room",
+  "Abhaken, wenn sich hier nichts öffnen lässt. Dann meldet der Raum nie ein offenes Fenster – weder über Kontakte noch über den Temperatursturz. Das erspart Fehlalarme in Räumen mit festverglasten Fenstern: Der Sturz ist ein Schluss aus zwei Messwerten, und wo die Raumtemperatur vom Thermostat kommt, meldet das oft nur in ganzen Grad.":
+    "Untick this if nothing here can be opened. The room will then never report an open window – neither from contacts nor from the temperature drop. That avoids false alarms in rooms with fixed glazing: the drop is a conclusion drawn from two readings, and where the room temperature comes from the thermostat it often reports only in whole degrees.",
   "Zusätzlich auf Temperatursturz achten, auch wenn alle Kontakte geschlossen melden":
     "Watch the temperature drop as well, even when all contacts report closed",
   "filtern …": "filter …",

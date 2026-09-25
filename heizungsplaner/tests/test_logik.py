@@ -398,6 +398,41 @@ e3 = regelung.entscheide(wohnzimmer, rz_echt, umg_kalt)
 pruefe(e3["zustand"] == "fenster" and e3["ziel"] == 8.0,
        f"bleibt es kalt, wird gesperrt ({e3['zustand']})")
 
+# Ein Raum, in dem sich nichts oeffnen laesst, meldet nie ein Fenster.
+#
+# Drei Zimmer haben festverglaste Fenster. Dort ist die Sturzerkennung reiner
+# Fehlalarm-Erzeuger: ein Schluss aus zwei Messwerten, wo der Fuehler im
+# Thermostat sitzt und nur in ganzen Grad meldet.
+wohn_zu = dict(wohnzimmer, fenster_erkennung=False)
+rz_zu = {"temperaturquelle": "thermostate", "verlauf": [
+    [(montag.replace(hour=13, minute=55)).isoformat(timespec="seconds"), 22.5],
+]}
+e = regelung.entscheide(wohn_zu, rz_zu,
+                        umgebung(montag.replace(hour=14), states_index=idx_tief))
+pruefe(e["zustand"] != "fenster",
+       f"ohne Fensterueberwachung kein Sturzalarm ({e['zustand']})")
+e = regelung.entscheide(wohn_zu, rz_zu,
+                        umgebung(montag.replace(hour=14, minute=5),
+                                 states_index=idx_tief))
+pruefe(e["zustand"] != "fenster",
+       "auch beim zweiten Takt nicht - der Raum ist stumm gestellt")
+
+# Auch ein offener Kontakt zaehlt dort nicht: Wer die Ueberwachung abschaltet,
+# will Ruhe, nicht eine halbe.
+wohn_zu_k = store.validate_raum({**wohnzimmer, "fenster": ["binary_sensor.f"],
+                                 "fenster_erkennung": False})
+idx_offen = dict(idx_tief)
+idx_offen["binary_sensor.f"] = {"entity_id": "binary_sensor.f", "state": "on",
+                                "attributes": {"friendly_name": "F"}}
+e = regelung.entscheide(wohn_zu_k, {"temperaturquelle": "thermostate"},
+                        umgebung(montag.replace(hour=14), states_index=idx_offen))
+pruefe(e["zustand"] != "fenster",
+       f"und ein Kontakt wird dort ebenfalls nicht ausgewertet ({e['zustand']})")
+
+# Standard bleibt: ueberwacht.
+pruefe(store.validate_raum({**wohnzimmer})["fenster_erkennung"] is True,
+       "ab Werk wird weiter ueberwacht")
+
 # Sperre wirkt nach
 rz_sperre = {"temperaturquelle": "thermostate", "fenster_bis": (montag.replace(hour=14, minute=20)).isoformat(timespec="seconds")}
 e = regelung.entscheide(wohnzimmer, rz_sperre, umgebung(montag.replace(hour=14)))

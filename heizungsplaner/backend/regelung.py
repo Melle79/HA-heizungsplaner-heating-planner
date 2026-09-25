@@ -150,6 +150,14 @@ def fenster_offen(raum: dict, states_index: dict, rz: dict, ist: float | None,
     Sensor würde den Raum sonst stillschweigend blind machen. In dem Fall
     springt die Sturzerkennung wieder ein.
     """
+    # Ein Raum, in dem sich nichts öffnen lässt, meldet nie ein Fenster.
+    # Ohne diesen Ausstieg bliebe die Temperatursturz-Erkennung dort scharf –
+    # und die ist ein Schluss aus zwei Messwerten, kein Messwert. Wo die
+    # Raumtemperatur vom Thermostat selbst kommt und das Gerät nur in ganzen
+    # Grad meldet, greift sie früher oder später zwangsläufig daneben.
+    if not raum.get("fenster_erkennung", True):
+        return False, "", "", True
+
     if not fenster_cfg.get("aktiv"):
         return False, "", ""
 
