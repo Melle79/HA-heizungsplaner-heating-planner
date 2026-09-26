@@ -252,6 +252,7 @@ window.SPRACHEN.en = {
   "Gesperrt": "Blocked",
   "Von Hand": "Manual",
   "Zurück zum Plan": "Back to schedule",
+  "Wird zurückgeführt …": "Returning to schedule …",
   "Kühler": "Cooler",
   "Wärmer": "Warmer",
   "Absenkung": "Setback",

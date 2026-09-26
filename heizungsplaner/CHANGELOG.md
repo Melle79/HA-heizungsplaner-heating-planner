@@ -1,5 +1,14 @@
 # Änderungen
 
+## 1.36.2
+
+- **„Zurück zum Plan“ zeigt jetzt, dass er wirkt.** Der Dienst vergisst den
+  Handeingriff sofort, aber bis der Planer den Zeitplanwert geschrieben hat,
+  vergeht ein Takt. So lange stand die Kachel unverändert da – mit dem Knopf,
+  den man gerade gedrückt hatte. Es sah aus, als hätte er nichts getan.
+- Bis der Bericht nachzieht, steht dort „Wird zurückgeführt …“, und der Knopf
+  nimmt keinen zweiten Druck an.
+
 ## 1.36.1
 
 - **Behoben: Die Stellknöpfe in der Übersicht taten nichts.** Der Aufruf trug

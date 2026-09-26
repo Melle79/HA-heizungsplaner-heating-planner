@@ -1770,6 +1770,14 @@ const stellentwurf = new Map();   // raum_id → {wert, uhr, gesendet}
 // einer Minute, auch wenn er nie ankommt.
 const ENTWURF_FRIST = 60000;
 
+// Der Rückweg braucht denselben Schutz, nur andersherum: Der Dienst vergisst
+// den Handeingriff sofort, aber bis der Planer den Zeitplanwert geschrieben
+// hat und der Bericht ihn trägt, vergeht ein Takt. So lange stünde die Kachel
+// unverändert da – mit dem Knopf, den man gerade gedrückt hat. Es sähe aus,
+// als hätte er nicht gewirkt, und der nächste Druck ginge ins Leere.
+const zurueckLaeuft = new Map();   // raum_id → Zeitpunkt des Drucks
+const ZURUECK_FRIST = 90000;
+
 function entwurf_pruefen(raum, steht, schritt) {
   const entwurf = stellentwurf.get(raum.id);
   if (!entwurf || !entwurf.gesendet) return entwurf;
@@ -1795,6 +1803,14 @@ function stellbereich(raum, eingriff, handbetrieb) {
   const entwurf = entwurf_pruefen(raum, steht, schritt);
   const gilt = entwurf ? entwurf.wert : steht;
 
+  // Angekommen ist der Rückweg, sobald der Bericht keinen Eingriff mehr
+  // zeigt; dann gibt es diesen Knopf ohnehin nicht. Die Frist fängt den Fall
+  // ab, dass der Takt hängt – sonst bliebe der Knopf für immer tot.
+  const seit = zurueckLaeuft.get(raum.id);
+  if (seit && (!(eingriff || handbetrieb) || Date.now() - seit > ZURUECK_FRIST))
+    zurueckLaeuft.delete(raum.id);
+  const laeuft = zurueckLaeuft.has(raum.id);
+
   const zeile = document.createElement('div');
   zeile.className = 'stellen';
   zeile.innerHTML = `
@@ -1802,7 +1818,8 @@ function stellbereich(raum, eingriff, handbetrieb) {
     <span class="stellwert${entwurf ? ' offen' : ''}">${zahl(gilt)} ${EINHEIT}</span>
     <button class="auf" title="Wärmer">+</button>
     ${eingriff || handbetrieb
-      ? '<button class="zurueck">Zurück zum Plan</button>' : ''}`;
+      ? `<button class="zurueck"${laeuft ? ' disabled' : ''}>${
+          laeuft ? 'Wird zurückgeführt …' : 'Zurück zum Plan'}</button>` : ''}`;
 
   const anzeige = zeile.querySelector('.stellwert');
 
@@ -1821,16 +1838,17 @@ function stellbereich(raum, eingriff, handbetrieb) {
   zeile.querySelector('.ab').onclick = () => ruecken(-1);
   zeile.querySelector('.auf').onclick = () => ruecken(+1);
   const zurueck = zeile.querySelector('.zurueck');
-  if (zurueck) zurueck.onclick = async () => {
+  if (zurueck && !laeuft) zurueck.onclick = async () => {
     zurueck.disabled = true;
     stellentwurf.delete(raum.id);
+    zurueckLaeuft.set(raum.id, Date.now());
     try {
       await hole(`raeume/${raum.id}/temperatur`, {method: 'DELETE'});
-      await statusLaden();
     } catch (err) {
-      zurueck.disabled = false;
+      zurueckLaeuft.delete(raum.id);
       stellfehler(anzeige, err.message);
     }
+    await statusLaden();
   };
   return zeile;
 }
