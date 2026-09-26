@@ -1,5 +1,13 @@
 # Änderungen
 
+## 1.36.1
+
+- **Behoben: Die Stellknöpfe in der Übersicht taten nichts.** Der Aufruf trug
+  den API-Pfad doppelt; statt einer Antwort kam die Startseite zurück, und in
+  der Kachel stand eine Fehlermeldung über ungültiges JSON.
+- Ein abgewiesener Wert wird in der Kachel jetzt gekürzt gemeldet, statt sie
+  auseinanderzuziehen.
+
 ## 1.36.0
 
 - **Neu: Die Temperatur lässt sich direkt in der Übersicht stellen.** Auf

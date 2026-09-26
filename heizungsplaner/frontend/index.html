@@ -1825,7 +1825,7 @@ function stellbereich(raum, eingriff, handbetrieb) {
     zurueck.disabled = true;
     stellentwurf.delete(raum.id);
     try {
-      await hole(`api/raeume/${raum.id}/temperatur`, {method: 'DELETE'});
+      await hole(`raeume/${raum.id}/temperatur`, {method: 'DELETE'});
       await statusLaden();
     } catch (err) {
       zurueck.disabled = false;
@@ -1838,7 +1838,7 @@ function stellbereich(raum, eingriff, handbetrieb) {
 async function senden(raum, wert) {
   let fehlgeschlagen = null;
   try {
-    await sendeJSON(`api/raeume/${raum.id}/temperatur`, 'POST', {wert});
+    await sendeJSON(`raeume/${raum.id}/temperatur`, 'POST', {wert});
     // Angenommen – aber noch nicht im Bericht. Der Entwurf bleibt stehen,
     // bis der Takt ihn bestätigt (siehe `entwurf_pruefen`).
     stellentwurf.set(raum.id, {wert, gesendet: Date.now()});
@@ -1863,7 +1863,7 @@ async function senden(raum, wert) {
 function stellfehler(anzeige, text) {
   if (!anzeige) return;
   const vorher = anzeige.textContent;
-  anzeige.textContent = text;
+  anzeige.textContent = text.length > 48 ? text.slice(0, 47) + '…' : text;
   anzeige.style.color = 'var(--achtung)';
   anzeige.style.fontSize = '.75rem';
   setTimeout(() => {
