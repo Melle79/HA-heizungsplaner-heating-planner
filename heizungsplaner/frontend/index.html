@@ -1688,7 +1688,10 @@ function karteZeichnen(raum) {
     : (raum.thermostate || []).find(t => t.manuell_bis) || null;
 
   let anzeige;
-  if (ruht) {
+  // Ein ruhender Raum mit Handeingriff ist nicht „aus“: Wer einen gesperrten
+  // Raum von Hand auf 9 °C stellt, dessen Ventil steht auf 9 °C und nicht zu.
+  // „Ventil zu“ wäre hier dieselbe Unwahrheit wie oben – nur andersherum.
+  if (ruht && !eingriff) {
     anzeige = `<span class="soll ruht">Aus<span class="einheit"> · Ventil zu</span></span>`;
   } else if (handbetrieb && !hatHandwert) {
     anzeige = `<span class="soll ruht">Von Hand</span>`;
@@ -1778,6 +1781,28 @@ const ENTWURF_FRIST = 60000;
 const zurueckLaeuft = new Map();   // raum_id → Zeitpunkt des Drucks
 const ZURUECK_FRIST = 90000;
 
+// Der Takt braucht ein paar Sekunden, und die Oberfläche frischt von sich aus
+// nur alle 30 Sekunden auf. Wer stellt, sähe seinen Wert bis dahin orange
+// danebenstehen, als wäre er steckengeblieben – und die große Zahl zeigte
+// weiter das Planziel. Zwei Zahlen ohne erkennbaren Unterschied sind schlimmer
+// als eine Sekunde Warten, darum wird nachgefasst, bis der Bericht nachzieht.
+const NACHFASSEN_MS = [1500, 2500, 4000, 6000, 9000];
+let nachfassLaeuft = false;
+
+async function nachfassen(fertig) {
+  if (nachfassLaeuft) return;
+  nachfassLaeuft = true;
+  try {
+    for (const warten of NACHFASSEN_MS) {
+      if (fertig()) return;
+      await new Promise(r => setTimeout(r, warten));
+      await statusLaden();
+    }
+  } finally {
+    nachfassLaeuft = false;
+  }
+}
+
 function entwurf_pruefen(raum, steht, schritt) {
   const entwurf = stellentwurf.get(raum.id);
   if (!entwurf || !entwurf.gesendet) return entwurf;
@@ -1792,6 +1817,12 @@ function entwurf_pruefen(raum, steht, schritt) {
 
 function stellbereich(raum, eingriff, handbetrieb) {
   if (!(raum.thermostate || []).length) return null;
+  // Den Rückweg gibt es nur für einen *erkannten* Handeingriff in einem sonst
+  // geführten Raum. Läuft der Raum in der Betriebsart „von Hand“, ist das kein
+  // Eingriff, sondern sein Normalzustand – es gibt keinen Plan, zu dem er
+  // zurückkehren könnte, und der Knopf hing auf „Wird zurückgeführt …“ fest,
+  // weil das, worauf er wartete, nie eintreten konnte.
+  // Stellen bleibt dort selbstverständlich möglich; es ist ja der Sinn.
 
   const schritt = EINHEIT === '°F' ? 1 : 0.5;
   const geraet = eingriff && eingriff.soll !== null && eingriff.soll !== undefined
@@ -1807,7 +1838,7 @@ function stellbereich(raum, eingriff, handbetrieb) {
   // zeigt; dann gibt es diesen Knopf ohnehin nicht. Die Frist fängt den Fall
   // ab, dass der Takt hängt – sonst bliebe der Knopf für immer tot.
   const seit = zurueckLaeuft.get(raum.id);
-  if (seit && (!(eingriff || handbetrieb) || Date.now() - seit > ZURUECK_FRIST))
+  if (seit && (!eingriff || Date.now() - seit > ZURUECK_FRIST))
     zurueckLaeuft.delete(raum.id);
   const laeuft = zurueckLaeuft.has(raum.id);
 
@@ -1817,7 +1848,7 @@ function stellbereich(raum, eingriff, handbetrieb) {
     <button class="ab" title="Kühler">−</button>
     <span class="stellwert${entwurf ? ' offen' : ''}">${zahl(gilt)} ${EINHEIT}</span>
     <button class="auf" title="Wärmer">+</button>
-    ${eingriff || handbetrieb
+    ${eingriff
       ? `<button class="zurueck"${laeuft ? ' disabled' : ''}>${
           laeuft ? 'Wird zurückgeführt …' : 'Zurück zum Plan'}</button>` : ''}`;
 
@@ -1849,6 +1880,7 @@ function stellbereich(raum, eingriff, handbetrieb) {
       stellfehler(anzeige, err.message);
     }
     await statusLaden();
+    nachfassen(() => !zurueckLaeuft.has(raum.id));
   };
   return zeile;
 }
@@ -1865,6 +1897,7 @@ async function senden(raum, wert) {
     stellentwurf.delete(raum.id);
   } finally {
     await statusLaden();
+    if (!fehlgeschlagen) nachfassen(() => !stellentwurf.has(raum.id));
     if (fehlgeschlagen) {
       // Nach dem Neuzeichnen steht die Kachel wieder frisch da – die
       // Meldung muss an der neuen hängen, nicht an der verworfenen.

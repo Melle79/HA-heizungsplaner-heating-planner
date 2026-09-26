@@ -1,5 +1,21 @@
 # Änderungen
 
+## 1.36.3
+
+- **Behoben: „Zurück zum Plan“ erschien auch in Räumen ohne Plan.** Läuft ein
+  Raum in der Betriebsart „von Hand“, ist das kein Eingriff, sondern sein
+  Normalzustand – es gibt keinen Zeitplan, zu dem er zurückkehren könnte. Der
+  Knopf hing dort auf „Wird zurückgeführt …“ fest, weil das, worauf er
+  wartete, nie eintreten konnte. Stellen bleibt dort selbstverständlich
+  möglich; es ist ja der Sinn dieser Betriebsart.
+- **Behoben: Ein ruhender Raum mit Handeingriff meldete „Ventil zu“.** Wer
+  einen gesperrten Raum von Hand auf 9 °C stellt, dessen Ventil steht auf
+  9 °C. Jetzt zeigt die Kachel den Wert, der wirklich am Gerät steht.
+- **Die Kachel zieht nach dem Stellen sofort nach.** Bisher frischte die
+  Übersicht nur alle 30 Sekunden auf; bis dahin stand der gestellte Wert
+  orange neben dem alten Planziel, als wäre er steckengeblieben. Jetzt wird
+  nachgefasst, bis der Bericht den Eingriff trägt – meist nach vier Sekunden.
+
 ## 1.36.2
 
 - **„Zurück zum Plan“ zeigt jetzt, dass er wirkt.** Der Dienst vergisst den
