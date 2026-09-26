@@ -1,5 +1,17 @@
 # Änderungen
 
+## 1.38.0
+
+- **Neu: die Punktart „Ferientag".** Sie greift, wenn schulfrei ist und
+  trotzdem gearbeitet wird – also an einem Werktag in den Ferien.
+- Bisher gab es zwei Paare (Schultag/schulfrei, Werktag/arbeitsfrei), und mit
+  je einer Bedingung pro Punkt ließen sich vier Tagesarten nicht
+  auseinanderhalten: Für einen Ferien-Dienstag, einen Feiertag **und** einen
+  Samstag ist der Schulfrei-Schalter gleichermaßen an. Wer die Ferien anders
+  behandeln wollte als das Wochenende, hatte keine Handhabe.
+- Die neue Art verlangt **beide** Schalter. Fehlt einer, bleibt sie
+  wirkungslos – wie die anderen Paare auch.
+
 ## 1.37.0
 
 - **Kein Nachregeln mehr für einen Tag, der schon gelaufen ist.** Läuft ein

@@ -31,7 +31,8 @@ TAGE = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 MODI = ["komfort", "eco", "nacht", "aus"]
 # Zwei Paare, weil nicht jeder im Haus demselben Kalender folgt: Schüler
 # richten sich nach den Ferien, Berufstätige nach den Feiertagen.
-GELTUNG = ["immer", "schultag", "schulfrei", "werktag", "arbeitsfrei"]
+GELTUNG = ["immer", "schultag", "schulfrei", "werktag", "arbeitsfrei",
+           "ferientag"]
 
 # "plan"         – der Planer führt den Sollwert durchgehend.
 # "nur_absenken" – der Raum wird von Hand gestellt; der Planer greift allein zu

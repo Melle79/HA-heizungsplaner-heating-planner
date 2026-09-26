@@ -490,7 +490,11 @@
           Schalter, der <em>an</em> ist, wenn gearbeitet wird: Wochenende und
           Feiertage also aus. Genau das liefert die Workday-Integration von
           Home Assistant (<code>binary_sensor.workday_sensor</code>). Ohne
-          Angabe bleiben die beiden Punktarten wirkungslos.</div></div>
+          Angabe bleiben die beiden Punktarten wirkungslos.
+          <br>Sind beide Schalter gesetzt, gibt es zusätzlich den Punkt
+          <em>Ferientag</em>: schulfrei und trotzdem Werktag. Nur damit lässt
+          sich ein Ferien-Dienstag von einem Feiertag unterscheiden – für
+          beide ist der Schulfrei-Schalter an.</div></div>
     </div>
   </div>
 
@@ -2431,6 +2435,10 @@ function zeitplanZeichnen() {
         <optgroup label="Arbeit">
         <option value="werktag"${punkt.gilt === 'werktag' ? ' selected' : ''}>Werktag</option>
         <option value="arbeitsfrei"${punkt.gilt === 'arbeitsfrei' ? ' selected' : ''}>arbeitsfrei</option>
+        </optgroup>
+        <optgroup label="Beides">
+        <option value="ferientag"${punkt.gilt === 'ferientag' ? ' selected' : ''}
+                title="Schulfrei, aber gearbeitet wird: ein Werktag in den Ferien">Ferientag</option>
         </optgroup>
       </select>
       <span class="tage">${TAGE.map(([kuerzel, name]) =>

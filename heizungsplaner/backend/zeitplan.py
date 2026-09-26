@@ -17,6 +17,13 @@ nicht jeder im Haus demselben Kalender folgt:
 
 Beide Paare lassen sich in einem Plan mischen; welcher Fall gerade gilt,
 entscheiden zwei getrennte Entitäten in Home Assistant.
+
+Dazu kommt ein Fall, den kein Paar allein trifft:
+
+* **Ferientag** – schulfrei **und** Werktag: Die Kinder haben frei, gearbeitet
+  wird trotzdem. Ohne ihn liesse sich ein Ferien-Dienstag nicht von einem
+  Feiertag oder einem Samstag unterscheiden, denn für alle drei ist der
+  Schulfrei-Schalter an.
 """
 from __future__ import annotations
 
@@ -47,6 +54,14 @@ def _passt(eintrag: dict, wochentag: str, schulfrei: bool | None,
         if arbeitstag is None:
             return False
         return (gilt == "werktag") == arbeitstag
+    # Der Ferientag ist der einzige Fall, den kein Paar allein trifft: Die
+    # Kinder haben frei, die Erwachsenen nicht. Mit je einer Bedingung pro
+    # Punkt liessen sich Schultag, Ferientag, Feiertag und Wochenende nicht
+    # auseinanderhalten – ein Punkt für „schulfrei“ griffe an allen dreien.
+    if gilt == "ferientag":
+        if schulfrei is None or arbeitstag is None:
+            return False
+        return schulfrei and arbeitstag
     return False
 
 

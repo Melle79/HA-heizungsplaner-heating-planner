@@ -251,6 +251,8 @@ window.SPRACHEN.en = {
   "Sommer": "Summer",
   "Gesperrt": "Blocked",
   "Von Hand": "Manual",
+  "Ferientag": "School-holiday workday",
+  "Beides": "Both",
   "Zurück zum Plan": "Back to schedule",
   "Wird zurückgeführt …": "Returning to schedule …",
   "Kühler": "Cooler",

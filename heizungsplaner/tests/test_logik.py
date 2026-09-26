@@ -1875,6 +1875,24 @@ pruefe(hk.deckt("06:00-08:00 17:00-22:00", "06:00-08:00 17:00-22:00"),
 pruefe(not hk.deckt("06:00-08:00", "06:00-08:00 17:00-22:00"),
        "ein weggefallener Block zaehlt als Wegnahme")
 
+print("\n=== Ferientag: schulfrei und trotzdem Werktag ===")
+import zeitplan as _zp
+
+_punkt = {"start": "10:00", "modus": "komfort", "gilt": "ferientag",
+          "tage": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]}
+# schulfrei, arbeitstag -> der Fall, den kein Paar allein trifft
+pruefe(_zp._passt(_punkt, "tue", True, True),
+       "ein Dienstag in den Ferien zaehlt als Ferientag")
+pruefe(not _zp._passt(_punkt, "tue", False, True),
+       "ein gewoehnlicher Schultag nicht")
+pruefe(not _zp._passt(_punkt, "sat", True, False),
+       "ein Samstag nicht - da wird nicht gearbeitet")
+pruefe(not _zp._passt(_punkt, "thu", True, False),
+       "ein Feiertag unter der Woche auch nicht")
+pruefe(not _zp._passt(_punkt, "tue", None, True)
+       and not _zp._passt(_punkt, "tue", True, None),
+       "und ohne beide Schalter bleibt er wirkungslos")
+
 print("\n=== Kesselregelung ===")
 import kessel
 
