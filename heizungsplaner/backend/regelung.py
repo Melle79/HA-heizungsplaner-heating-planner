@@ -333,33 +333,65 @@ def _uebersteuerung(raum: dict, states_index: dict,
 FREMDPROGRAMM_AB = 3
 FREMDPROGRAMM_FENSTER = timedelta(days=2)
 
+# Und so eng dürfen sie nicht beieinanderliegen: Drei verschiedene Sollwerte
+# binnen einer halben Stunde sind keine Hand, sondern eine Automatik im Gerät –
+# etwa dessen eigene Fenster-offen-Erkennung, die absenkt und zurückstellt.
+FREMDPROGRAMM_DICHT = timedelta(minutes=30)
+
 
 def _fremdprogramm_merken(gedaechtnis: dict, wert: float, jetzt: datetime,
                           raum: dict, entity_id: str, attrs: dict,
                           protokoll) -> None:
-    """Wiederholte Rückstellungen auf denselben Wert sammeln – und melden.
+    """Häufige „Handeingriffe" sammeln – und melden, wenn es keiner sein kann.
 
     Der Planer zieht sich bei einem Handeingriff bewusst zurück; das bleibt so.
-    Aber er sagt jetzt Bescheid, wenn das Muster nicht zu einem Menschen passt,
-    statt sich stumm immer wieder verdrängen zu lassen. Zurückgehalten wird
-    nach der Meldung weiter – was in der Hersteller-App eingestellt ist, kann
-    nur dort abgeschaltet werden.
+    Aber er sagt Bescheid, wenn das Muster nicht zu einem Menschen passt, statt
+    sich stumm immer wieder verdrängen zu lassen.
+
+    Zwei Muster verraten eine Automatik im Gerät:
+
+    * **Immer derselbe Wert.** Ein Wochenprogramm im Thermostat stellt
+      unermüdlich auf seinen Wert zurück; ein Mensch dreht nicht dreimal auf
+      die Zehntelstelle gleich.
+    * **Mehrere verschiedene Werte kurz hintereinander.** Eine
+      Fenster-offen-Erkennung im Gerät senkt selbsttätig ab und stellt danach
+      zurück – im Verlauf drei verschiedene Sollwerte binnen einer halben
+      Stunde. So dreht niemand von Hand.
+
+    Beides lässt sich von Home Assistant aus **nicht abfragen**: Diese Geräte
+    liefern für ihre Automatiken keine Entität. Gemeldet werden kann nur, was
+    sie tun – und der Hinweis muss deshalb zur App des Herstellers führen, denn
+    nur dort lässt sich beides abschalten.
     """
     frueher = [_aus_iso(z) for z in (gedaechtnis.get("hand_wann") or [])]
     letzte = [z for z in frueher if z and jetzt - z <= FREMDPROGRAMM_FENSTER]
-    if gedaechtnis.get("hand_wert") is not None and \
-            abs(float(gedaechtnis["hand_wert"]) - wert) >= 0.25:
-        letzte = []                       # anderer Wert: Zählung von vorn
     letzte.append(jetzt)
     gedaechtnis["hand_wann"] = [_iso(z) for z in letzte[-FREMDPROGRAMM_AB:]]
+
+    # Wechselt der Wert, ist es kein Zeitplan – aber die Häufung zählt weiter.
+    voriger = gedaechtnis.get("hand_wert")
+    if voriger is not None and abs(float(voriger) - wert) >= 0.25:
+        gedaechtnis["hand_wechselnd"] = True
     gedaechtnis["hand_wert"] = wert
 
-    if len(letzte) < FREMDPROGRAMM_AB or gedaechtnis.get("fremd_gemeldet"):
+    # Dicht aufeinander: Das ist kein Mensch, sondern etwas, das selbst stellt.
+    dicht = [z for z in letzte if jetzt - z <= FREMDPROGRAMM_DICHT]
+
+    if gedaechtnis.get("fremd_gemeldet"):
+        return
+    if len(letzte) >= FREMDPROGRAMM_AB and not gedaechtnis.get("hand_wechselnd"):
+        text = texte.t("fremdprogramm",
+                       name=attrs.get("friendly_name", entity_id),
+                       grad=f"{wert:.1f}", anzahl=len(letzte))
+    elif len(dicht) >= FREMDPROGRAMM_AB:
+        text = texte.t("geraet_stellt_selbst",
+                       name=attrs.get("friendly_name", entity_id),
+                       anzahl=len(dicht),
+                       minuten=int(FREMDPROGRAMM_DICHT.total_seconds() // 60))
+    else:
         return
     gedaechtnis["fremd_gemeldet"] = _iso(jetzt)
-    protokoll(raum["name"], texte.t("log_fremdprogramm"),
-              texte.t("fremdprogramm", name=attrs.get("friendly_name", entity_id),
-                      grad=f"{wert:.1f}", anzahl=len(letzte)),
+    protokoll(raum["name"], texte.t("log_fremdprogramm"), text,
               entity_id, art="warnung")
 
 

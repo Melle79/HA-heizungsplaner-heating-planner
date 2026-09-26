@@ -1065,6 +1065,23 @@ does not turn a dial to the same tenth three times over.
 no matter who put it there. The point of standing back is not to overwrite a
 deviating manual value; with no deviation left, there is nothing to protect.
 
+**Two patterns give away an automation inside the device.** Some thermostats
+bring their own functions that change the setpoint by themselves – a weekly
+program and an open-window detection. Both can only be configured in the
+manufacturer's app and are **neither visible nor reachable** from Home
+Assistant: the devices provide no entity for them.
+
+Only their effects can be detected:
+
+* **The same value three times** within two days – that is how a weekly program
+  behaves.
+* **Three different values within half an hour** – that is what it looks like
+  when an open-window detection sets back and then restores.
+
+In both cases the planner reports once, names the device and points to the app.
+It keeps standing back – it cannot reach the setting. Changing values at a calm
+pace remain a normal manual change.
+
 **You can see it on the tile.** While the planner holds back, the tile shows
 the value that is on the device – not the one the plan would have set – along
 with the time from which it takes over again. That matters more than it

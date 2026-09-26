@@ -1683,10 +1683,43 @@ meldungen.clear()
 _fremd([8.0, 8.0, 8.0, 8.0, 8.0], lambda *a, **k: meldungen.append(a))
 pruefe(len(meldungen) == 1, "danach wird nicht weiter gemeldet (einmal genuegt)")
 
-# Verschiedene Werte sind eine Hand, kein Programm.
+# Verschiedene Werte in ruhigem Abstand bleiben ein Handeingriff: Wer im
+# Laufe eines Tages dreimal nachregelt, ist ein Mensch.
 meldungen.clear()
 _fremd([18.0, 21.0, 19.5], lambda *a, **k: meldungen.append(a))
-pruefe(not meldungen, "wechselnde Werte gelten weiter als Handeingriff")
+pruefe(not meldungen, "wechselnde Werte in ruhigem Abstand bleiben eine Hand")
+
+# --- Das Geraet stellt selbst ---------------------------------------------
+#
+# Eine Fenster-offen-Erkennung im Thermostat senkt selbsttaetig ab und stellt
+# danach zurueck. Im Verlauf sind das drei verschiedene Sollwerte binnen einer
+# halben Stunde - am 26.09.2026 um 10:21 auf 23,0, um 10:26 auf 25,0, um 10:46
+# auf 20,0. So dreht niemand von Hand, und abfragen laesst sich die Einstellung
+# von Home Assistant aus nicht: Das Geraet liefert dafuer keine Entitaet.
+def _dicht(werte, protokoll):
+    ged, jetzt = {}, datetime(2026, 9, 26, 10, 21)
+    for i, w in enumerate(werte):
+        regelung._fremdprogramm_merken(
+            ged, w, jetzt + timedelta(minutes=i * 12), {"name": "Zimmer"},
+            "climate.x", {"friendly_name": "Thermostat"}, protokoll)
+    return ged
+
+meldungen.clear()
+_dicht([23.0, 25.0, 20.0], lambda *a, **k: meldungen.append(a))
+pruefe(len(meldungen) == 1,
+       "drei wechselnde Werte in einer halben Stunde werden gemeldet")
+pruefe("Fenster-offen" in meldungen[0][2] and "App" in meldungen[0][2],
+       "und der Text nennt die wahrscheinliche Ursache samt Ort")
+
+meldungen.clear()
+_dicht([23.0, 25.0], lambda *a, **k: meldungen.append(a))
+pruefe(not meldungen, "zwei genuegen noch nicht")
+
+# Gleiche Werte dicht hintereinander bleiben der Zeitplan-Fall.
+meldungen.clear()
+ged = _dicht([8.0, 8.0, 8.0], lambda *a, **k: meldungen.append(a))
+pruefe(len(meldungen) == 1 and "Zeitplan" in meldungen[0][2],
+       "dreimal derselbe Wert meldet weiterhin den fremden Zeitplan")
 
 # Und was lange auseinanderliegt, ist kein Muster.
 ged, meldungen = {}, []

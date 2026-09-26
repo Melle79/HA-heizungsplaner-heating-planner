@@ -1083,6 +1083,22 @@ landet – gleich wer ihn dorthin gestellt hat. Der Sinn des Zurückhaltens ist,
 einen abweichenden Handwert nicht zu überschreiben; gibt es keine Abweichung
 mehr, gibt es nichts zu schützen.
 
+**Zwei Muster verraten eine Automatik im Gerät.** Manche Thermostate bringen
+eigene Funktionen mit, die den Sollwert selbst verstellen – ein Wochenprogramm
+und eine Fenster-offen-Erkennung. Beide sind nur in der App des Herstellers
+einzustellen und von Home Assistant aus **weder sichtbar noch erreichbar**: Die
+Geräte liefern dafür keine Entität.
+
+Erkennen lässt sich nur, was sie tun:
+
+* **Dreimal derselbe Wert** binnen zwei Tagen – so arbeitet ein Wochenprogramm.
+* **Drei verschiedene Werte binnen einer halben Stunde** – so sieht es aus,
+  wenn eine Fenster-offen-Erkennung absenkt und danach zurückstellt.
+
+In beiden Fällen meldet der Planer einmal, nennt das Gerät und verweist auf die
+App. Zurückgehalten wird weiter – erreichen kann er die Einstellung nicht.
+Wechselnde Werte in ruhigem Abstand bleiben ein normaler Handeingriff.
+
 **Man sieht es auf der Kachel.** Solange sich der Planer zurückhält, zeigt sie
 den Wert, der am Gerät steht – nicht den, den der Plan vorgesehen hätte –,
 dazu die Uhrzeit, ab der wieder geregelt wird. Das ist wichtiger, als es

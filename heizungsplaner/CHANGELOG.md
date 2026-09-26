@@ -1,5 +1,23 @@
 # Änderungen
 
+## 1.34.0
+
+- **Neu: Der Planer erkennt jetzt auch ein Thermostat, das sich selbst
+  verstellt.** Bisher schlug er nur an, wenn dreimal **derselbe** Wert
+  zurückkam – das Muster eines Wochenprogramms im Gerät. Drei **verschiedene**
+  Werte binnen einer halben Stunde sind aber ebenso wenig eine Hand: So dreht
+  niemand am Rad.
+- Dahinter steckt meist die **Fenster-offen-Erkennung im Thermostat**. Sie
+  senkt selbsttätig ab und stellt danach zurück; der Planer hielt jeden dieser
+  Sprünge für einen Handeingriff und zog sich zurück, während sein
+  Fehlerzähler auf 300 lief.
+- Die Meldung nennt die wahrscheinliche Ursache und verweist auf die App des
+  Herstellers – denn dort, und nur dort, lässt sich beides abschalten. Von
+  Home Assistant aus sind diese Automatiken **weder sichtbar noch erreichbar**:
+  Die Geräte liefern dafür keine Entität.
+- Wechselnde Werte in ruhigem Abstand gelten unverändert als Handeingriff. Wer
+  im Lauf eines Tages dreimal nachregelt, ist ein Mensch.
+
 ## 1.33.0
 
 - **Neu: Die Fensterüberwachung lässt sich je Raum abschalten.** Unter *Räume →

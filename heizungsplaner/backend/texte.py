@@ -463,6 +463,18 @@ TEXTE: dict[str, dict[str, str]] = {
 
     # Kesselregelung
     # Ein zweiter Plan im Gerät selbst
+    "geraet_stellt_selbst": {
+        "de": "{name} hat sich {anzahl}-mal in {minuten} Minuten selbst "
+              "verstellt – auf wechselnde Werte. So dreht niemand von Hand; "
+              "das Gerät stellt selbst. Am häufigsten steckt eine "
+              "Fenster-offen-Erkennung dahinter. Sie lässt sich nur in der App "
+              "des Herstellers abschalten und ist von Home Assistant aus weder "
+              "sichtbar noch erreichbar.",
+        "en": "{name} has changed its own setpoint {anzahl} times in {minuten} "
+              "minutes – to varying values. Nobody turns a dial like that; the "
+              "device is setting itself. Most often an open-window detection is "
+              "behind it. It can only be switched off in the manufacturer's "
+              "app and is neither visible nor reachable from Home Assistant."},
     "log_fremdprogramm": {"de": "Fremder Zeitplan vermutet",
                           "en": "Foreign schedule suspected"},
     "fremdprogramm": {
