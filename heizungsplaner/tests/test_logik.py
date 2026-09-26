@@ -2041,6 +2041,51 @@ pruefe(lage.get("erweitert"), "die Partytaste erweitert den heutigen Tag")
 pruefe(any(nr == "11.4" and "12:00-15:00" in w for nr, w in party.gesetzt),
        f"und zwar nur den Freitag ({party.gesetzt})")
 
+# Laeuft ein Sonderfenster aus, unterscheidet sich der heutige Tag oft nur
+# noch in seinem bereits vergangenen Teil: Aus "08:10-21:00" wird wieder
+# "09:00-21:00" - geschrieben um 09:01, wenn 08:10 laengst vorbei ist. Am
+# Verhalten der Anlage aendert das nichts, es kostet aber ein Telegramm und
+# eine Einheit der Tagesbremse. Genau so stand es am 26.09.2026 im Protokoll.
+def _um(uhrzeit, zustand="eco", wechsel=None):
+    return {"zeit": f"2026-09-11T{uhrzeit}:00", "sommerbetrieb": False,
+            "schulfrei": False, "arbeitstag": True,
+            "raeume": [{"name": "Buero", "zustand": zustand,
+                        "naechster_wechsel": wechsel}]}
+
+
+# Der Grundplan hat nachmittags 17:00-22:00. Ein Bedarf um 16:30 zieht den
+# *Beginn* vor - das Ende bleibt. Genau das war Svens Fall: aus "09:00-21:00"
+# wurde "08:10-21:00".
+rueck, zr = Anlage(uebernommen=True), {}
+_lauf(rueck, _um("12:00"), CONFIG(), zr)          # Grundplan steht
+rueck.gesetzt.clear()
+_lauf(rueck, _um("16:30", "heimkehr", "2026-09-11T17:00:00"), CONFIG(), zr)
+vorgezogen = [w for nr, w in rueck.gesetzt if nr == "11.4"]
+pruefe(any("16:30-22:00" in w for w in vorgezogen),
+       f"ein vorgezogener Beginn wird geschrieben ({vorgezogen})")
+rueck.gesetzt.clear()
+
+# Eine Stunde spaeter ist der Bedarf weg, und der regulaere Plan beginnt um
+# 17:00 - beides liegt hinter uns. Ab jetzt ist der Tag derselbe, es gibt
+# nichts mehr zu stellen.
+lage = _lauf(rueck, _um("17:30"), CONFIG(), zr)
+pruefe(not [w for nr, w in rueck.gesetzt if nr == "11.4"],
+       f"laeuft er aus, geht kein Telegramm mehr raus ({rueck.gesetzt})")
+pruefe("fri" in (lage.get("unveraendert") or []),
+       f"und es wird als unveraendert vermerkt ({lage.get('unveraendert')})")
+
+# Die Gegenprobe: Um Mitternacht liegt der ganze Tag wieder vor uns, dann
+# muss der Tag sehr wohl gestellt werden - sonst bliebe der Rest der Woche
+# auf dem Sonderfenster von gestern stehen.
+nacht, zn = Anlage(uebernommen=True), {}
+_lauf(nacht, _um("07:00"), CONFIG(), zn)
+nacht.werte["11.4"] = "04:00-22:00 ##:##-##:## ##:##-##:##"
+nacht.gesetzt.clear()
+_lauf(nacht, _um("00:01"), CONFIG(), zn)
+pruefe(any(nr == "11.4" for nr, _ in nacht.gesetzt),
+       "um Mitternacht wird der Tag sehr wohl wieder gerade gerueckt")
+
+
 # Ein Sonderfenster wandert nicht mit der Uhr. Ohne Gedaechtnis begaenne es
 # in jedem Takt neu bei "jetzt": Der Freitag wuerde alle fuenf Minuten noch
 # einmal geschrieben, jedes Mal fuenf Minuten kuerzer, bis die Tagesbremse

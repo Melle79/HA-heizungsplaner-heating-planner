@@ -753,6 +753,11 @@ def fuehren(bericht: dict, config: dict, state: dict, protokoll) -> dict:
     return dict(heiz, warmwasser=warm)
 
 
+def _minute(zeitpunkt) -> int:
+    """Minuten seit Mitternacht – das Maß, in dem die Hüllkurve rechnet."""
+    return zeitpunkt.hour * 60 + zeitpunkt.minute
+
+
 def _heizkreis_fuehren(bericht: dict, config: dict, state: dict, protokoll,
                        stand: dict) -> dict:
     """Das Wochenprogramm des Heizkreises nachführen."""
@@ -894,7 +899,7 @@ def _heizkreis_fuehren(bericht: dict, config: dict, state: dict, protokoll,
 
     # -- Schreiben, wo es abweicht -----------------------------------------
     datum = jetzt.date().isoformat()
-    geschrieben, gebremst, gedeckt = [], [], []
+    geschrieben, gebremst, gedeckt, unveraendert = [], [], [], []
     for tag, nr in parameter.items():
         soll = plan.get(tag)
         if soll is None:
@@ -902,6 +907,20 @@ def _heizkreis_fuehren(bericht: dict, config: dict, state: dict, protokoll,
         vorhanden = inhalt.get(tag, "")
         if huellkurve.aus_text(vorhanden) == huellkurve.aus_text(soll):
             continue                       # steht schon so – kein Telegramm
+        # Am heutigen Tag zählt nur, was noch kommt. Läuft ein Sonderfenster
+        # aus, unterscheidet sich der Tag oft nur noch in seinem bereits
+        # vergangenen Teil – aus „08:10-21:00“ wird wieder „09:00-21:00“,
+        # geschrieben um 09:01. Am Verhalten der Anlage ändert das nichts,
+        # es kostet aber ein Telegramm und eine Einheit der Tagesbremse, und
+        # im Protokoll steht ein Hin und Her, das niemand erklären kann.
+        #
+        # Richtig gestellt wird der Tag ohnehin: Um Mitternacht liegt der
+        # ganze Tag wieder vor uns, dann greift dieser Zweig nicht mehr.
+        if tag == heute and huellkurve.ab(
+                huellkurve.aus_text(vorhanden), _minute(jetzt)) == huellkurve.ab(
+                huellkurve.aus_text(soll), _minute(jetzt)):
+            unveraendert.append(tag)
+            continue
         # Und wenn es nicht Zeichen für Zeichen dasselbe ist: Deckt die
         # Regelung den heutigen Bedarf trotzdem schon ab? Ein Sonderfenster
         # ist eine Forderung – „Komfort wenigstens bis dahin“ –, keine
@@ -953,6 +972,8 @@ def _heizkreis_fuehren(bericht: dict, config: dict, state: dict, protokoll,
         protokoll(texte.t("log_alle_raeume"),
                   texte.t("kessel_gestellt", anzahl=len(geschrieben)),
                   texte.t("kessel_gestellt_warum", plan=plan[heute]))
+    if unveraendert:
+        ergebnis["unveraendert"] = unveraendert
     if gedeckt:
         ergebnis["gedeckt"] = gedeckt
     if gebremst:

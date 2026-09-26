@@ -1,5 +1,21 @@
 # Änderungen
 
+## 1.37.0
+
+- **Kein Nachregeln mehr für einen Tag, der schon gelaufen ist.** Läuft ein
+  Sonderfenster aus, unterschied sich der heutige Tag oft nur noch in seinem
+  bereits vergangenen Teil: Aus „08:10-21:00“ wurde wieder „09:00-21:00“,
+  geschrieben um 09:01 – wenn 08:10 längst vorbei ist. Am Verhalten der
+  Anlage änderte das nichts, es kostete aber ein Telegramm und eine Einheit
+  der Tagesbremse, und im Protokoll stand ein Hin und Her, das niemand
+  erklären konnte.
+- Am heutigen Tag zählt jetzt nur noch, was **noch kommt**. Ist der Rest des
+  Tages derselbe, bleibt es beim Vorhandenen.
+- Richtig gestellt wird der Tag trotzdem: Um Mitternacht liegt er wieder ganz
+  vor uns, und dann greift die Ausnahme nicht mehr.
+- Eine Änderung, die den laufenden Komfort **verkürzt** oder **verlängert**,
+  geht unverändert sofort durch – sie betrifft ja, was gleich passiert.
+
 ## 1.36.3
 
 - **Behoben: „Zurück zum Plan“ erschien auch in Räumen ohne Plan.** Läuft ein
