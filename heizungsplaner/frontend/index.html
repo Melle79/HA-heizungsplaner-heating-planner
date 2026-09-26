@@ -253,6 +253,22 @@
 .grund{font-size:.82rem; color:var(--leise); flex:1;
          display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;
          overflow:hidden}
+  /* Stellbereich der Kachel: vom Sofa aus dasselbe tun wie am Rad. */
+  .stellen{display:flex; align-items:center; gap:var(--l2); margin-top:var(--l3)}
+  .stellen button{
+    width:30px; height:30px; flex:none; padding:0; border-radius:50%;
+    border:1px solid var(--linie); background:var(--flaeche2); color:var(--text);
+    font-size:1.05rem; line-height:1; cursor:pointer;
+  }
+  .stellen button:hover:not(:disabled){border-color:var(--warm); color:var(--warm)}
+  .stellen button:disabled{opacity:.35; cursor:default}
+  .stellen .stellwert{font-size:.95rem; font-weight:600; min-width:4.2em;
+                      text-align:center; font-variant-numeric:tabular-nums}
+  .stellen .stellwert.offen{color:var(--warm)}
+  .stellen .zurueck{
+    width:auto; height:auto; margin-left:auto; border-radius:99px;
+    padding:4px var(--l2); font-size:.75rem; font-weight:600; white-space:nowrap;
+  }
   .karte .fusszeile{
     margin-top:var(--l3); padding-top:var(--l2); border-top:1px solid var(--linie);
     font-size:.75rem; color:var(--sehr-leise);
@@ -1725,7 +1741,136 @@ function karteZeichnen(raum) {
         <summary>${anzahl} Thermostat${anzahl === 1 ? '' : 'e'}</summary>
         ${thermostate}</details>` : ''}
     </div>`;
+  // Unter Begründung und Handhinweis, über der Fußzeile: erst lesen, was
+  // gilt und warum, dann eingreifen.
+  const stellen = stellbereich(raum, eingriff, handbetrieb);
+  if (stellen) karte.querySelector('.fusszeile').before(stellen);
   return karte;
+}
+
+
+// ─────────────────────────────────────────────── Von Hand stellen ──
+// Was am Thermostat der Griff ans Rad ist, sind hier zwei Knöpfe. Der Dienst
+// verbucht beides gleich: als Handeingriff, der bis zum nächsten
+// Zeitplanwechsel gilt. Zwei Arten von Handeingriff mit zwei Regeln wären
+// eine Falle – niemand wüsste, welche gerade gilt.
+//
+// Die Kacheln werden bei jedem Bericht neu gezeichnet. Ein Entwurf, der nur
+// im DOM stünde, wäre beim nächsten Takt weg, womöglich mitten im Tippen;
+// darum steht er hier und überlebt das Zeichnen.
+const stellentwurf = new Map();   // raum_id → {wert, uhr, gesendet}
+
+// Ein gesendeter Wert steht erst am Gerät, dann im Bericht – dazwischen
+// liegt ein Takt. So lange zeigt die Kachel weiter den Entwurf.
+//
+// Er darf aber nicht hängen bleiben: Eine Kachel, die einen Wunsch statt der
+// Wirklichkeit zeigt, ist genau der Fehler, der hier schon einmal ein
+// Kinderzimmer zwei Tage lang kalt aussehen ließ wie geheizt. Darum verfällt
+// der Entwurf, sobald der Bericht den Wert bestätigt – und spätestens nach
+// einer Minute, auch wenn er nie ankommt.
+const ENTWURF_FRIST = 60000;
+
+function entwurf_pruefen(raum, steht, schritt) {
+  const entwurf = stellentwurf.get(raum.id);
+  if (!entwurf || !entwurf.gesendet) return entwurf;
+  const angekommen = steht !== null && steht !== undefined
+    && Math.abs(steht - entwurf.wert) < schritt / 2;
+  if (angekommen || Date.now() - entwurf.gesendet > ENTWURF_FRIST) {
+    stellentwurf.delete(raum.id);
+    return null;
+  }
+  return entwurf;
+}
+
+function stellbereich(raum, eingriff, handbetrieb) {
+  if (!(raum.thermostate || []).length) return null;
+
+  const schritt = EINHEIT === '°F' ? 1 : 0.5;
+  const geraet = eingriff && eingriff.soll !== null && eingriff.soll !== undefined
+    ? eingriff.soll : null;
+  const steht = handbetrieb && raum.handwert !== null && raum.handwert !== undefined
+    ? raum.handwert
+    : geraet !== null ? geraet : raum.ziel;
+
+  const entwurf = entwurf_pruefen(raum, steht, schritt);
+  const gilt = entwurf ? entwurf.wert : steht;
+
+  const zeile = document.createElement('div');
+  zeile.className = 'stellen';
+  zeile.innerHTML = `
+    <button class="ab" title="Kühler">−</button>
+    <span class="stellwert${entwurf ? ' offen' : ''}">${zahl(gilt)} ${EINHEIT}</span>
+    <button class="auf" title="Wärmer">+</button>
+    ${eingriff || handbetrieb
+      ? '<button class="zurueck">Zurück zum Plan</button>' : ''}`;
+
+  const anzeige = zeile.querySelector('.stellwert');
+
+  const ruecken = (richtung) => {
+    const stand = stellentwurf.get(raum.id);
+    let wert = (stand ? stand.wert : gilt) + richtung * schritt;
+    wert = Math.max(raum.min, Math.min(raum.max, Math.round(wert / schritt) * schritt));
+    anzeige.textContent = `${zahl(wert)} ${EINHEIT}`;
+    anzeige.classList.add('offen');
+    if (stand && stand.uhr) clearTimeout(stand.uhr);
+    // Wer von 20 auf 23 will, drückt dreimal. Jeder Druck einzeln gesendet
+    // hieße drei Funkbefehle an jedes Ventil – und drei Protokollzeilen.
+    stellentwurf.set(raum.id, {wert, uhr: setTimeout(() => senden(raum, wert), 900)});
+  };
+
+  zeile.querySelector('.ab').onclick = () => ruecken(-1);
+  zeile.querySelector('.auf').onclick = () => ruecken(+1);
+  const zurueck = zeile.querySelector('.zurueck');
+  if (zurueck) zurueck.onclick = async () => {
+    zurueck.disabled = true;
+    stellentwurf.delete(raum.id);
+    try {
+      await hole(`api/raeume/${raum.id}/temperatur`, {method: 'DELETE'});
+      await statusLaden();
+    } catch (err) {
+      zurueck.disabled = false;
+      stellfehler(anzeige, err.message);
+    }
+  };
+  return zeile;
+}
+
+async function senden(raum, wert) {
+  let fehlgeschlagen = null;
+  try {
+    await sendeJSON(`api/raeume/${raum.id}/temperatur`, 'POST', {wert});
+    // Angenommen – aber noch nicht im Bericht. Der Entwurf bleibt stehen,
+    // bis der Takt ihn bestätigt (siehe `entwurf_pruefen`).
+    stellentwurf.set(raum.id, {wert, gesendet: Date.now()});
+  } catch (err) {
+    fehlgeschlagen = err.message;
+    stellentwurf.delete(raum.id);
+  } finally {
+    await statusLaden();
+    if (fehlgeschlagen) {
+      // Nach dem Neuzeichnen steht die Kachel wieder frisch da – die
+      // Meldung muss an der neuen hängen, nicht an der verworfenen.
+      const karte = [...document.querySelectorAll('#raumkarten .karte')]
+        .find(k => k.querySelector('.name')?.textContent === raum.name);
+      if (karte) stellfehler(karte.querySelector('.stellwert'), fehlgeschlagen);
+    }
+  }
+}
+
+
+// Ein abgewiesener Wert wird dort gemeldet, wo er entstanden ist. Eine
+// Meldezeile am Seitenkopf übersieht, wer gerade auf eine Kachel schaut.
+function stellfehler(anzeige, text) {
+  if (!anzeige) return;
+  const vorher = anzeige.textContent;
+  anzeige.textContent = text;
+  anzeige.style.color = 'var(--achtung)';
+  anzeige.style.fontSize = '.75rem';
+  setTimeout(() => {
+    anzeige.textContent = vorher;
+    anzeige.style.color = '';
+    anzeige.style.fontSize = '';
+  }, 5000);
 }
 
 

@@ -1,5 +1,26 @@
 # Änderungen
 
+## 1.36.0
+
+- **Neu: Die Temperatur lässt sich direkt in der Übersicht stellen.** Auf
+  jeder Raumkachel sitzen jetzt zwei Knöpfe. Der Wert geht an alle
+  Thermostate des Raumes – ein abgedrehtes Ventil wird dabei geöffnet, denn
+  wer eine Temperatur stellt, will Wärme und keine Zahl auf einem
+  geschlossenen Ventil.
+- Gestellt wird als **Handeingriff**, genau wie ein Griff ans Rad: Er gilt bis
+  zum nächsten Zeitplanwechsel, danach führt wieder der Plan. Zwei Arten von
+  Handeingriff mit zwei Regeln wären eine Falle – niemand wüsste, welche
+  gerade gilt.
+- **Und ein Knopf zurück:** Steht ein Raum von Hand, erscheint „Zurück zum
+  Plan“. Er hebt den Eingriff sofort auf, ohne auf den nächsten Wechsel zu
+  warten.
+- Mehrere Drücke nacheinander werden zusammengefasst. Wer von 20 auf 23 will,
+  löst einen Befehl aus, nicht sechs.
+- Die Kachel zeigt den gewünschten Wert schon, während der Takt ihn noch
+  umsetzt – aber nur eine Minute lang. Eine Kachel, die dauerhaft einen
+  Wunsch statt der Wirklichkeit zeigt, ist genau der Fehler, der hier schon
+  einmal ein kaltes Kinderzimmer geheizt aussehen ließ.
+
 ## 1.35.0
 
 - **Neu: Der Wächter meldet ein Thermostat, das keine Raumtemperatur mehr

@@ -294,6 +294,49 @@ def api_raum(raum_id: str):
     return jsonify(raum)
 
 
+@app.route("/api/raeume/<raum_id>/temperatur", methods=["POST", "DELETE"])
+def api_raum_temperatur(raum_id: str):
+    """Einen Raum von Hand stellen – oder ihn dem Zeitplan zurückgeben.
+
+    POST setzt den Sollwert auf allen Thermostaten des Raumes und vermerkt
+    ihn als Handeingriff. DELETE hebt ihn auf. Beides ist dasselbe, was ein
+    Griff ans Rad bewirkt; die Oberfläche ist nur der bequemere Weg dorthin.
+    """
+    config = store.load_config()
+    raum = next((r for r in config["raeume"] if r["id"] == raum_id), None)
+    if raum is None:
+        return jsonify({"fehler": texte.t("api_raum_fehlt")}), 404
+
+    if request.method == "DELETE":
+        with _takt_lock:
+            zustand = store.load_state()
+            ergebnis = regelung.plan_zurueck(zustand, raum, logbuch.eintragen)
+            store.save_state(zustand)
+        _sofort_rechnen()
+        return jsonify(ergebnis)
+
+    try:
+        wert = float((request.get_json(silent=True) or {}).get("wert"))
+    except (TypeError, ValueError):
+        return jsonify({"fehler": texte.t("api_temperatur")}), 400
+    # Die Grenzen des Raumes, nicht die des Geräts: Wer 30 °C schickt, soll
+    # nicht heimlich auf 24 gestutzt werden, ohne es zu erfahren.
+    if not float(raum["min"]) <= wert <= float(raum["max"]):
+        return jsonify({"fehler": texte.t("api_temperatur_grenzen",
+                                          unten=f"{float(raum['min']):.1f}",
+                                          oben=f"{float(raum['max']):.1f}")}), 400
+
+    with _takt_lock:
+        zustand = store.load_state()
+        ergebnis = regelung.hand_setzen(config, zustand, raum, wert,
+                                        datetime.now(), logbuch.eintragen)
+        store.save_state(zustand)
+    if not ergebnis["thermostate"]:
+        return jsonify({"fehler": texte.t("api_kein_thermostat")}), 409
+    _sofort_rechnen()
+    return jsonify(ergebnis)
+
+
 @app.route("/api/einstellungen", methods=["GET", "PUT"])
 def api_einstellungen():
     if request.method == "GET":

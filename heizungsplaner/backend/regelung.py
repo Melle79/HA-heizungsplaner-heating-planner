@@ -1089,6 +1089,11 @@ def takt(config: dict, state: dict, protokoll) -> dict:
             "zustand": entscheidung["zustand"], "ziel": entscheidung["ziel"],
             "ist": entscheidung.get("ist"), "begruendung": entscheidung["begruendung"],
             "handwert": entscheidung.get("handwert"),
+            # Die Grenzen des Raumes gehören in den Bericht, weil die
+            # Oberfläche daran die Stellknöpfe anschlägt. Ohne sie ließe
+            # sich ein Kinderzimmer auf 30 °C drehen und der Dienst müsste
+            # es abweisen – die Grenze soll man sehen, nicht erfahren.
+            "min": float(raum["min"]), "max": float(raum["max"]),
             "uebersteuerung": uebersteuerung_lage(raum, states_index, jetzt),
             "seit": rz.get("seit"), "aktionen": aktionen,
             "naechster_wechsel": _iso(naechster),
@@ -1195,3 +1200,101 @@ def _batterien_holen(jetzt: datetime, state: dict, states_index: dict) -> dict:
         _BATTERIEN["stand"] = wachhund.batterien_je_thermostat()
         _BATTERIEN["geholt"] = jetzt
     return _BATTERIEN["stand"]
+
+
+# ---------------------------------------------------- Hand aus der Ferne ----
+# Am Thermostat zu drehen ist der kürzeste Weg, einen Raum wärmer zu machen –
+# aber nur, wenn man davorsteht. Vom Sofa aus ist die Übersicht näher.
+#
+# Beides muss dieselbe Bedeutung haben, sonst gäbe es zwei Arten von
+# Handeingriff mit zwei Regeln, und niemand wüsste, welche gerade gilt. Darum
+# wird hier nichts Neues erfunden: Der Wert geht ans Gerät und wird als
+# Handeingriff vermerkt, genau wie ihn der Takt vermerkt hätte. Er gilt bis
+# zum nächsten Zeitplanwechsel, danach führt wieder der Plan.
+
+def _wechsel_fuer(raum: dict, einst: dict, states_index: dict,
+                  jetzt: datetime) -> datetime:
+    """Wann der Zeitplan des Raumes das nächste Mal umschaltet."""
+    schulfrei = _bool_state(states_index, einst.get("schulfrei_entity", ""))
+    arbeitstag = _bool_state(states_index, einst.get("arbeitstag_entity", ""))
+    treffer = zp.naechster_wechsel(raum.get("zeitplan") or [], jetzt,
+                                   schulfrei, arbeitstag)
+    return treffer[0] if treffer else jetzt + timedelta(hours=12)
+
+
+def hand_setzen(config: dict, state: dict, raum: dict, wert: float,
+                jetzt: datetime, protokoll) -> dict:
+    """Einen Sollwert von Hand setzen, als hätte jemand am Rad gedreht.
+
+    Der vorgefundene Gerätewert wandert nach `vor_schreiben`. Das ist nicht
+    Buchhaltung, sondern Schutz: Solange er dort steht, überspringt der
+    nächste Takt die Handeingriff-Erkennung. Ohne ihn hielte der Planer den
+    noch nicht übernommenen alten Wert für eine zweite Hand und schriebe einen
+    Handeingriff auf einen Wert, den niemand gewollt hat.
+    """
+    einst = config["einstellungen"]
+    states = ha_api.get_states()
+    states_index = {s.get("entity_id"): s for s in states}
+    bis = _wechsel_fuer(raum, einst, states_index, jetzt)
+
+    gestellt = []
+    for entity_id in raum.get("thermostate") or []:
+        eintrag = states_index.get(entity_id)
+        if not eintrag:
+            continue
+        attrs = eintrag.get("attributes") or {}
+        unten, oben = _thermostat_grenzen(attrs)
+        ziel = _runden(max(unten, min(oben, wert)))
+        vorher = ha_api.as_float(attrs.get("temperature"))
+
+        # Ein abgedrehtes Ventil nimmt zwar den Sollwert an, heizt aber nicht.
+        # Wer in der Übersicht eine Temperatur stellt, will Wärme – nicht eine
+        # Zahl auf einem geschlossenen Ventil.
+        if eintrag.get("state") == "off":
+            ha_api.set_hvac_mode(entity_id, "heat")
+
+        if not ha_api.set_temperature(entity_id, ziel):
+            continue
+
+        gedaechtnis = state["thermostate"].setdefault(entity_id, {})
+        gedaechtnis.update({
+            "soll": ziel,
+            "vor_schreiben": vorher,
+            "gesetzt_am": _iso(jetzt),
+            "hvac": "heat",
+            "manuell_bis": _iso(bis),
+        })
+        # Ein Wert, den der Mensch selbst gestellt hat, ist kein fremdes
+        # Wochenprogramm. Die gesammelten Verdachtsmomente wären sonst nach
+        # drei Griffen ins Regal eine Störmeldung.
+        for schluessel in ("hand_wann", "hand_wert", "fremd_gemeldet",
+                           "schreib_fehler", "fehler_zuletzt"):
+            gedaechtnis.pop(schluessel, None)
+        gestellt.append(entity_id)
+
+    if gestellt:
+        protokoll(raum["name"], texte.t("log_manuell"),
+                  texte.t("hand_uebersicht", grad=f"{_runden(wert):.1f}",
+                          einheit=einheit.einheit(),
+                          uhrzeit=bis.strftime("%H:%M")))
+    return {"raum": raum["id"], "wert": _runden(wert), "bis": _iso(bis),
+            "thermostate": gestellt}
+
+
+def plan_zurueck(state: dict, raum: dict, protokoll) -> dict:
+    """Einen von Hand gestellten Raum wieder dem Zeitplan überlassen.
+
+    Das Gedächtnis der betroffenen Thermostate wird verworfen, nicht nur der
+    Merker `manuell_bis`. Bliebe der zuletzt geschriebene Wert stehen, fände
+    der nächste Takt am Gerät den Handwert vor, hielte ihn für eine frische
+    Hand – und der Raum wäre sofort wieder übersteuert. Ohne Gedächtnis gibt
+    es nichts zu vergleichen, und der Plan greift beim ersten Takt.
+    """
+    geloest = []
+    for entity_id in raum.get("thermostate") or []:
+        if state["thermostate"].pop(entity_id, None) is not None:
+            geloest.append(entity_id)
+    if geloest:
+        protokoll(raum["name"], texte.t("log_plan_zurueck"),
+                  texte.t("plan_zurueck"))
+    return {"raum": raum["id"], "thermostate": geloest}

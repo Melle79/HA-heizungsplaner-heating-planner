@@ -365,6 +365,15 @@ TEXTE: dict[str, dict[str, str]] = {
     "log_bleibt_an": {"de": "bleibt an", "en": "stays on"},
     "log_nicht_bestaetigt": {"de": "nicht übernommen", "en": "not applied"},
     "log_manuell": {"de": "manuell", "en": "manual"},
+    "log_plan_zurueck": {"de": "zurück zum Plan", "en": "back to schedule"},
+    "hand_uebersicht": {
+        "de": "In der Übersicht auf {grad} {einheit} gestellt – der Plan führt "
+              "wieder ab {uhrzeit} Uhr",
+        "en": "Set to {grad} {einheit} from the overview – the schedule resumes "
+              "at {uhrzeit}"},
+    "plan_zurueck": {
+        "de": "Der Handeingriff ist aufgehoben, der Zeitplan führt wieder",
+        "en": "The manual override is cleared, the schedule leads again"},
     "log_party_vorbei_was": {"de": "Party vorbei", "en": "Party over"},
 
     # MQTT: Zustand des Planers
@@ -435,6 +444,13 @@ TEXTE: dict[str, dict[str, str]] = {
     "api_keine_entitaet": {"de": "Keine Entität angegeben",
                            "en": "No entity given"},
     "api_dauer": {"de": "Ungültige Dauer", "en": "Invalid duration"},
+    "api_temperatur": {"de": "Ungültige Temperatur", "en": "Invalid temperature"},
+    "api_temperatur_grenzen": {
+        "de": "Der Raum lässt nur {unten} bis {oben} zu",
+        "en": "This room only allows {unten} to {oben}"},
+    "api_kein_thermostat": {
+        "de": "Kein Thermostat des Raumes hat den Wert angenommen",
+        "en": "No thermostat in this room accepted the value"},
     "api_kein_meldeweg": {"de": "Es ist kein Meldeweg eingestellt.",
                           "en": "No notification target is configured."},
 
