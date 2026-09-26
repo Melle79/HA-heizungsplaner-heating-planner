@@ -258,6 +258,8 @@ TEXTE: dict[str, dict[str, str]] = {
     "wach_batterie": {"de": "hat eine schwache Batterie", "en": "has a low battery"},
     "wach_verweigert": {"de": "nimmt keine Sollwerte an",
                         "en": "refuses to accept setpoints"},
+    "wach_kein_fuehler": {"de": "liefert keine Raumtemperatur mehr",
+                          "en": "no longer reports a room temperature"},
     "wach_sommerpause": {
         "de": "steht in der Sommerpause und heizt deshalb nicht",
         "en": "is in summer pause and therefore does not heat"},

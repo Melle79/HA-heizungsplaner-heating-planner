@@ -1,5 +1,19 @@
 # Änderungen
 
+## 1.35.0
+
+- **Neu: Der Wächter meldet ein Thermostat, das keine Raumtemperatur mehr
+  liefert.** Dieser Fall fiel bisher durch alle Prüfungen: Das Gerät ist
+  erreichbar, es meldet sich regelmäßig, es nimmt Sollwerte an – nur sein
+  Fühler schweigt. Für den Planer ist der Raum damit blind.
+- Ohne Messwert gibt es keine Ist-Anzeige, keine Fenstererkennung über den
+  Temperatursturz und keine Absenkung nach Messwert. Der Raum heizt dann
+  stur nach Plan, und niemand erfährt davon.
+- Gemeldet wird erst nach drei Stunden ohne Wert – ein Gerät, das stündlich
+  meldet, darf ruhig einmal aussetzen.
+- Nur dort geprüft, wo der Raum seine Temperatur von den Thermostaten bezieht.
+  Hat er einen eigenen Fühler, ist der Messwert des Ventils entbehrlich.
+
 ## 1.34.0
 
 - **Neu: Der Planer erkennt jetzt auch ein Thermostat, das sich selbst

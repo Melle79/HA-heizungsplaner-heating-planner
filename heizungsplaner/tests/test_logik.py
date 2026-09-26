@@ -1292,14 +1292,20 @@ einst_w = store.validate_einstellungen({})
 
 def lage(a_zustand="heat", a_gemeldet="2026-08-25T11:58:00+00:00",
          b_zustand="heat", b_gemeldet="2026-08-25T11:58:00+00:00",
-         batterie=None, b_fehlt=False):
+         batterie=None, b_fehlt=False, a_ist=21.0):
+    # `a_ist` ist die Raumtemperatur, die das Geraet meldet. Sie gehoert dazu:
+    # Ein Thermostat, das antwortet und trotzdem keinen Messwert liefert, ist
+    # ein eigener Stoerungsfall - und ohne den Wert hier waere er in jedem
+    # anderen Test versehentlich mit ausgeloest.
     idx = {"climate.a": {"entity_id": "climate.a", "state": a_zustand,
                          "last_reported": a_gemeldet,
-                         "attributes": {"friendly_name": "Thermostat A"}}}
+                         "attributes": {"friendly_name": "Thermostat A",
+                                        "current_temperature": a_ist}}}
     if not b_fehlt:
         idx["climate.b"] = {"entity_id": "climate.b", "state": b_zustand,
                             "last_reported": b_gemeldet,
-                            "attributes": {"friendly_name": "Thermostat B"}}
+                            "attributes": {"friendly_name": "Thermostat B",
+                                           "current_temperature": 21.0}}
     if batterie is not None:
         idx["sensor.a_batterie"] = {"entity_id": "sensor.a_batterie",
                                     "state": str(batterie), "attributes": {}}
@@ -1313,6 +1319,48 @@ def lage(a_zustand="heat", a_gemeldet="2026-08-25T11:58:00+00:00",
     return wachhund.pruefen(cfg, idx, spaeter, einst_w, batterien, merker)
 
 pruefe(lage() == [], "alles in Ordnung -> keine Stoerung")
+
+# --- Antwortet, liefert aber keine Raumtemperatur -------------------------
+#
+# Dieser Fall faellt durch alle anderen Pruefungen: Das Geraet ist erreichbar,
+# meldet sich regelmaessig und nimmt Sollwerte an - nur sein Fuehler schweigt.
+# Fuer den Planer ist der Raum damit blind: keine Ist-Anzeige, keine
+# Fenstererkennung ueber den Temperatursturz.
+merker_f = {}
+idx_f = {"climate.a": {"entity_id": "climate.a", "state": "heat",
+                       "last_reported": "2026-08-25T11:58:00+00:00",
+                       "attributes": {"friendly_name": "Thermostat A",
+                                      "current_temperature": None}},
+         "climate.b": {"entity_id": "climate.b", "state": "heat",
+                       "last_reported": "2026-08-25T11:58:00+00:00",
+                       "attributes": {"friendly_name": "Thermostat B",
+                                      "current_temperature": 21.0}}}
+st = wachhund.pruefen(cfg, idx_f, jetzt_w, einst_w, {}, merker_f)
+pruefe(st == [], "ein einzelner Takt ohne Messwert meldet noch nichts")
+pruefe(merker_f["climate.a"].get("ohne_fuehler_seit"), "der Ausfall wird gemerkt")
+
+spaet = jetzt_w + wachhund.FUEHLER_FRIST + timedelta(minutes=1)
+st = wachhund.pruefen(cfg, idx_f, spaet, einst_w, {}, merker_f)
+fuehler = [x for x in st if x["art"] == "kein_fuehler"]
+pruefe(len(fuehler) == 1,
+       f"nach der Frist wird der stumme Fuehler gemeldet ({[x['art'] for x in st]})")
+pruefe("Raumtemperatur" in fuehler[0]["text"],
+       f"und der Text sagt, was fehlt ({fuehler[0]['text'][:60]})")
+
+# Kommt der Wert zurueck, ist die Sache erledigt.
+idx_zurueck = json.loads(json.dumps(idx_f))
+idx_zurueck["climate.a"]["attributes"]["current_temperature"] = 21.0
+wachhund.pruefen(cfg, idx_zurueck, spaet, einst_w, {}, merker_f)
+pruefe(not merker_f["climate.a"].get("ohne_fuehler_seit"),
+       "kommt der Messwert zurueck, wird der Merker geloescht")
+
+# Ein Raum mit eigenem Fuehler braucht den des Ventils nicht.
+cfg_eigen = {"raeume": [store.validate_raum({
+    "name": "Wohnzimmer", "thermostate": ["climate.a"], "personen": [],
+    "raumtemp": "sensor.raumklima", "zeitplan": plan})]}
+st = wachhund.pruefen(cfg_eigen, idx_f, spaet, einst_w, {}, {})
+pruefe(not [x for x in st if x["art"] == "kein_fuehler"],
+       "mit eigenem Raumfuehler wird der stumme Ventilfuehler nicht gemeldet")
 
 st = lage(b_fehlt=True)
 pruefe(len(st) == 1 and st[0]["art"] == "fehlt", f"verschwundenes Geraet ({st})")

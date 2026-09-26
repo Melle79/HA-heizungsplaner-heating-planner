@@ -32,6 +32,7 @@ ARTEN = {
     "batterie":     ("wach_batterie", "warnung"),
     "verweigert":   ("wach_verweigert", "fehler"),
     "sommerpause":  ("wach_sommerpause", "fehler"),
+    "kein_fuehler": ("wach_kein_fuehler", "warnung"),
 }
 
 # So oft darf ein Schreibvorgang scheitern, bevor es als Störung gilt.
@@ -41,6 +42,15 @@ FEHLSCHLAEGE = 3
 # ausgefallen gilt. Zwei Takte – der Weckruf und die Antwort brauchen jeweils
 # ihren Weg durch Funk und Integration.
 WECK_SCHONFRIST = timedelta(minutes=12)
+
+# So lange darf ein Thermostat antworten, ohne eine Raumtemperatur zu liefern.
+#
+# Dieser Fall fällt durch alle anderen Prüfungen: Das Gerät ist erreichbar, es
+# meldet sich regelmäßig, es nimmt Sollwerte an – nur sein Fühler schweigt.
+# Für den Planer ist der Raum damit blind: keine Ist-Anzeige, keine
+# Fenstererkennung über den Temperatursturz, keine Absenkung nach Messwert.
+# Drei Stunden sind großzügig; normalerweise meldet so ein Gerät stündlich.
+FUEHLER_FRIST = timedelta(hours=3)
 
 # Älter als das wird ein Batteriestand nicht mehr für bare Münze genommen.
 # Manche Geräte melden ihn nur bei Änderung – nach einem Batteriewechsel steht
@@ -169,6 +179,30 @@ def pruefen(config: dict, states_index: dict, jetzt: datetime,
                 stoerungen.append(_bauen(entity_id, name, raum, "sommerpause",
                                          texte.t("wach_fritzbox")))
                 continue
+
+            # Antwortet, liefert aber keine Raumtemperatur.
+            #
+            # Nur dort gemeldet, wo der Raum seine Temperatur von den
+            # Thermostaten bezieht – hat er einen eigenen Fühler, ist der
+            # Messwert des Ventils ohnehin entbehrlich.
+            if not (raum.get("raumtemp") or "").strip():
+                hat_wert = ha_api.as_float(
+                    (eintrag.get("attributes") or {}).get(
+                        "current_temperature")) is not None
+                merker = thermostat_zustand.setdefault(entity_id, {})
+                if hat_wert:
+                    merker.pop("ohne_fuehler_seit", None)
+                else:
+                    seit = _zeit(merker.get("ohne_fuehler_seit"))
+                    if seit is None:
+                        merker["ohne_fuehler_seit"] = jetzt_utc.isoformat(
+                            timespec="seconds")
+                    elif jetzt_utc - seit >= FUEHLER_FRIST:
+                        stunden = (jetzt_utc - seit).total_seconds() / 3600
+                        stoerungen.append(_bauen(
+                            entity_id, name, raum, "kein_fuehler",
+                            texte.t("wach_seit", stunden=f"{stunden:.0f}")))
+                        continue
 
             fehler = (thermostat_zustand.get(entity_id) or {}).get("schreib_fehler", 0)
             if fehler >= FEHLSCHLAEGE:
