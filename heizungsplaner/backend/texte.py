@@ -451,6 +451,9 @@ TEXTE: dict[str, dict[str, str]] = {
     "api_kein_thermostat": {
         "de": "Kein Thermostat des Raumes hat den Wert angenommen",
         "en": "No thermostat in this room accepted the value"},
+    "api_nicht_erreichbar": {
+        "de": "Das Thermostat ist gerade nicht erreichbar",
+        "en": "The thermostat cannot be reached right now"},
     "api_kein_meldeweg": {"de": "Es ist kein Meldeweg eingestellt.",
                           "en": "No notification target is configured."},
 

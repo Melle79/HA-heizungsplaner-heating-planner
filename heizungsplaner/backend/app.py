@@ -332,7 +332,12 @@ def api_raum_temperatur(raum_id: str):
                                         datetime.now(), logbuch.eintragen)
         store.save_state(zustand)
     if not ergebnis["thermostate"]:
-        return jsonify({"fehler": texte.t("api_kein_thermostat")}), 409
+        # Der Unterschied zählt: Ein stummes Gerät ist ein Gerätefehler, ein
+        # abgelehnter Wert ein Regelungsfehler. Wer nur „hat nicht geklappt“
+        # liest, sucht an der falschen Stelle.
+        schluessel = ("api_nicht_erreichbar" if ergebnis.get("stumm")
+                      else "api_kein_thermostat")
+        return jsonify({"fehler": texte.t(schluessel)}), 409
     _sofort_rechnen()
     return jsonify(ergebnis)
 

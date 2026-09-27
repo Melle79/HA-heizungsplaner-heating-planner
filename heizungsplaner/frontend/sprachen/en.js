@@ -251,6 +251,8 @@ window.SPRACHEN.en = {
   "Sommer": "Summer",
   "Gesperrt": "Blocked",
   "Von Hand": "Manual",
+  "Nicht erreichbar": "Unreachable",
+  "· nicht erreichbar": "· unreachable",
   "Ferientag": "School-holiday workday",
   "Beides": "Both",
   "Zurück zum Plan": "Back to schedule",

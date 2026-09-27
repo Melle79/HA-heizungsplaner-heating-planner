@@ -1113,6 +1113,13 @@ def takt(config: dict, state: dict, protokoll) -> dict:
                     "betriebsart": states_index.get(eid, {}).get("state"),
                     "manuell_bis": state["thermostate"].get(eid, {}).get("manuell_bis"),
                     "vorhanden": eid in states_index,
+                    # „vorhanden“ heißt nur, dass die Entität existiert. Ein
+                    # abgemeldetes Gerät ist vorhanden und trotzdem taub – die
+                    # Oberfläche muss das auseinanderhalten können, sonst zeigt
+                    # sie eine Wunschtemperatur für ein Ventil, das niemand
+                    # mehr erreicht.
+                    "erreichbar": states_index.get(eid, {}).get("state")
+                    not in (None, "unavailable", "unknown"),
                 }
                 for eid in raum.get("thermostate") or []
             ],
@@ -1237,10 +1244,22 @@ def hand_setzen(config: dict, state: dict, raum: dict, wert: float,
     states_index = {s.get("entity_id"): s for s in states}
     bis = _wechsel_fuer(raum, einst, states_index, jetzt)
 
-    gestellt = []
+    gestellt, stumm = [], []
     for entity_id in raum.get("thermostate") or []:
         eintrag = states_index.get(entity_id)
         if not eintrag:
+            continue
+        # Ein Gerät, das sich abgemeldet hat, nimmt nichts an. Home Assistant
+        # quittiert den Dienstaufruf trotzdem – wer nur darauf hört, hält den
+        # Wert für angekommen, vermerkt einen Handeingriff und hält sich bis
+        # zum nächsten Zeitplanwechsel zurück. Der Raum bliebe dann stundenlang
+        # ungeregelt, weil ein Befehl geschützt wird, den nie jemand bekam.
+        #
+        # Genau so geschehen am 27.09.2026: Büro und Kinderzimmer hingen an
+        # einem ausgefallenen Hub, beide wurden aus der Übersicht gestellt, und
+        # der Planer schwieg bis 21 Uhr.
+        if eintrag.get("state") in ("unavailable", "unknown"):
+            stumm.append(entity_id)
             continue
         attrs = eintrag.get("attributes") or {}
         unten, oben = _thermostat_grenzen(attrs)
@@ -1278,7 +1297,7 @@ def hand_setzen(config: dict, state: dict, raum: dict, wert: float,
                           einheit=einheit.einheit(),
                           uhrzeit=bis.strftime("%H:%M")))
     return {"raum": raum["id"], "wert": _runden(wert), "bis": _iso(bis),
-            "thermostate": gestellt}
+            "thermostate": gestellt, "stumm": stumm}
 
 
 def plan_zurueck(state: dict, raum: dict, protokoll) -> dict:

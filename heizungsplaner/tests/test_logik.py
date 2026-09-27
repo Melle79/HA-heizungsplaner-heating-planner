@@ -1875,6 +1875,60 @@ pruefe(hk.deckt("06:00-08:00 17:00-22:00", "06:00-08:00 17:00-22:00"),
 pruefe(not hk.deckt("06:00-08:00", "06:00-08:00 17:00-22:00"),
        "ein weggefallener Block zaehlt als Wegnahme")
 
+print("\n=== Auf ein abgemeldetes Geraet wird nicht gestellt ===")
+# Home Assistant quittiert den Dienstaufruf auch fuer ein Geraet, das sich
+# abgemeldet hat. Wer nur darauf hoert, haelt den Wert fuer angekommen,
+# vermerkt einen Handeingriff und haelt sich bis zum naechsten
+# Zeitplanwechsel zurueck - der Raum bliebe stundenlang ungeregelt, weil ein
+# Befehl geschuetzt wird, den nie jemand bekam. Genau so lagen am 27.09.2026
+# zwei Raeume still, deren Hub ausgefallen war.
+_gerufen = []
+
+
+class _HA:
+    def __init__(self, zustand):
+        self.zustand = zustand
+
+    def get_states(self):
+        return [{"entity_id": "climate.pruef", "state": self.zustand,
+                 "attributes": {"temperature": 21.0, "min_temp": 5.0,
+                                "max_temp": 30.0, "friendly_name": "Pruef"}}]
+
+    def set_temperature(self, entity_id, wert):
+        _gerufen.append((entity_id, wert))
+        return True
+
+    def set_hvac_mode(self, entity_id, modus):
+        return True
+
+    as_float = staticmethod(lambda w: None if w is None else float(w))
+
+
+_raum = {"id": "p1", "name": "Pruefraum", "min": 5, "max": 30,
+         "thermostate": ["climate.pruef"], "zeitplan": []}
+_cfg = {"einstellungen": {"frostschutz": 8.0}, "raeume": [_raum]}
+
+for zustand, soll_gestellt in (("heat", True), ("unavailable", False),
+                               ("unknown", False)):
+    _gerufen.clear()
+    _zst = {"thermostate": {}}
+    _alt = regelung.ha_api
+    regelung.ha_api = _HA(zustand)
+    try:
+        _erg = regelung.hand_setzen(_cfg, _zst, _raum, 22.0,
+                                    datetime(2026, 9, 27, 11, 5),
+                                    lambda *a, **k: None)
+    finally:
+        regelung.ha_api = _alt
+    pruefe(bool(_gerufen) == soll_gestellt,
+           f"Zustand {zustand!r}: {'gestellt' if soll_gestellt else 'nicht gestellt'}")
+    gesperrt = bool((_zst["thermostate"].get("climate.pruef") or {}).get("manuell_bis"))
+    pruefe(gesperrt == soll_gestellt,
+           f"Zustand {zustand!r}: {'Handeingriff vermerkt' if soll_gestellt else 'kein Handeingriff vermerkt'}")
+    if not soll_gestellt:
+        pruefe(_erg["stumm"] == ["climate.pruef"],
+               f"Zustand {zustand!r}: das stumme Geraet wird benannt")
+
 print("\n=== Ferientag: schulfrei und trotzdem Werktag ===")
 import zeitplan as _zp
 

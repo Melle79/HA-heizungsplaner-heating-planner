@@ -1,5 +1,25 @@
 # Änderungen
 
+## 1.39.0
+
+- **Behoben: Ein Stellbefehl an ein abgemeldetes Gerät galt als angekommen.**
+  Home Assistant quittiert den Dienstaufruf auch dann, wenn das Thermostat
+  nicht mehr antwortet. Der Planer hielt den Wert für gesetzt, vermerkte einen
+  Handeingriff und zog sich bis zum nächsten Zeitplanwechsel zurück – der
+  Raum blieb stundenlang ungeregelt, weil ein Befehl geschützt wurde, den nie
+  jemand bekommen hatte.
+- **Die Kachel sagt es jetzt.** Sind alle Thermostate eines Raumes
+  abgemeldet, steht dort „Nicht erreichbar“ statt einer Temperatur, und die
+  Stellknöpfe sind gesperrt. Eine Zahl wäre eine Behauptung über ein Ventil,
+  das niemand mehr erreicht – und die verlässlichste Art, einen Ausfall zu
+  übersehen.
+- Einzelne stumme Geräte werden in der Thermostatliste als „nicht
+  erreichbar“ geführt, wie bisher schon fehlende.
+- Wird ein Wert abgewiesen, unterscheidet die Meldung jetzt zwischen einem
+  nicht erreichbaren Gerät und einem abgelehnten Wert. Das eine ist ein
+  Gerätefehler, das andere ein Regelungsfehler – wer nur „hat nicht geklappt“
+  liest, sucht an der falschen Stelle.
+
 ## 1.38.0
 
 - **Neu: die Punktart „Ferientag".** Sie greift, wenn schulfrei ist und

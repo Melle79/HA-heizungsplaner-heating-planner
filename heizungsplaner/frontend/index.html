@@ -1680,6 +1680,13 @@ function lageZeichnen(bericht) {
 
 function karteZeichnen(raum) {
   const ruht = RUHT.includes(raum.zustand);
+  // Ein Raum, dessen Thermostate sich alle abgemeldet haben, wird von
+  // niemandem geregelt. Eine Zahl auf seiner Kachel wäre eine Behauptung
+  // über ein Ventil, das keiner mehr erreicht – und die verlässlichste Art,
+  // einen Ausfall zu übersehen.
+  const geraete = raum.thermostate || [];
+  const taub = geraete.length > 0
+    && geraete.every(t => t.erreichbar === false);
   const handbetrieb = raum.zustand === 'manuell';
   const hatHandwert = raum.handwert !== null && raum.handwert !== undefined;
 
@@ -1692,10 +1699,13 @@ function karteZeichnen(raum) {
     : (raum.thermostate || []).find(t => t.manuell_bis) || null;
 
   let anzeige;
-  // Ein ruhender Raum mit Handeingriff ist nicht „aus“: Wer einen gesperrten
-  // Raum von Hand auf 9 °C stellt, dessen Ventil steht auf 9 °C und nicht zu.
-  // „Ventil zu“ wäre hier dieselbe Unwahrheit wie oben – nur andersherum.
-  if (ruht && !eingriff) {
+  if (taub) {
+    anzeige = `<span class="soll ruht">Nicht erreichbar</span>`;
+  } else if (ruht && !eingriff) {
+    // Ein ruhender Raum mit Handeingriff ist nicht „aus“: Wer einen
+    // gesperrten Raum von Hand auf 9 °C stellt, dessen Ventil steht auf
+    // 9 °C und nicht zu. „Ventil zu“ wäre hier dieselbe Unwahrheit wie
+    // oben – nur andersherum.
     anzeige = `<span class="soll ruht">Aus<span class="einheit"> · Ventil zu</span></span>`;
   } else if (handbetrieb && !hatHandwert) {
     anzeige = `<span class="soll ruht">Von Hand</span>`;
@@ -1712,11 +1722,12 @@ function karteZeichnen(raum) {
 
   const thermostate = (raum.thermostate || []).map(t => {
     const klassen = ['thermo'];
-    if (!t.vorhanden) klassen.push('fehlt');
+    if (!t.vorhanden || t.erreichbar === false) klassen.push('fehlt');
     if (t.manuell_bis) klassen.push('hand');
     const soll = t.soll === null || t.soll === undefined ? '–' : zahl(t.soll) +  ' ' + EINHEIT;
     const ist = t.ist === null || t.ist === undefined ? '' : ' · ist ' + zahl(t.ist);
-    const betrieb = t.betriebsart === 'off' ? ' · aus' : '';
+    const betrieb = t.erreichbar === false ? ' · nicht erreichbar'
+                  : t.betriebsart === 'off' ? ' · aus' : '';
     return `<div class="${klassen.join(' ')}">
       <span class="tname">${t.name}</span>
       <span class="twert">${soll}${ist}${betrieb}</span></div>`;
@@ -1750,7 +1761,7 @@ function karteZeichnen(raum) {
     </div>`;
   // Unter Begründung und Handhinweis, über der Fußzeile: erst lesen, was
   // gilt und warum, dann eingreifen.
-  const stellen = stellbereich(raum, eingriff, handbetrieb);
+  const stellen = stellbereich(raum, eingriff, handbetrieb, taub);
   if (stellen) karte.querySelector('.fusszeile').before(stellen);
   return karte;
 }
@@ -1819,7 +1830,7 @@ function entwurf_pruefen(raum, steht, schritt) {
   return entwurf;
 }
 
-function stellbereich(raum, eingriff, handbetrieb) {
+function stellbereich(raum, eingriff, handbetrieb, taub) {
   if (!(raum.thermostate || []).length) return null;
   // Den Rückweg gibt es nur für einen *erkannten* Handeingriff in einem sonst
   // geführten Raum. Läuft der Raum in der Betriebsart „von Hand“, ist das kein
@@ -1849,9 +1860,10 @@ function stellbereich(raum, eingriff, handbetrieb) {
   const zeile = document.createElement('div');
   zeile.className = 'stellen';
   zeile.innerHTML = `
-    <button class="ab" title="Kühler">−</button>
-    <span class="stellwert${entwurf ? ' offen' : ''}">${zahl(gilt)} ${EINHEIT}</span>
-    <button class="auf" title="Wärmer">+</button>
+    <button class="ab" title="Kühler"${taub ? ' disabled' : ''}>−</button>
+    <span class="stellwert${entwurf ? ' offen' : ''}">${
+      taub ? '–' : zahl(gilt) + ' ' + EINHEIT}</span>
+    <button class="auf" title="Wärmer"${taub ? ' disabled' : ''}>+</button>
     ${eingriff
       ? `<button class="zurueck"${laeuft ? ' disabled' : ''}>${
           laeuft ? 'Wird zurückgeführt …' : 'Zurück zum Plan'}</button>` : ''}`;
@@ -1870,8 +1882,10 @@ function stellbereich(raum, eingriff, handbetrieb) {
     stellentwurf.set(raum.id, {wert, uhr: setTimeout(() => senden(raum, wert), 900)});
   };
 
-  zeile.querySelector('.ab').onclick = () => ruecken(-1);
-  zeile.querySelector('.auf').onclick = () => ruecken(+1);
+  if (!taub) {
+    zeile.querySelector('.ab').onclick = () => ruecken(-1);
+    zeile.querySelector('.auf').onclick = () => ruecken(+1);
+  }
   const zurueck = zeile.querySelector('.zurueck');
   if (zurueck && !laeuft) zurueck.onclick = async () => {
     zurueck.disabled = true;
