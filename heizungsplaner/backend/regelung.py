@@ -339,9 +339,59 @@ FREMDPROGRAMM_FENSTER = timedelta(days=2)
 FREMDPROGRAMM_DICHT = timedelta(minutes=30)
 
 
-def _fremdprogramm_merken(gedaechtnis: dict, wert: float, jetzt: datetime,
-                          raum: dict, entity_id: str, attrs: dict,
-                          protokoll) -> None:
+def verdacht_aufraeumen(state: dict, jetzt: datetime) -> None:
+    """Verdachtsspuren vergessen, deren letzter Treffer aus der Zeit gefallen ist.
+
+    Ohne das wüchse der Zustand ewig, und eine einmal ausgesprochene Meldung
+    käme nie wieder – ein Fremdprogramm, das nach Wochen zurückkehrt, bliebe
+    stumm.
+    """
+    # Erst übernehmen, was ältere Fassungen noch beim Thermostat führten –
+    # sonst bliebe es dort für immer liegen und würde nie ausgewertet.
+    for entity_id, gedaechtnis in (state.get("thermostate") or {}).items():
+        if "hand_wann" in gedaechtnis or "fremd_gemeldet" in gedaechtnis:
+            _spur(state, gedaechtnis, entity_id)
+
+    spuren = state.get("fremdverdacht") or {}
+    for entity_id in list(spuren):
+        wann = [_aus_iso(z) for z in (spuren[entity_id].get("wann") or [])]
+        if not any(z and jetzt - z <= FREMDPROGRAMM_FENSTER for z in wann):
+            spuren.pop(entity_id, None)
+
+
+def _spur(state: dict, gedaechtnis: dict, entity_id: str) -> dict:
+    """Die Beobachtungsspur eines Thermostats – außerhalb seines Gedächtnisses.
+
+    Sie liegt bewusst **nicht** beim Handeingriff-Merker. Der wird verworfen,
+    sobald der Zeitplan wieder greift, jemand „Zurück zum Plan" drückt oder
+    das Gedächtnis zurückgesetzt wird – und mit ihm ginge jedes Mal die Spur
+    verloren, aus der sich ein fremdes Wochenprogramm überhaupt erst ablesen
+    lässt.
+
+    Genau daran scheiterte die Erkennung am 26./27.09.2026: Ein Thermostat
+    stellte sich viermal binnen 24 Stunden auf denselben Wert zurück, und
+    gemeldet wurde nie etwas, weil zwischen den Treffern jedes Mal der Plan
+    wieder griff.
+
+    Ein Wochenprogramm schlägt morgens und abends zu; dazwischen liegen
+    Stunden, in denen alles normal aussieht. Was es verrät, ist allein die
+    Wiederholung über Tage – und die braucht ein Gedächtnis, das länger hält
+    als ein einzelner Eingriff.
+    """
+    spuren = state.setdefault("fremdverdacht", {})
+    spur = spuren.setdefault(entity_id, {})
+    # Übernahme aus älteren Fassungen, die die Spur noch beim Merker führten.
+    for alt_name, neu_name in (("hand_wann", "wann"), ("hand_wert", "wert"),
+                               ("hand_wechselnd", "wechselnd"),
+                               ("fremd_gemeldet", "gemeldet")):
+        if alt_name in gedaechtnis and neu_name not in spur:
+            spur[neu_name] = gedaechtnis.pop(alt_name)
+    return spur
+
+
+def _fremdprogramm_merken(state: dict, gedaechtnis: dict, wert: float,
+                          jetzt: datetime, raum: dict, entity_id: str,
+                          attrs: dict, protokoll) -> None:
     """Häufige „Handeingriffe" sammeln – und melden, wenn es keiner sein kann.
 
     Der Planer zieht sich bei einem Handeingriff bewusst zurück; das bleibt so.
@@ -363,23 +413,24 @@ def _fremdprogramm_merken(gedaechtnis: dict, wert: float, jetzt: datetime,
     sie tun – und der Hinweis muss deshalb zur App des Herstellers führen, denn
     nur dort lässt sich beides abschalten.
     """
-    frueher = [_aus_iso(z) for z in (gedaechtnis.get("hand_wann") or [])]
+    spur = _spur(state, gedaechtnis, entity_id)
+    frueher = [_aus_iso(z) for z in (spur.get("wann") or [])]
     letzte = [z for z in frueher if z and jetzt - z <= FREMDPROGRAMM_FENSTER]
     letzte.append(jetzt)
-    gedaechtnis["hand_wann"] = [_iso(z) for z in letzte[-FREMDPROGRAMM_AB:]]
+    spur["wann"] = [_iso(z) for z in letzte[-FREMDPROGRAMM_AB:]]
 
     # Wechselt der Wert, ist es kein Zeitplan – aber die Häufung zählt weiter.
-    voriger = gedaechtnis.get("hand_wert")
+    voriger = spur.get("wert")
     if voriger is not None and abs(float(voriger) - wert) >= 0.25:
-        gedaechtnis["hand_wechselnd"] = True
-    gedaechtnis["hand_wert"] = wert
+        spur["wechselnd"] = True
+    spur["wert"] = wert
 
     # Dicht aufeinander: Das ist kein Mensch, sondern etwas, das selbst stellt.
     dicht = [z for z in letzte if jetzt - z <= FREMDPROGRAMM_DICHT]
 
-    if gedaechtnis.get("fremd_gemeldet"):
+    if spur.get("gemeldet"):
         return
-    if len(letzte) >= FREMDPROGRAMM_AB and not gedaechtnis.get("hand_wechselnd"):
+    if len(letzte) >= FREMDPROGRAMM_AB and not spur.get("wechselnd"):
         text = texte.t("fremdprogramm",
                        name=attrs.get("friendly_name", entity_id),
                        grad=f"{wert:.1f}", anzahl=len(letzte))
@@ -390,7 +441,7 @@ def _fremdprogramm_merken(gedaechtnis: dict, wert: float, jetzt: datetime,
                        minuten=int(FREMDPROGRAMM_DICHT.total_seconds() // 60))
     else:
         return
-    gedaechtnis["fremd_gemeldet"] = _iso(jetzt)
+    spur["gemeldet"] = _iso(jetzt)
     protokoll(raum["name"], texte.t("log_fremdprogramm"), text,
               entity_id, art="warnung")
 
@@ -891,8 +942,8 @@ def anwenden(raum: dict, entscheidung: dict, state: dict, umgebung: dict,
                 protokoll(raum["name"], texte.t("log_manuell"),
                           texte.t("hand_erkannt", grad=f"{ist_soll:.1f}"),
                           entity_id)
-                _fremdprogramm_merken(gedaechtnis, ist_soll, jetzt, raum,
-                                      entity_id, attrs, protokoll)
+                _fremdprogramm_merken(state, gedaechtnis, ist_soll, jetzt,
+                                      raum, entity_id, attrs, protokoll)
                 continue
         manuell_bis = _aus_iso(gedaechtnis.get("manuell_bis"))
         # Steht das Gerät wieder auf dem Zielwert, ist der Handeingriff
@@ -906,16 +957,10 @@ def anwenden(raum: dict, entscheidung: dict, state: dict, umgebung: dict,
                 and abs(ist_soll - ziel) < _schritt()):
             gedaechtnis["manuell_bis"] = None
             manuell_bis = None
-            for schluessel in ("hand_wann", "hand_wert", "fremd_gemeldet"):
-                gedaechtnis.pop(schluessel, None)
         if manuell_bis and manuell_bis > jetzt and not erzwingen:
             continue
         if manuell_bis:
             gedaechtnis["manuell_bis"] = None
-            # Der Zeitplan greift wieder, und niemand hat dazwischengefunkt:
-            # Damit ist der Verdacht auf ein Fremdprogramm erledigt.
-            for schluessel in ("hand_wann", "hand_wert", "fremd_gemeldet"):
-                gedaechtnis.pop(schluessel, None)
 
         # -- Betriebsart sicherstellen ---------------------------------------
         if eintrag.get("state") == "off" and not trockenlauf:
@@ -1026,6 +1071,9 @@ def takt(config: dict, state: dict, protokoll) -> dict:
                   texte.t("log_party_vorbei"))
         party_bis = None
         state["party_bis"] = None
+
+    # Verdachtsspuren, die aus der Zeit gefallen sind, verfallen hier.
+    verdacht_aufraeumen(state, jetzt)
 
     urlaub = _bool_state(states_index, einst.get("urlaub_entity", "")) or False
     schulfrei = _bool_state(states_index, einst.get("schulfrei_entity", ""))
@@ -1283,11 +1331,13 @@ def hand_setzen(config: dict, state: dict, raum: dict, wert: float,
             "hvac": "heat",
             "manuell_bis": _iso(bis),
         })
-        # Ein Wert, den der Mensch selbst gestellt hat, ist kein fremdes
-        # Wochenprogramm. Die gesammelten Verdachtsmomente wären sonst nach
-        # drei Griffen ins Regal eine Störmeldung.
-        for schluessel in ("hand_wann", "hand_wert", "fremd_gemeldet",
-                           "schreib_fehler", "fehler_zuletzt"):
+        # Ein Wert, den der Mensch selbst gestellt hat, ist kein fehlerhaftes
+        # Gerät: Die gezählten Fehlschläge gehören zurückgesetzt.
+        #
+        # Die Verdachtsspur bleibt davon unberührt – sie beobachtet das Gerät,
+        # nicht den Menschen. Stellt das Thermostat den eben gesetzten Wert
+        # gleich wieder zurück, ist genau das der Beweis, auf den es ankommt.
+        for schluessel in ("schreib_fehler", "fehler_zuletzt"):
             gedaechtnis.pop(schluessel, None)
         gestellt.append(entity_id)
 

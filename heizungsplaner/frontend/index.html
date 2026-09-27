@@ -1747,8 +1747,9 @@ function karteZeichnen(raum) {
         ? '' : 'ist ' + zahl(raum.ist) +  ' ' + EINHEIT}</span>
     </div>
     <div class="grund">${raum.begruendung}</div>
-    ${eingriff ? `<div class="eingriff">Von Hand · Planer wieder ab
-       ${uhr(eingriff.manuell_bis)} Uhr · geplant ${zahl(raum.ziel)} ${EINHEIT}</div>`
+    ${eingriff ? `<div class="eingriff">Von Hand · statt geplant
+       ${zahl(raum.ziel)} ${EINHEIT} · Planer führt wieder ab
+       ${uhr(eingriff.manuell_bis)} Uhr</div>`
        : ''}
     <div class="fusszeile">
       <div class="wechsel">

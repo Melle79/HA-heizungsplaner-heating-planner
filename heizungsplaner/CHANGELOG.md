@@ -1,5 +1,24 @@
 # Änderungen
 
+## 1.40.0
+
+- **Die Beobachtung eines Thermostats überlebt jetzt das Aufräumen.** Bisher
+  lag die Spur, aus der sich ein fremdes Wochenprogramm ablesen lässt, im
+  Gedächtnis des Handeingriffs – und das wird verworfen, sobald der Zeitplan
+  wieder greift, jemand „Zurück zum Plan“ drückt oder das Gedächtnis
+  zurückgesetzt wird.
+- Damit kamen nie drei Treffer zusammen: Ein Wochenprogramm schlägt morgens
+  und abends zu, dazwischen liegen Stunden, in denen alles normal aussieht.
+  Ein Gerät, das sich viermal binnen 24 Stunden auf denselben Wert
+  zurückstellte, wurde deshalb nie gemeldet.
+- Die Spur liegt jetzt an eigener Stelle und verfällt nach zwei Tagen ohne
+  neuen Treffer – dann darf auch wieder gemeldet werden, falls das Programm
+  nach Wochen zurückkehrt. Ältere Stände werden beim ersten Lauf übernommen.
+- **Klarer formuliert: „Von Hand · statt geplant 23,0 °C · Planer führt wieder
+  ab 21:00 Uhr".** Vorher standen Uhrzeit und Temperatur nebeneinander, als
+  gehörten sie zusammen – es las sich, als würde ab 21:00 Uhr mit 23,0 °C
+  geplant. Gemeint war der Planwert für **jetzt**.
+
 ## 1.39.0
 
 - **Behoben: Ein Stellbefehl an ein abgemeldetes Gerät galt als angekommen.**

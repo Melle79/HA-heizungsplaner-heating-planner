@@ -1023,8 +1023,10 @@ pruefe(not gesendet_nu, "und wird nicht ueberschrieben")
 # widersprach sich dabei selbst: "22,5 von Hand - geplant waeren 22,5".
 zust_weg = {"thermostate": {"climate.n": {
     "soll": 8.0, "manuell_bis": montag.replace(hour=21).isoformat(timespec="seconds"),
-    "hand_wert": 8.0, "hand_wann": [montag.replace(hour=15).isoformat(timespec="seconds")],
     "gesetzt_am": montag.replace(hour=12).isoformat(timespec="seconds")}},
+    "fremdverdacht": {"climate.n": {
+        "wert": 8.0,
+        "wann": [montag.replace(hour=15).isoformat(timespec="seconds")]}},
     "raeume": {}}
 gesendet_nu.clear()
 regelung.anwenden(raum_nu, {"zustand": "komfort", "ziel": 23.0, "begruendung": "x"},
@@ -1032,8 +1034,37 @@ regelung.anwenden(raum_nu, {"zustand": "komfort", "ziel": 23.0, "begruendung": "
 g_weg = zust_weg["thermostate"]["climate.n"]
 pruefe(g_weg.get("manuell_bis") is None,
        "der Handeingriff endet, sobald das Geraet auf dem Ziel steht")
-pruefe(not g_weg.get("hand_wann") and not g_weg.get("hand_wert"),
-       "und der Verdacht auf ein Fremdprogramm wird mit zurueckgesetzt")
+# Die Verdachtsspur ueberlebt das aber. Sie beobachtet das Geraet ueber Tage;
+# ein Wochenprogramm schlaegt morgens und abends zu, und dazwischen greift
+# jedes Mal der Plan wieder. Wuerde sie dabei geloescht, kaemen nie drei
+# Treffer zusammen - genau daran scheiterte die Erkennung am 26./27.09.2026,
+# als sich ein Thermostat viermal binnen 24 Stunden selbst zurueckstellte.
+_spur_weg = (zust_weg.get("fremdverdacht") or {}).get("climate.n") or {}
+pruefe(bool(_spur_weg.get("wann")),
+       "die Verdachtsspur ueberlebt das Ende des Handeingriffs")
+pruefe(not g_weg.get("hand_wann"),
+       "und liegt nicht mehr im Gedaechtnis des Thermostats")
+
+# Altbestand aus einer aelteren Fassung wird beim Aufraeumen uebernommen,
+# statt im Gedaechtnis des Thermostats liegen zu bleiben.
+_alt_zustand = {"thermostate": {"climate.alt": {
+    "hand_wert": 20.0,
+    "hand_wann": [montag.replace(hour=15).isoformat(timespec="seconds")]}},
+    "raeume": {}}
+regelung.verdacht_aufraeumen(_alt_zustand, montag.replace(hour=16))
+pruefe(bool((_alt_zustand.get("fremdverdacht") or {}).get("climate.alt", {}).get("wann")),
+       "eine alte Spur wandert in den neuen Bereich")
+pruefe("hand_wann" not in _alt_zustand["thermostate"]["climate.alt"],
+       "und wird dort entfernt")
+
+# Und was aus der Zeit gefallen ist, verfaellt - sonst waechst der Zustand
+# ewig, und eine einmal ausgesprochene Meldung kaeme nie wieder.
+_altes = {"fremdverdacht": {"climate.x": {
+    "wann": [(montag - timedelta(days=5)).isoformat(timespec="seconds")],
+    "gemeldet": (montag - timedelta(days=5)).isoformat(timespec="seconds")}}}
+regelung.verdacht_aufraeumen(_altes, montag)
+pruefe(not _altes["fremdverdacht"],
+       "eine Spur ausserhalb des Zeitfensters verfaellt")
 
 # Weicht das Geraet dagegen weiter ab, bleibt zurueckgehalten.
 zust_bleibt = {"thermostate": {"climate.n": {
@@ -1710,13 +1741,16 @@ print("\n=== Fremdprogramm im Geraet ===")
 # der Hersteller-App. Er stellte immer wieder auf 8 Grad, der Planer hielt es
 # jedes Mal fuer eine Hand und zog sich zurueck - zwei Tage ungeheizt, ohne
 # dass irgendwo etwas anschlug.
-def _fremd(werte, protokoll):
-    ged, jetzt = {}, datetime(2026, 9, 12, 12, 0)
+def _fremd(werte, protokoll, abstand=6):
+    zustand = {"thermostate": {}}
+    ged, jetzt = zustand["thermostate"].setdefault("climate.heizung_luna", {}), \
+        datetime(2026, 9, 12, 12, 0)
     for i, w in enumerate(werte):
         regelung._fremdprogramm_merken(
-            ged, w, jetzt + timedelta(hours=i * 6), {"name": "Luna Zimmer"},
-            "climate.heizung_luna", {"friendly_name": "Heizung Luna"}, protokoll)
-    return ged
+            zustand, ged, w, jetzt + timedelta(hours=i * abstand),
+            {"name": "Luna Zimmer"}, "climate.heizung_luna",
+            {"friendly_name": "Heizung Luna"}, protokoll)
+    return zustand["fremdverdacht"]["climate.heizung_luna"]
 
 meldungen = []
 ged = _fremd([8.0, 8.0], lambda *a, **k: meldungen.append(a))
@@ -1745,12 +1779,15 @@ pruefe(not meldungen, "wechselnde Werte in ruhigem Abstand bleiben eine Hand")
 # auf 20,0. So dreht niemand von Hand, und abfragen laesst sich die Einstellung
 # von Home Assistant aus nicht: Das Geraet liefert dafuer keine Entitaet.
 def _dicht(werte, protokoll):
-    ged, jetzt = {}, datetime(2026, 9, 26, 10, 21)
+    zustand = {"thermostate": {}}
+    ged = zustand["thermostate"].setdefault("climate.x", {})
+    jetzt = datetime(2026, 9, 26, 10, 21)
     for i, w in enumerate(werte):
         regelung._fremdprogramm_merken(
-            ged, w, jetzt + timedelta(minutes=i * 12), {"name": "Zimmer"},
-            "climate.x", {"friendly_name": "Thermostat"}, protokoll)
-    return ged
+            zustand, ged, w, jetzt + timedelta(minutes=i * 12),
+            {"name": "Zimmer"}, "climate.x",
+            {"friendly_name": "Thermostat"}, protokoll)
+    return zustand["fremdverdacht"]["climate.x"]
 
 meldungen.clear()
 _dicht([23.0, 25.0, 20.0], lambda *a, **k: meldungen.append(a))
@@ -1770,10 +1807,11 @@ pruefe(len(meldungen) == 1 and "Zeitplan" in meldungen[0][2],
        "dreimal derselbe Wert meldet weiterhin den fremden Zeitplan")
 
 # Und was lange auseinanderliegt, ist kein Muster.
-ged, meldungen = {}, []
+_weit = {"thermostate": {}}
+ged, meldungen = _weit["thermostate"].setdefault("climate.heizung_luna", {}), []
 for i, w in enumerate([8.0, 8.0, 8.0]):
     regelung._fremdprogramm_merken(
-        ged, w, datetime(2026, 9, 1) + timedelta(days=i * 5),
+        _weit, ged, w, datetime(2026, 9, 1) + timedelta(days=i * 5),
         {"name": "Luna Zimmer"}, "climate.heizung_luna",
         {"friendly_name": "Heizung Luna"}, lambda *a, **k: meldungen.append(a))
 pruefe(not meldungen, "drei Rueckstellungen ueber Wochen sind kein Programm")
@@ -1874,6 +1912,38 @@ pruefe(hk.deckt("06:00-08:00 17:00-22:00", "06:00-08:00 17:00-22:00"),
        "dasselbe deckt sich selbst")
 pruefe(not hk.deckt("06:00-08:00", "06:00-08:00 17:00-22:00"),
        "ein weggefallener Block zaehlt als Wegnahme")
+
+print("\n=== Ein Wochenprogramm ueberlebt das Aufraeumen ===")
+# Svens Fall vom 26./27.09.2026: Lunas Thermostat stellte sich viermal binnen
+# 24 Stunden auf exakt 20,0 zurueck - und gemeldet wurde nie etwas, weil
+# zwischen den Treffern jedes Mal aufgeraeumt wurde: mal griff der Plan
+# wieder, mal wurde "Zurueck zum Plan" gedrueckt.
+_gemeldet = []
+
+
+def _merker(raum, was, warum, entity_id="", art=None):
+    if art == "warnung":
+        _gemeldet.append(warum)
+
+
+_wz = {"thermostate": {}, "raeume": {}}
+_wraum = {"id": "w1", "name": "Kinderzimmer", "thermostate": ["climate.w"]}
+_attrs = {"friendly_name": "Heizung Kind"}
+
+for stunde in (8, 20, 32):      # ueber anderthalb Tage verteilt
+    zeitpunkt = montag.replace(hour=8) + timedelta(hours=stunde - 8)
+    regelung._fremdprogramm_merken(_wz, _wz["thermostate"].setdefault("climate.w", {}),
+                                   20.0, zeitpunkt, _wraum, "climate.w",
+                                   _attrs, _merker)
+    # Dazwischen wird aufgeraeumt - genau wie im Betrieb.
+    regelung.plan_zurueck(_wz, _wraum, lambda *a, **k: None)
+
+pruefe(len(_gemeldet) == 1,
+       f"nach drei Rueckstellungen wird gemeldet ({len(_gemeldet)}x)")
+pruefe("20.0" in _gemeldet[0] or "20,0" in _gemeldet[0],
+       f"und der Wert steht in der Meldung ({_gemeldet[0][:70]})")
+pruefe(not _wz["thermostate"].get("climate.w"),
+       "das Gedaechtnis des Thermostats ist trotzdem leer")
 
 print("\n=== Auf ein abgemeldetes Geraet wird nicht gestellt ===")
 # Home Assistant quittiert den Dienstaufruf auch fuer ein Geraet, das sich
