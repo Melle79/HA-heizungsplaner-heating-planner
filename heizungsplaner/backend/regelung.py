@@ -104,6 +104,48 @@ def _bool_state(states_index: dict, entity_id: str) -> bool | None:
     return None
 
 
+def _bedingung_erfuellt(states_index: dict, entity_id: str, soll: bool,
+                        jetzt: datetime, karenz_min: int) -> bool | None:
+    """Trifft eine Bedingung einer Übersteuerungsregel zu?
+
+    Wie ``_bool_state``, nur dass eine Person erst nach der Karenzzeit als
+    fort gilt – dieselbe Frist, die auch die Absenkung bei Abwesenheit
+    abwartet. Ohne sie fiel eine Homeoffice-Regel bei jeder Runde mit dem Hund
+    ab und kam zwanzig Minuten später zurück; jedes Mal wanderte das
+    Komfortfenster im Wochenprogramm des Kessels mit, zwei Telegramme je Weg.
+
+    Nach Hause kommen zählt sofort, nur das Fortgehen wartet.
+    """
+    ist = _bool_state(states_index, entity_id)
+    if ist is False and karenz_min > 0 and \
+            entity_id.split(".", 1)[0] in ("person", "device_tracker"):
+        fort_seit = _seit_wann(states_index.get(entity_id) or {})
+        if fort_seit is not None and \
+                (jetzt - fort_seit).total_seconds() < karenz_min * 60:
+            ist = True
+    if ist is None:
+        return None
+    return ist == soll
+
+
+def _seit_wann(eintrag: dict) -> datetime | None:
+    """``last_changed`` eines Zustands als Ortszeit ohne Zeitzone.
+
+    Home Assistant liefert UTC mit Zeitzone, der Planer rechnet in naiver
+    Ortszeit – ohne Umrechnung läge jede Abwesenheit um zwei Stunden daneben.
+    """
+    text = eintrag.get("last_changed")
+    if not text:
+        return None
+    try:
+        zeitpunkt = datetime.fromisoformat(str(text).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if zeitpunkt.tzinfo is not None:
+        zeitpunkt = zeitpunkt.astimezone().replace(tzinfo=None)
+    return zeitpunkt
+
+
 # ------------------------------------------------------------ Raumklima ----
 
 def raumtemperatur(raum: dict, states_index: dict) -> float | None:
@@ -219,8 +261,19 @@ def _im_fenster(von: str | None, bis: str | None, jetzt: datetime) -> bool:
     return jetzt_hm >= von or jetzt_hm < bis
 
 
+def regel_karenz(raum: dict, einst: dict) -> int:
+    """Karenzzeit in Minuten für Personen in Übersteuerungsregeln."""
+    karenz = raum.get("karenz_min")
+    if karenz is None:
+        karenz = (einst.get("anwesenheit") or {}).get("karenz_min", 0)
+    try:
+        return max(0, int(karenz))
+    except (TypeError, ValueError):
+        return 0
+
+
 def uebersteuerung_lage(raum: dict, states_index: dict,
-                        jetzt: datetime) -> dict:
+                        jetzt: datetime, karenz_min: int = 0) -> dict:
     """Wie steht es um die Übersteuerungsregeln des Raumes?
 
     Gibt Name, ob sie greift, und – wenn nicht – warum. Dieselbe Auskunft, die
@@ -235,7 +288,7 @@ def uebersteuerung_lage(raum: dict, states_index: dict,
     if not regeln:
         return {"name": "", "greift": False, "lage": "", "bis": "—"}
 
-    greifend = _uebersteuerung(raum, states_index, jetzt)
+    greifend = _uebersteuerung(raum, states_index, jetzt, karenz_min)
     if greifend:
         # „bis 14:00 Uhr“ ist die Angabe, die man auf einer Kachel sehen will –
         # der Zielwert steht ohnehin daneben. Ohne Zeitfenster bleibt es bei
@@ -252,7 +305,8 @@ def uebersteuerung_lage(raum: dict, states_index: dict,
         entity_id = bedingung.get("entity") or ""
         ist = _bool_state(states_index, entity_id)
         soll = (bedingung.get("zustand", "an") == "an")
-        if ist is not None and ist == soll:
+        if _bedingung_erfuellt(states_index, entity_id, soll, jetzt,
+                               karenz_min):
             continue
         anzeige = ((states_index.get(entity_id) or {}).get("attributes") or {}).get(
             "friendly_name", entity_id)
@@ -281,7 +335,7 @@ def uebersteuerung_lage(raum: dict, states_index: dict,
 
 
 def _uebersteuerung(raum: dict, states_index: dict,
-                    jetzt: datetime) -> dict | None:
+                    jetzt: datetime, karenz_min: int = 0) -> dict | None:
     """Die erste zutreffende Übersteuerungsregel des Raumes.
 
     Eine Regel trifft zu, wenn **alle** ihre Bedingungen erfüllt sind – so
@@ -299,8 +353,9 @@ def _uebersteuerung(raum: dict, states_index: dict,
         namen = []
         for bedingung in eintrag.get("wenn") or []:
             entity_id = bedingung.get("entity")
-            ist = _bool_state(states_index, entity_id) if entity_id else None
-            if ist is None or ist != (bedingung.get("zustand", "an") == "an"):
+            soll = bedingung.get("zustand", "an") == "an"
+            if not entity_id or not _bedingung_erfuellt(
+                    states_index, entity_id, soll, jetzt, karenz_min):
                 break
             name = ((states_index.get(entity_id) or {}).get("attributes") or {}).get(
                 "friendly_name", entity_id)
@@ -600,7 +655,8 @@ def entscheide(raum: dict, rz: dict, umgebung: dict) -> dict:
     # ersetzt den Modus des Plans; Anwesenheit und Heizkurve gelten weiter.
     # Das ist Absicht: Wer den Schalter anlässt und wegfährt, heizt kein
     # leeres Haus, und die Absenkung eines Fensters bleibt stärker.
-    uebersteuerung = _uebersteuerung(raum, states_index, jetzt)
+    uebersteuerung = _uebersteuerung(raum, states_index, jetzt,
+                                     regel_karenz(raum, einst))
     if uebersteuerung:
         modus = uebersteuerung["modus"]
         basis = zp.modus_temperatur(raum, modus, frostschutz)
@@ -1142,7 +1198,8 @@ def takt(config: dict, state: dict, protokoll) -> dict:
             # sich ein Kinderzimmer auf 30 °C drehen und der Dienst müsste
             # es abweisen – die Grenze soll man sehen, nicht erfahren.
             "min": float(raum["min"]), "max": float(raum["max"]),
-            "uebersteuerung": uebersteuerung_lage(raum, states_index, jetzt),
+            "uebersteuerung": uebersteuerung_lage(
+                raum, states_index, jetzt, regel_karenz(raum, einst)),
             "seit": rz.get("seit"), "aktionen": aktionen,
             "naechster_wechsel": _iso(naechster),
             "naechster_modus": (kommend or {}).get("modus"),

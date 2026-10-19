@@ -298,6 +298,12 @@ in the reasoning on the room tile and in the log.
 If several rules are configured, the topmost one wins. An entity that reports
 nothing lets its condition fail (sign `?`) – then the schedule simply applies.
 
+**People only count as gone after the grace period.** If a rule names a
+person, it does not drop the moment they step outside, but only once they have
+been away longer than the room's grace period (without one of its own: the
+general one, default 45 minutes). A short walk with the dog changes nothing –
+not even the boiler's weekly programme. Coming home counts at once.
+
 **What the override does not suspend:** an open window, summer mode, the
 holiday switch and the presence setback. That is deliberate: a rule that gets
 stuck will not heat an empty house.

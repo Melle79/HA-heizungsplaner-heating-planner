@@ -1,5 +1,17 @@
 # Änderungen
 
+## 1.41.0
+
+- **Eine Übersteuerungsregel fällt nicht mehr bei jedem kurzen Weg ab.** Steht
+  eine Person in der Regel, gilt sie jetzt erst nach der Karenzzeit als fort –
+  derselben, die auch die Absenkung bei Abwesenheit abwartet. Bisher reichte
+  ein Gang mit dem Hund: Die Regel fiel ab, kam zwanzig Minuten später zurück,
+  und jedes Mal wanderte das Komfortfenster im Wochenprogramm des Kessels mit.
+  Das waren zwei Telegramme je Weg, und bei zwei kurzen Wegen am Vormittag sah
+  es aus wie ein Planer, der sich festschreibt.
+- Heimkommen zählt weiter sofort. Eine Person, die gar nichts meldet, bekommt
+  keine Karenz – dann gilt wie bisher der Zeitplan.
+
 ## 1.40.0
 
 - **Die Beobachtung eines Thermostats überlebt jetzt das Aufräumen.** Bisher

@@ -15,7 +15,7 @@ Vormittag als „auf dem Heimweg“ gelten ließ.
 import os
 import sys
 import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 os.environ["DATA_DIR"] = tempfile.mkdtemp()
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
@@ -488,7 +488,7 @@ pruefe(sommer["zustand"] == "sommer",
 
 # Die eigentliche Homeoffice-Regelung braucht keinen Schalter: Werktag, keine
 # Ferien und Isabel zu Hause - alle drei Bedingungen zusammen.
-def lage_homeoffice(werktag=True, ferien=False, isabel="home"):
+def lage_homeoffice(werktag=True, ferien=False, isabel="home", seit_min=None):
     r = store.validate_raum({**wohnzimmer, "uebersteuerung": [{
         "modus": "komfort",
         "wenn": [{"entity": "binary_sensor.workday", "zustand": "an"},
@@ -508,8 +508,16 @@ def lage_homeoffice(werktag=True, ferien=False, isabel="home"):
                                "attributes": {"friendly_name": "Ferien"}},
            "person.isabel": {"entity_id": "person.isabel", "state": isabel,
                              "attributes": {"friendly_name": "Isabel"}}}
+    if seit_min is not None:
+        idx["person.isabel"]["last_changed"] = geaendert_vor(
+            montag.replace(hour=9), seit_min)
     return regelung.entscheide(r, {"temperaturquelle": "thermostate"},
                                umgebung(montag.replace(hour=9), states_index=idx))
+
+
+def geaendert_vor(jetzt, minuten):
+    """last_changed so, wie Home Assistant es liefert: UTC mit Zeitzone."""
+    return (jetzt - timedelta(minutes=minuten)).astimezone(timezone.utc).isoformat()
 
 # Ohne Zeitfenster liefe eine Homeoffice-Regel auch nachts um drei weiter -
 # die Bedingungen treffen ja weiter zu.
@@ -529,7 +537,7 @@ def lage_fenster(stunde, von="08:00", bis="18:00"):
                                umgebung(montag.replace(hour=stunde), states_index=idx))
 
 # Die Lage-Auskunft, die auch ueber MQTT aufs Dashboard geht
-def lage_auskunft(isabel="home", ferien="off", stunde=10):
+def lage_auskunft(isabel="home", ferien="off", stunde=10, seit_min=None, karenz=0):
     r = store.validate_raum({**wohnzimmer, "uebersteuerung": [{
         "name": "Homeoffice", "modus": "komfort", "von": "08:00", "bis": "18:00",
         "wenn": [{"entity": "calendar.ferien", "zustand": "aus"},
@@ -538,7 +546,10 @@ def lage_auskunft(isabel="home", ferien="off", stunde=10):
                                "attributes": {"friendly_name": "Ferien & Feiertage"}},
            "person.isabel": {"entity_id": "person.isabel", "state": isabel,
                              "attributes": {"friendly_name": "Isabel"}}}
-    return regelung.uebersteuerung_lage(r, idx, montag.replace(hour=stunde))
+    if seit_min is not None:
+        idx["person.isabel"]["last_changed"] = geaendert_vor(
+            montag.replace(hour=stunde), seit_min)
+    return regelung.uebersteuerung_lage(r, idx, montag.replace(hour=stunde), karenz)
 
 a = lage_auskunft()
 pruefe(a["greift"] and a["name"] == "Homeoffice", f"Lage: greift ({a})")
@@ -586,6 +597,33 @@ pruefe(e["zustand"] == "eco", f"ohne Isabel greift die Regel nicht ({e['zustand'
 e = lage_homeoffice(isabel="Arbeit")
 pruefe(e["zustand"] == "eco",
        f"in einer anderen Zone zaehlt Isabel nicht als daheim ({e['zustand']})")
+
+# Die Runde mit dem Hund: Wer erst seit Kurzem fort ist, gilt bis zum Ende der
+# Karenzzeit noch als daheim. Sonst fiel die Regel ab und kam zurueck, und
+# jedes Mal wanderte das Komfortfenster im Kesselprogramm mit.
+k = einst["anwesenheit"]["karenz_min"]
+e = lage_homeoffice(isabel="not_home", seit_min=k - 20)
+pruefe(e["zustand"] == "komfort",
+       f"seit {k - 20} Min. fort, Karenz {k} -> Regel greift weiter ({e['begruendung']})")
+e = lage_homeoffice(isabel="not_home", seit_min=k + 5)
+pruefe(e["zustand"] == "eco",
+       f"seit {k + 5} Min. fort -> Regel faellt ab ({e['zustand']})")
+e = lage_homeoffice(isabel="Arbeit", seit_min=5)
+pruefe(e["zustand"] == "komfort",
+       f"auch eine andere Zone wartet die Karenz ab ({e['zustand']})")
+e = lage_homeoffice(isabel="unavailable", seit_min=5)
+pruefe(e["zustand"] == "eco",
+       f"eine Person, die nichts meldet, bekommt keine Karenz ({e['zustand']})")
+a = lage_auskunft(isabel="not_home", seit_min=10, karenz=30)
+pruefe(a["greift"], f"Lage: in der Karenz greift die Regel weiter ({a})")
+a = lage_auskunft(isabel="not_home", seit_min=40, karenz=30)
+pruefe(not a["greift"] and "Isabel ist nicht zu Hause" in a["lage"],
+       f"Lage: nach der Karenz ruht sie ({a['lage']})")
+a = lage_auskunft(isabel="not_home", seit_min=10)
+pruefe(not a["greift"], f"Lage: ohne Karenz bleibt es beim Alten ({a['lage']})")
+r = {"karenz_min": None}
+pruefe(regelung.regel_karenz(r, einst) == k, "die globale Karenz gilt, wenn der Raum keine hat")
+pruefe(regelung.regel_karenz({"karenz_min": 10}, einst) == 10, "die Karenz des Raumes geht vor")
 
 print("\n=== Fensterkontakte ===")
 

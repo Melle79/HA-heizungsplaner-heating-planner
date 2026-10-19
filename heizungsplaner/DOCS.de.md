@@ -300,6 +300,13 @@ Sind mehrere Regeln hinterlegt, gewinnt die oberste. Eine Entität, die nichts
 meldet, lässt ihre Bedingung durchfallen (Zeichen `?`) – dann gilt schlicht
 der Zeitplan.
 
+**Personen gelten erst nach der Karenzzeit als fort.** Steht eine Person in
+einer Regel, fällt die Regel nicht beim ersten Schritt vor die Tür ab, sondern
+erst, wenn die Person länger fort ist als die Karenzzeit des Raumes (ohne
+eigene: die allgemeine, Vorgabe 45 Minuten). Ein kurzer Gang mit dem Hund
+ändert so nichts, auch nicht am Wochenprogramm des Kessels. Wer
+heimkommt, zählt sofort.
+
 **Was die Übersteuerung nicht aushebelt:** ein offenes Fenster, den
 Sommerbetrieb, den Urlaubsschalter und die Anwesenheitsabsenkung. Das ist
 Absicht: Eine Regel, die sich verhakt, heizt so kein leeres Haus.
