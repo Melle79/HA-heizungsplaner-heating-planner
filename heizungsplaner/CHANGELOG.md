@@ -1,5 +1,15 @@
 # Änderungen
 
+## 1.42.2
+
+- **„Anlagenmanager nicht erreichbar" stand auch dann da, wenn nur noch
+  niemand gefragt hatte.** Der Manager sagt seine Anschrift beim Start über
+  MQTT an; bis die Nachricht eintrifft, vergehen ein paar Sekunden. In dieser
+  Zeit meldete die Übersicht einen Defekt, wo keiner war – nach jedem
+  Neustart des Add-ons.
+- Jetzt steht dort „startet · Anschrift noch nicht gemeldet". Antwortet eine
+  bekannte Anschrift nicht, bleibt es bei der deutlichen Meldung.
+
 ## 1.42.1
 
 - **Die langen Erklärungen stehen nur noch einzeilig.** Im Raumdialog standen

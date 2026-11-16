@@ -271,7 +271,13 @@ def lage(einstellungen: dict) -> dict:
     """Was der Anlagenmanager meldet: Programm, Parameter und was darin steht."""
     adresse = basis(einstellungen)
     if not adresse:
-        return {"erreichbar": False, "fehler": texte.t("kessel_nicht_gefunden")}
+        # Keine Anschrift – das ist nach einem Neustart der Normalfall und
+        # kein Fehler: Der Manager sagt sie über MQTT an, und bis die
+        # Nachricht da ist, vergehen ein paar Sekunden. Ohne diese
+        # Unterscheidung stand dort „Anlagenmanager nicht erreichbar“, was
+        # nach einem Defekt aussieht, obwohl nur noch niemand gefragt hat.
+        return {"erreichbar": False, "wartet": True,
+                "fehler": texte.t("kessel_nicht_gefunden")}
     try:
         katalog = _json("GET", f"{adresse}/api/katalog")
         uebernahme = _json("GET", f"{adresse}/api/uebernahme")

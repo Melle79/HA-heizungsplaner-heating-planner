@@ -2178,6 +2178,17 @@ pruefe(not _zp._passt(_punkt, "tue", None, True)
 print("\n=== Kesselregelung ===")
 import kessel
 
+# Ohne Anschrift ist der Manager nicht "nicht erreichbar", sondern noch nicht
+# gemeldet. Nach einem Neustart sagt er sie ueber MQTT an, und bis die
+# Nachricht da ist, vergehen ein paar Sekunden - die Uebersicht zeigte
+# derweil "Anlagenmanager nicht erreichbar", was nach einem Defekt aussieht.
+kessel._gefunden = None          # noch keine MQTT-Ansage
+_ohne_adresse = kessel.lage({"kessel": {"aktiv": True, "adresse": ""}})
+pruefe(_ohne_adresse.get("wartet") is True,
+       "ohne Anschrift wird gewartet, nicht gemeldet")
+pruefe(_ohne_adresse.get("erreichbar") is False,
+       "erreichbar bleibt trotzdem falsch")
+
 WOCHENTAGE = ["11", "11.1", "11.2", "11.3", "11.4", "11.5", "11.6"]
 WW_TAGE = ["41", "41.1", "41.2", "41.3", "41.4", "41.5", "41.6"]
 SVENS_WW = {nr: ("05:30-21:00 ##:##-##:## ##:##-##:##" if i < 5

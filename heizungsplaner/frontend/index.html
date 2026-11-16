@@ -1671,7 +1671,10 @@ function lageZeichnen(bericht) {
   const ke = bericht.kessel || {};
   if (ke.aktiv) {
     const lage = ke.erreichbar === false
-      ? {wert:'?', zusatz:'Anlagenmanager nicht erreichbar'}
+      // „Wartet“ heißt: Die Anschrift ist noch nicht angesagt. Nach einem
+      // Neustart dauert das ein paar Sekunden und ist kein Fehler.
+      ? (ke.wartet ? {wert:'startet', zusatz:'Anschrift noch nicht gemeldet'}
+                   : {wert:'?', zusatz:'Anlagenmanager antwortet nicht'})
       : ke.fehler ? {wert: ke.anzeige || '?', zusatz: ke.fehler}
       : !ke.uebernommen ? {wert:'wartet', zusatz: ke.hinweis || ''}
       : {wert: ke.anzeige || '–',
@@ -1692,7 +1695,8 @@ function lageZeichnen(bericht) {
   if (kFeld) {
     kFeld.textContent = !ke.aktiv ? ''
       : ke.erreichbar === false
-        ? 'Der Heizungsanlagenmanager antwortet gerade nicht: ' + (ke.fehler || '')
+        ? (ke.wartet ? (ke.fehler || '')
+           : 'Der Heizungsanlagenmanager antwortet gerade nicht: ' + (ke.fehler || ''))
       : ke.hinweis ? ke.hinweis
       : ke.uebernommen
         ? `Übernommen: ${ke.programm || 'Wochenprogramm'}, heute ${ke.heute}.`
