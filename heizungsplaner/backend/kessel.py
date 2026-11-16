@@ -748,7 +748,11 @@ def fuehren(bericht: dict, config: dict, state: dict, protokoll) -> dict:
 
     stand = lage(einstellungen)
     if not stand["erreichbar"]:
-        return {"aktiv": True, "erreichbar": False, "fehler": stand["fehler"]}
+        # „wartet“ mit durchreichen: Ohne das sieht die Oberfläche jeden
+        # Start wie einen Ausfall – und genau das war der Zweck der
+        # Unterscheidung.
+        return {"aktiv": True, "erreichbar": False, "fehler": stand["fehler"],
+                "wartet": bool(stand.get("wartet"))}
 
     heiz = _heizkreis_fuehren(bericht, config, state, protokoll, stand)
     try:

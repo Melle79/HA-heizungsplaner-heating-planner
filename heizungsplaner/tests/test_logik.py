@@ -2189,6 +2189,13 @@ pruefe(_ohne_adresse.get("wartet") is True,
 pruefe(_ohne_adresse.get("erreichbar") is False,
        "erreichbar bleibt trotzdem falsch")
 
+# Und es muss bis zur Oberflaeche durchkommen - sonst sieht sie jeden Start
+# wie einen Ausfall, und die Unterscheidung war umsonst.
+_durch = kessel.fuehren({}, {"einstellungen": {"kessel": {"aktiv": True, "adresse": ""}},
+                             "raeume": []}, {}, lambda *a, **k: None)
+pruefe(_durch.get("wartet") is True,
+       f"und der Bericht traegt es bis zur Oberflaeche ({_durch})")
+
 WOCHENTAGE = ["11", "11.1", "11.2", "11.3", "11.4", "11.5", "11.6"]
 WW_TAGE = ["41", "41.1", "41.2", "41.3", "41.4", "41.5", "41.6"]
 SVENS_WW = {nr: ("05:30-21:00 ##:##-##:## ##:##-##:##" if i < 5

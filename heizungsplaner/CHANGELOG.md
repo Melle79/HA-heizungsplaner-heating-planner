@@ -1,5 +1,10 @@
 # Änderungen
 
+## 1.42.3
+
+- Der Hinweis „startet" kam in der Übersicht nicht an: Der Bericht hat ihn
+  unterwegs verloren, und damit sah ein Start weiterhin wie ein Ausfall aus.
+
 ## 1.42.2
 
 - **„Anlagenmanager nicht erreichbar" stand auch dann da, wenn nur noch
