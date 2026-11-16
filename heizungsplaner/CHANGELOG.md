@@ -1,5 +1,17 @@
 # Änderungen
 
+## 1.42.1
+
+- **Die langen Erklärungen stehen nur noch einzeilig.** Im Raumdialog standen
+  zuletzt 2 200 Zeichen Fließtext zwischen den Feldern; allein der Abschnitt
+  „Fensterkontakte" war höher als das sichtbare Fenster. Jetzt steht die erste
+  Zeile, der Rest kommt über „mehr".
+- Die Texte bleiben vollständig erhalten – sie beschreiben echte Fallen. Nur
+  stehen sie nicht mehr im Weg, bevor jemand sie braucht.
+- Abgeblendet wird mit CSS, nicht durch Zerschneiden des Textes: Übersetzt
+  wird über den deutschen Satz als Schlüssel, und ein zerteilter Satz wäre
+  keiner mehr.
+
 ## 1.42.0
 
 - **Behoben: Ein wiedergekehrtes Gerät galt als von Hand verstellt.** Meldet

@@ -251,6 +251,8 @@ window.SPRACHEN.en = {
   "Sommer": "Summer",
   "Gesperrt": "Blocked",
   "Von Hand": "Manual",
+  "mehr": "more",
+  "weniger": "less",
   "Karenz beim Öffnen (Min.)": "Grace period on opening (min)",
   "Eigene Karenz beim Öffnen (Minuten)": "Own grace period on opening (minutes)",
   "Nicht erreichbar": "Unreachable",

@@ -166,6 +166,20 @@
   .f-zahl{font-size:.76rem; color:var(--grau); margin-left:auto}
   .notiz{font-size:.78rem; color:var(--sehr-leise); line-height:1.45}
   .feld .notiz{margin-top:2px}
+  /* Lange Erklärungen stehen einzeilig, bis jemand sie aufklappt. Abgeblendet
+     wird mit CSS, nicht durch Zerlegen des Textes: Übersetzt wird über den
+     deutschen Satz als Schlüssel, und ein zerschnittener Satz wäre keiner
+     mehr. Der Knopf sitzt in der Zeile, nicht darunter – sonst kostet das
+     Einklappen am Ende so viel Platz, wie es spart. */
+  .notiz.lang{max-height:1.5em; overflow:hidden; position:relative;
+              padding-right:3.4em}
+  .notiz.lang.offen{max-height:none}
+  .mehr-knopf{position:absolute; right:0; bottom:0; background:var(--flaeche);
+    border:none; padding:0 0 0 .5em; font-size:.76rem; color:var(--leise);
+    cursor:pointer; text-decoration:underline dotted; text-underline-offset:2px}
+  .notiz.lang.offen .mehr-knopf{position:static; display:block; margin-top:2px;
+                                padding-left:0}
+  .mehr-knopf:hover{color:var(--text); filter:none}
   .zeile-aktionen{display:flex; gap:var(--l2); align-items:center;
                   flex-wrap:wrap; margin-top:var(--l4)}
   .meldung{font-size:.83rem; color:var(--achtung); min-height:1.2em}
@@ -1065,9 +1079,8 @@
           <label>Eigene Karenz beim Öffnen (Minuten)</label>
           <input type="number" id="r-fenster-karenz" min="0" max="60" step="1"
                  placeholder="global">
-          <div class="notiz">Leer lassen, dann gilt die Karenz aus den
-            Einstellungen. Eine Terrassentür verträgt ein paar Minuten, ein
-            Kippfenster nicht.</div></div>
+          <div class="notiz">Leer lassen = Vorgabe aus den Einstellungen. Eine
+            Terrassentür verträgt ein paar Minuten, ein Kippfenster nicht.</div></div>
         <label class="haken" style="margin-top:var(--l2)">
           <input type="checkbox" id="r-sturz">
           <span>Zusätzlich auf Temperatursturz achten, auch wenn alle Kontakte
@@ -2548,6 +2561,37 @@ $('r-vorlage').onchange = (ereignis) => {
   ereignis.target.value = '';
 };
 
+// Lange Erklärungen einklappen.
+//
+// Sie beschreiben echte Fallen und sollen bleiben – nur nicht dauerhaft im
+// Weg stehen: Im Raumdialog standen zuletzt 2 200 Zeichen Fließtext zwischen
+// den Feldern, und allein der Abschnitt „Fensterkontakte“ war höher als das
+// sichtbare Fenster. Der erste Satz bleibt sichtbar, der Rest kommt auf
+// Klick. Was eine Erklärung sagt, ändert sich damit nicht – nur wie viel
+// Platz sie einnimmt, bevor jemand sie braucht.
+const HILFE_AB = 110;          // kürzere Notizen bleiben, wie sie sind
+
+function notizenKuerzen(wurzel = document) {
+  for (const notiz of wurzel.querySelectorAll('.notiz')) {
+    if (notiz.dataset.gekuerzt) continue;
+    if (notiz.textContent.replace(/\s+/g, ' ').trim().length < HILFE_AB) continue;
+    notiz.dataset.gekuerzt = '1';
+    notiz.classList.add('lang');
+    const knopf = document.createElement('button');
+    knopf.type = 'button';
+    knopf.className = 'mehr-knopf';
+    knopf.textContent = 'mehr';
+    knopf.onclick = () => {
+      const offen = notiz.classList.toggle('offen');
+      knopf.textContent = offen ? 'weniger' : 'mehr';
+    };
+    // In die Notiz, nicht daneben: So bleibt der Textknoten unberührt – die
+    // Übersetzung findet ihren Schlüssel weiterhin – und der Knopf kostet
+    // keine eigene Zeile.
+    notiz.appendChild(knopf);
+  }
+}
+
 // ─────────────────────────────────────────── Raum-Dialog ──
 function betriebsartAnzeigen() {
   const handbetrieb = $('r-betriebsart').value === 'nur_absenken';
@@ -2643,6 +2687,10 @@ function raumOeffnen(raum, startblatt) {
   const reiter = document.querySelector(
     `.d-reiter button[data-blatt="${startblatt || 'grund'}"]`);
   if (reiter) reiter.click();
+  // Auch die Hinweise, die der Dialog selbst aufbaut – etwa in den
+  // Übersteuerungsregeln. Der Aufruf ist wiederholbar: Was schon gekürzt ist,
+  // bleibt unangetastet.
+  notizenKuerzen($('raum-dialog'));
   $('raum-dialog').showModal();
   // Ohne Zutun landet der Fokus auf „Schließen“ – der erste Knopf im Dialog.
   // Beim Namensfeld ist er besser aufgehoben: Dort fängt man bei einem neuen
@@ -3141,6 +3189,7 @@ async function start() {
   }
   statusLaden();
   setInterval(statusLaden, 30000);
+  notizenKuerzen();
 }
 
 start();
