@@ -483,6 +483,25 @@ of the `current_temperature` of all thermostats in the room.
 After either route the room stays on frost protection for the lock period, so
 that brief airing is not immediately heated against.
 
+### Grace period on opening
+
+Under *Settings → Windows* there is **“Grace period on opening”**, and it can
+be overridden per room. That is how long a contact may report open before the
+room is turned down.
+
+**Zero is the default and right for a window** you throw open to air a room –
+there the valve should close at once.
+
+A **patio or front door** is a different case: it stands open briefly every
+time someone walks through. Pulling the whole room down to frost protection
+and then locking it for half an hour costs more heat there than the open door
+ever saved – and in an open-plan living area several thermostats hang on it.
+A few minutes of grace solve that.
+
+The grace period applies **to contacts only**. The temperature drop has its
+own confirmation across two cycles (see below) and does not wait twice. If the
+contact closes within the grace period, it starts over on the next opening.
+
 ### Rooms where nothing can be opened
 
 Under *Rooms → Sensors* there is the tick **“Watch windows in this room”**.
@@ -495,7 +514,8 @@ trigger is a false alarm – and costs half an hour of frost protection.
 
 ### A drop has to last two cycles
 
-A window contact is a measurement – it applies immediately. The temperature
+A window contact is a measurement – it applies immediately, unless a grace
+period is configured. The temperature
 drop, by contrast, is a **conclusion drawn from two readings**, and that can be
 wrong.
 

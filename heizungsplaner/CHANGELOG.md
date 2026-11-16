@@ -1,5 +1,26 @@
 # Änderungen
 
+## 1.42.0
+
+- **Behoben: Ein wiedergekehrtes Gerät galt als von Hand verstellt.** Meldet
+  sich ein Thermostat ab und später wieder an, liefert es zuerst den
+  Sollwert, den es vor dem Ausfall trug. Der Planer hielt das für einen
+  Handeingriff und zog sich bis zum nächsten Zeitplanwechsel zurück.
+- Am 16.11.2026 waren drei Hubs einen Tag lang aus dem Netz; als sie
+  zurückkamen, galten vier Räume binnen einer Sekunde als von Hand gestellt.
+  Ein Kinderzimmer blieb dabei auf 17 °C, obwohl 21,5 °C geplant waren.
+- Jetzt wird der Ausfall vermerkt, und der erste Wert nach der Rückkehr zählt
+  nicht als Hand – der Planwert wird sofort nachgezogen. Ohne Ausfall gilt
+  derselbe Sprung unverändert als Handeingriff.
+- **Neu: eine Karenz beim Öffnen**, einstellbar global und je Raum. So lange
+  darf ein Kontakt offen melden, ehe abgesenkt wird.
+- Null bleibt der Standard und ist für ein Fenster richtig, das man zum Lüften
+  aufreißt. Eine Terrassentür oder Haustür steht dagegen bei jedem Durchgang
+  kurz offen – den ganzen Raum auf Frostschutz zu ziehen und danach eine halbe
+  Stunde zu sperren kostet dort mehr Wärme, als das Offenstehen je gespart
+  hätte.
+- Die Karenz gilt nur für Kontakte. Der Temperatursturz hat seine eigene
+  Bestätigung über zwei Takte und wartet nicht doppelt.
 ## 1.41.0
 
 - **Eine Übersteuerungsregel fällt nicht mehr bei jedem kurzen Weg ab.** Steht

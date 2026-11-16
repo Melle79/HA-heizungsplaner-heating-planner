@@ -599,6 +599,36 @@ def entscheide(raum: dict, rz: dict, umgebung: dict) -> dict:
     else:
         rz.pop("sturz_seit", None)
 
+    # Karenz: wie lange ein Kontakt offen melden darf, ehe abgesenkt wird.
+    #
+    # Für ein Fenster, das man zum Lüften aufreißt, ist null richtig. Eine
+    # Terrassentür steht dagegen bei jedem Durchgang kurz offen, und jedes Mal
+    # den ganzen Wohnbereich auf Frostschutz zu ziehen kostet mehr Wärme, als
+    # das Offenstehen je gespart hätte – dazu eine halbe Stunde Sperre
+    # hinterher. Darum ist die Karenz je Raum einstellbar.
+    #
+    # Sie gilt **nur für Kontakte**. Ein Temperatursturz hat seine eigene
+    # Bestätigung über zwei Takte, und die darf nicht doppelt warten.
+    # `sicher` unterscheidet die Messung vom Schluss: Ein Kontakt meldet, ein
+    # Temperatursturz wird gefolgert. Nur der gemeldete Zustand bekommt die
+    # Karenz – und er muss hier festgehalten werden, bevor `offen` darunter
+    # verändert wird, sonst liefe die Uhr bei jedem Takt von vorn los.
+    kontakt_offen = offen and sicher
+    if kontakt_offen:
+        karenz = raum.get("fenster_karenz_min")
+        if karenz in (None, "", "null"):
+            karenz = einst["fenster"].get("karenz_min", 0)
+        karenz = int(karenz or 0)
+        if karenz > 0:
+            seit = _aus_iso(rz.get("offen_seit"))
+            if seit is None:
+                rz["offen_seit"] = _iso(jetzt)
+                offen = False
+            elif jetzt - seit < timedelta(minutes=karenz):
+                offen = False
+    else:
+        rz.pop("offen_seit", None)
+
     if offen:
         sperre_bis = jetzt + timedelta(minutes=int(einst["fenster"]["sperre_min"]))
         rz["fenster_bis"] = _iso(sperre_bis)
@@ -846,6 +876,24 @@ def anwenden(raum: dict, entscheidung: dict, state: dict, umgebung: dict,
             continue
         attrs = eintrag.get("attributes") or {}
         gedaechtnis = state["thermostate"].setdefault(entity_id, {})
+
+        # -- Abgemeldet? Dann ist hier nichts zu holen ------------------------
+        #
+        # Und vor allem: Beim Wiederauftauchen meldet so ein Gerät zuerst den
+        # Sollwert, den es vor dem Ausfall trug. Das ist keine Hand – es ist
+        # dieselbe Zahl, die schon vorher dort stand, nur verspätet. Wer sie
+        # als Handeingriff wertet, hält den Raum bis zum nächsten
+        # Zeitplanwechsel still.
+        #
+        # Genau das geschah am 16.11.2026: Drei Hubs waren einen Tag lang aus
+        # dem Netz; als sie zurückkamen, galten vier Räume binnen einer
+        # Sekunde als von Hand gestellt – ein Kinderzimmer blieb dabei auf
+        # 17 °C, obwohl 21,5 °C geplant waren.
+        if eintrag.get("state") in ("unavailable", "unknown"):
+            gedaechtnis["weg_seit"] = gedaechtnis.get("weg_seit") or _iso(jetzt)
+            continue
+        war_weg = gedaechtnis.pop("weg_seit", None) is not None
+
         zuletzt_am = _aus_iso(gedaechtnis.get("gesetzt_am"))
         frisch = bool(zuletzt_am and (jetzt - zuletzt_am) < timedelta(minutes=BESTAETIGUNG_MIN))
         ist_soll_jetzt = ha_api.as_float(attrs.get("temperature"))
@@ -967,7 +1015,7 @@ def anwenden(raum: dict, entscheidung: dict, state: dict, umgebung: dict,
         # auf der Kachel und hielt es für eine hängende Anzeige.
         bestaetigt = gedaechtnis.get("vor_schreiben") is None
         if einst.get("manuell_respektieren") and (bestaetigt or not frisch) \
-                and not erzwingen:
+                and not erzwingen and not war_weg:
             geschrieben = gedaechtnis.get("soll")
             vor_schreiben = gedaechtnis.get("vor_schreiben")
             # Steht am Gerät noch genau der Wert, den es vor unserem Befehl

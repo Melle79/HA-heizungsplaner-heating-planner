@@ -433,6 +433,67 @@ pruefe(e["zustand"] != "fenster",
 pruefe(store.validate_raum({**wohnzimmer})["fenster_erkennung"] is True,
        "ab Werk wird weiter ueberwacht")
 
+# Karenz: eine Tuer, die nur kurz aufgeht, soll den Raum nicht auskuehlen
+#
+# Ein Fenster reisst man zum Lueften auf - da ist sofortiges Absenken richtig.
+# Eine Terrassentuer steht bei jedem Durchgang kurz offen, und jedes Mal den
+# ganzen Wohnbereich auf Frostschutz zu ziehen kostet mehr Waerme, als das
+# Offenstehen je gespart haette - dazu eine halbe Stunde Sperre hinterher.
+kontakt_auf = {"binary_sensor.t": {
+    "entity_id": "binary_sensor.t", "state": "on",
+    "attributes": {"friendly_name": "Terrassentuer", "device_class": "door"}}}
+kontakt_zu = {"binary_sensor.t": {
+    "entity_id": "binary_sensor.t", "state": "off",
+    "attributes": {"friendly_name": "Terrassentuer", "device_class": "door"}}}
+
+terrasse = store.validate_raum({**wohnzimmer, "fenster": ["binary_sensor.t"],
+                                "fenster_karenz_min": 5})
+rz_t = {"temperaturquelle": "thermostate"}
+e = regelung.entscheide(terrasse, rz_t,
+                        umgebung(montag.replace(hour=14), states_index=kontakt_auf))
+pruefe(e["zustand"] != "fenster",
+       f"mit Karenz senkt der erste Takt noch nicht ab ({e['zustand']})")
+pruefe(bool(rz_t.get("offen_seit")), "aber der Beginn wird festgehalten")
+
+# Zwei Minuten spaeter: immer noch innerhalb der Karenz.
+e = regelung.entscheide(terrasse, rz_t,
+                        umgebung(montag.replace(hour=14, minute=2),
+                                 states_index=kontakt_auf))
+pruefe(e["zustand"] != "fenster", "nach zwei Minuten immer noch nicht")
+
+# Nach sechs Minuten ist die Karenz um.
+e = regelung.entscheide(terrasse, rz_t,
+                        umgebung(montag.replace(hour=14, minute=6),
+                                 states_index=kontakt_auf))
+pruefe(e["zustand"] == "fenster",
+       f"nach Ablauf der Karenz wird abgesenkt ({e['begruendung']})")
+
+# Wieder zu: Die Uhr beginnt beim naechsten Oeffnen von vorn.
+rz_t2 = {"temperaturquelle": "thermostate"}
+regelung.entscheide(terrasse, rz_t2,
+                    umgebung(montag.replace(hour=14), states_index=kontakt_auf))
+regelung.entscheide(terrasse, rz_t2,
+                    umgebung(montag.replace(hour=14, minute=2),
+                             states_index=kontakt_zu))
+pruefe("offen_seit" not in rz_t2, "nach dem Schliessen faellt der Beginn weg")
+regelung.entscheide(terrasse, rz_t2,
+                    umgebung(montag.replace(hour=14, minute=3),
+                             states_index=kontakt_auf))
+e = regelung.entscheide(terrasse, rz_t2,
+                        umgebung(montag.replace(hour=14, minute=6),
+                                 states_index=kontakt_auf))
+pruefe(e["zustand"] != "fenster",
+       "und die Karenz laeuft neu, statt die alte Zeit mitzuzaehlen")
+
+# Ohne Karenz gilt der Kontakt sofort - das bleibt der Standard.
+sofort = store.validate_raum({**wohnzimmer, "fenster": ["binary_sensor.t"]})
+pruefe(sofort["fenster_karenz_min"] is None,
+       "ab Werk hat ein Raum keine eigene Karenz")
+e = regelung.entscheide(sofort, {"temperaturquelle": "thermostate"},
+                        umgebung(montag.replace(hour=14), states_index=kontakt_auf))
+pruefe(e["zustand"] == "fenster",
+       f"und ohne Karenz senkt der Kontakt sofort ab ({e['zustand']})")
+
 # Sperre wirkt nach
 rz_sperre = {"temperaturquelle": "thermostate", "fenster_bis": (montag.replace(hour=14, minute=20)).isoformat(timespec="seconds")}
 e = regelung.entscheide(wohnzimmer, rz_sperre, umgebung(montag.replace(hour=14)))
@@ -1950,6 +2011,65 @@ pruefe(hk.deckt("06:00-08:00 17:00-22:00", "06:00-08:00 17:00-22:00"),
        "dasselbe deckt sich selbst")
 pruefe(not hk.deckt("06:00-08:00", "06:00-08:00 17:00-22:00"),
        "ein weggefallener Block zaehlt als Wegnahme")
+
+print("\n=== Ein wiedergekehrtes Geraet ist keine Hand ===")
+# Am 16.11.2026 waren drei Hubs einen Tag lang aus dem Netz. Als sie
+# zurueckkamen, meldeten die Thermostate zuerst ihre alten Sollwerte - und
+# vier Raeume galten binnen einer Sekunde als von Hand gestellt. Ein
+# Kinderzimmer blieb dabei auf 17 Grad, obwohl 21,5 geplant waren, und der
+# Planer haette es bis 21:00 nicht mehr angefasst.
+def umg_zustand(steht_auf, zustand="heat"):
+    idx = {"climate.n": {"entity_id": "climate.n", "state": zustand,
+                         "attributes": {"friendly_name": "Essbereich",
+                                        "temperature": steht_auf,
+                                        "current_temperature": 24.0,
+                                        "min_temp": 5, "max_temp": 30,
+                                        "hvac_modes": ["off", "heat"]}}}
+    u = umgebung(montag.replace(hour=14), states_index=idx)
+    u["raum_wechsel"] = {raum_nu["id"]: montag.replace(hour=21)}
+    return u
+
+
+def wk_lauf(steht_auf, zustand, speicher):
+    # Spaetere Pruefungen stellen den Trockenlauf wieder an; hier soll
+    # wirklich geschrieben werden. Geprueft wird die Rueckgabe, nicht eine
+    # globale Mitschrift - die haengt davon ab, welche Pruefung zuletzt
+    # `ha_api.set_temperature` ersetzt hat.
+    einst["trockenlauf"] = False
+    return regelung.anwenden(
+        raum_nu, {"zustand": "komfort", "ziel": 23.0, "begruendung": "x"},
+        speicher, umg_zustand(steht_auf, zustand), lambda *a, **k: None)
+
+
+zust_wk = {"thermostate": {"climate.n": {
+    "soll": 23.0, "vor_schreiben": None,
+    "gesetzt_am": montag.replace(hour=12).isoformat(timespec="seconds")}},
+    "raeume": {}}
+
+_wk_aus = wk_lauf(None, "unavailable", zust_wk)
+pruefe(bool(zust_wk["thermostate"]["climate.n"].get("weg_seit")),
+       "der Ausfall wird vermerkt")
+pruefe(not _wk_aus, "und auf ein abgemeldetes Geraet geht nichts raus")
+
+# Es kehrt zurueck - mit dem alten Wert, den es vor dem Ausfall trug.
+_wk_zurueck = wk_lauf(17.0, "heat", zust_wk)
+g_wk = zust_wk["thermostate"]["climate.n"]
+pruefe(g_wk.get("manuell_bis") is None,
+       "die Rueckkehr gilt nicht als Handeingriff")
+pruefe("weg_seit" not in g_wk, "der Merker ist wieder weg")
+pruefe([(a["aktion"], a["wert"]) for a in _wk_zurueck] == [("soll", 23.0)],
+       f"und der Planwert wird sofort nachgezogen ({_wk_zurueck})")
+
+# Gegenprobe: Ohne Ausfall bleibt derselbe Sprung ein Handeingriff.
+zust_ohne = {"thermostate": {"climate.n": {
+    "soll": 23.0, "vor_schreiben": None,
+    "gesetzt_am": montag.replace(hour=12).isoformat(timespec="seconds")}},
+    "raeume": {}}
+_ohne_aktionen = wk_lauf(17.0, "heat", zust_ohne)
+pruefe(zust_ohne["thermostate"]["climate.n"].get("manuell_bis") is not None,
+       "ohne Ausfall zaehlt derselbe Sprung weiterhin als Hand")
+pruefe([a["aktion"] for a in _ohne_aktionen] == ["manuell"],
+       f"und wird als solcher vermerkt ({_ohne_aktionen})")
 
 print("\n=== Ein Wochenprogramm ueberlebt das Aufraeumen ===")
 # Svens Fall vom 26./27.09.2026: Lunas Thermostat stellte sich viermal binnen

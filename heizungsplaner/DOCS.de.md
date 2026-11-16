@@ -490,6 +490,26 @@ der `current_temperature` aller Thermostate des Raumes.
 Nach beiden Wegen bleibt der Raum für die Sperrzeit auf Frostschutz, damit ein
 kurzes Stoßlüften nicht sofort wieder gegengeheizt wird.
 
+### Karenz beim Öffnen
+
+Unter *Einstellungen → Fenster* steht **„Karenz beim Öffnen"**, und am Raum
+lässt sie sich überschreiben. So lange darf ein Kontakt offen melden, ehe
+abgesenkt wird.
+
+**Null ist der Standard und für ein Fenster richtig**, das man zum Lüften
+aufreißt – dort soll das Ventil sofort zugehen.
+
+Eine **Terrassentür oder Haustür** ist ein anderer Fall: Sie steht bei jedem
+Durchgang kurz offen. Den ganzen Raum auf Frostschutz zu ziehen und danach
+eine halbe Stunde zu sperren kostet dort mehr Wärme, als das Offenstehen je
+gespart hätte – und in einem offenen Wohnbereich hängen gleich mehrere
+Thermostate daran. Ein paar Minuten Karenz lösen das.
+
+Die Karenz gilt **nur für Kontakte**. Der Temperatursturz hat seine eigene
+Bestätigung über zwei Takte (siehe unten) und wartet nicht doppelt. Schließt
+sich der Kontakt innerhalb der Karenz, beginnt sie beim nächsten Öffnen von
+vorn.
+
 ### Räume, in denen sich nichts öffnen lässt
 
 Unter *Räume → Melder* steht der Haken **„Fenster in diesem Raum überwachen"**.
@@ -503,8 +523,9 @@ eine halbe Stunde Frostschutz.
 
 ### Ein Sturz muss zwei Takte bestehen
 
-Ein Fensterkontakt ist eine Messung – er gilt sofort. Der Temperatursturz ist
-dagegen ein **Schluss aus zwei Messwerten**, und der kann danebenliegen.
+Ein Fensterkontakt ist eine Messung – er gilt sofort, sofern keine Karenz
+eingestellt ist. Der Temperatursturz ist dagegen ein **Schluss aus zwei
+Messwerten**, und der kann danebenliegen.
 
 Besonders dort, wo die Raumtemperatur vom Thermostat selbst kommt: Solche
 Geräte melden grob, oft nur in ganzen Grad und bloß alle paar Stunden. Ein

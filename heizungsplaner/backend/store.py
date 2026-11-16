@@ -141,6 +141,12 @@ STANDARD_EINSTELLUNGEN = {
         "sturz_k": 1.2,           # Temperatursturz in Kelvin …
         "sturz_min": 10,          # … innerhalb dieser Zeitspanne
         "sperre_min": 30,         # so lange bleibt der Raum danach auf Frostschutz
+        # So lange darf ein Kontakt offen melden, ohne dass abgesenkt wird.
+        # Null heißt: sofort – richtig für ein Fenster, das man zum Lüften
+        # aufreißt. Eine Terrassentür dagegen steht bei jedem Durchgang kurz
+        # offen, und jedes Mal den ganzen Wohnbereich auf Frostschutz zu
+        # ziehen kostet mehr Wärme, als das Offenstehen je gespart hätte.
+        "karenz_min": 0,
     },
     # Die Partytaste: einmal drücken, und der Plan tritt für ein paar Stunden
     # zurück. Danach läuft alles von selbst weiter – niemand muss daran denken,
@@ -227,6 +233,7 @@ STANDARD_RAUM = {
     "nur_praesenz": False,
     "party": True,             # macht dieser Raum bei der Partytaste mit?
     "karenz_min": None,        # None = die globale Karenzzeit gilt
+    "fenster_karenz_min": None,   # dito für die Fensterkarenz
     "freigabe_entity": "",     # leer = der Raum ist immer freigegeben
     "sturz_auch_mit_kontakten": False,
     # Räume, in denen sich nichts öffnen lässt, brauchen keine
@@ -504,6 +511,13 @@ def validate_raum(raum: dict, vorhandene_id: str | None = None) -> dict:
     else:
         karenz = int(_zahl(karenz, "Karenzzeit des Raumes", 0, 480))
 
+    fenster_karenz = raum.get("fenster_karenz_min")
+    if fenster_karenz in (None, "", "null"):
+        fenster_karenz = None
+    else:
+        fenster_karenz = int(_zahl(fenster_karenz,
+                                   "Fensterkarenz des Raumes", 0, 60))
+
     return {
         "id": vorhandene_id or uuid.uuid4().hex[:8],
         "name": name,
@@ -521,6 +535,7 @@ def validate_raum(raum: dict, vorhandene_id: str | None = None) -> dict:
         "nur_praesenz": bool(raum.get("nur_praesenz", False)),
         "party": bool(raum.get("party", True)),
         "karenz_min": karenz,
+        "fenster_karenz_min": fenster_karenz,
         "freigabe_entity": str(raum.get("freigabe_entity") or "").strip(),
         "sturz_auch_mit_kontakten": bool(raum.get("sturz_auch_mit_kontakten", False)),
         "fenster_erkennung": bool(raum.get("fenster_erkennung", True)),

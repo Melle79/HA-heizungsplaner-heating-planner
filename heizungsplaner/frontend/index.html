@@ -647,6 +647,15 @@
         <input type="number" id="e-fe-min" min="2" max="120" step="1"></div>
       <div class="feld"><label>Sperre danach (Min.)</label>
         <input type="number" id="e-fe-sperre" min="1" max="240" step="5"></div>
+      <div class="feld"><label>Karenz beim Öffnen (Min.)</label>
+        <input type="number" id="e-fe-karenz" min="0" max="60" step="1">
+        <div class="notiz">So lange darf ein Kontakt offen melden, ehe
+          abgesenkt wird. Null heißt sofort – richtig für ein Fenster, das man
+          zum Lüften aufreißt. Für eine Terrassentür, die bei jedem Durchgang
+          kurz aufgeht, lohnt eine Karenz: Den ganzen Raum auf Frostschutz zu
+          ziehen und danach eine halbe Stunde zu sperren kostet mehr Wärme,
+          als das Offenstehen je gespart hätte. Gilt nur für Kontakte; der
+          Temperatursturz hat seine eigene Bestätigung.</div></div>
     </div>
     <div class="notiz" style="margin-top:var(--l2)">Der Temperatursturz greift nur in
       Räumen ohne Fensterkontakte. Kontakte trägt man je Raum ein.</div>
@@ -1052,6 +1061,13 @@
           Erkennung</em> eines Thermostats löst zwar mit aus, verdrängt die
           Sturz-Erkennung aber nicht: Sie schweigt, sobald das Gerät abgeschaltet
           ist.</div>
+        <div class="feld" style="margin-top:var(--l3)">
+          <label>Eigene Karenz beim Öffnen (Minuten)</label>
+          <input type="number" id="r-fenster-karenz" min="0" max="60" step="1"
+                 placeholder="global">
+          <div class="notiz">Leer lassen, dann gilt die Karenz aus den
+            Einstellungen. Eine Terrassentür verträgt ein paar Minuten, ein
+            Kippfenster nicht.</div></div>
         <label class="haken" style="margin-top:var(--l2)">
           <input type="checkbox" id="r-sturz">
           <span>Zusätzlich auf Temperatursturz achten, auch wenn alle Kontakte
@@ -2548,6 +2564,8 @@ function betriebsartAnzeigen() {
       + 'über Mitternacht.';
   $('btn-punkt-neu').textContent = handbetrieb
     ? 'Absenkpunkt hinzufügen' : 'Umschaltpunkt hinzufügen';
+  // Die Fensterkarenz gehört bewusst nicht dazu: Die Fenstererkennung läuft
+  // auch in einem handgeführten Raum – Flur und Gäste-WC haben Kontakte.
   for (const id of ['r-anwesenheit', 'r-heizkurve', 'r-nur-praesenz', 'r-karenz']) {
     $(id).disabled = handbetrieb;
     const traeger = $(id).closest('.haken') || $(id).closest('.feld');
@@ -2583,6 +2601,8 @@ function raumOeffnen(raum, startblatt) {
   $('r-party').checked = d.party !== false;
   $('r-sturz').checked = d.sturz_auch_mit_kontakten;
   $('r-fenster-erkennung').checked = d.fenster_erkennung !== false;
+  $('r-fenster-karenz').value = d.fenster_karenz_min === null
+    || d.fenster_karenz_min === undefined ? '' : d.fenster_karenz_min;
   $('r-karenz').value = d.karenz_min === null || d.karenz_min === undefined
     ? '' : d.karenz_min;
   $('btn-raum-loeschen').style.display = neu ? 'none' : 'inline-block';
@@ -2671,6 +2691,8 @@ $('btn-raum-speichern').onclick = async () => {
     freigabe_entity: $('r-freigabe').value,
     sturz_auch_mit_kontakten: $('r-sturz').checked,
     fenster_erkennung: $('r-fenster-erkennung').checked,
+    fenster_karenz_min: $('r-fenster-karenz').value === ''
+      ? null : parseInt($('r-fenster-karenz').value, 10),
     zeitplan: zeitplanEntwurf,
     uebersteuerung: uebersteuerungEntwurf,
   };
@@ -2785,6 +2807,7 @@ function einstellungenZeichnen() {
   $('e-fe-sturz').value = e.fenster.sturz_k;
   $('e-fe-min').value = e.fenster.sturz_min;
   $('e-fe-sperre').value = e.fenster.sperre_min;
+  $('e-fe-karenz').value = e.fenster.karenz_min ?? 0;
   beispieleZeichnen();
 }
 
@@ -2921,6 +2944,7 @@ $('btn-speichern-einst').onclick = async () => {
       sturz_k: parseFloat($('e-fe-sturz').value),
       sturz_min: parseInt($('e-fe-min').value, 10),
       sperre_min: parseInt($('e-fe-sperre').value, 10),
+      karenz_min: parseInt($('e-fe-karenz').value, 10) || 0,
     },
   };
   try {
