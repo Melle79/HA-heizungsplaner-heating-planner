@@ -581,6 +581,12 @@ def entscheide(raum: dict, rz: dict, umgebung: dict) -> dict:
         if nur_absenken and zustand in ("fenster", "urlaub", "sommer"):
             extra.setdefault("merken", True)
             extra.setdefault("erzwingen", True)
+        # Ein offenes Fenster schlägt auch einen Handeingriff: Wer am Rad auf
+        # 23,5 °C gedreht hat und dann lüftet, will nicht zum offenen Fenster
+        # hinaus heizen. Der Handwert ist damit erledigt; nach dem Lüften
+        # führt wieder der Zeitplan.
+        if zustand == "fenster":
+            extra.setdefault("erzwingen", True)
         return {"zustand": zustand, "ziel": ziel, "begruendung": begruendung,
                 "ist": ist, **extra}
 

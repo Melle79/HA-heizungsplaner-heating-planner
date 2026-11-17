@@ -1,5 +1,14 @@
 # Änderungen
 
+## 1.44.1
+
+- **Behoben: Ein offenes Fenster setzte sich nicht gegen einen Handeingriff
+  durch.** Wer am Thermostat auf 23,5 °C gedreht hatte und danach lüftete,
+  heizte weiter zum Fenster hinaus – die Kachel zeigte „Fenster offen“ und
+  daneben „23,5 °C · von Hand“. Jetzt geht der Raum auch dann auf
+  Frostschutz. Der Handwert ist damit erledigt; nach dem Lüften führt wieder
+  der Zeitplan.
+
 ## 1.44.0
 
 - **Neu: Heizenergie je Raum, geschätzt.** Der verbrannte Ölliter wird nach

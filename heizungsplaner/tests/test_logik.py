@@ -712,6 +712,8 @@ def fensterlage(kontakte, zustaende, verlauf_sturz=True, zusatz=False):
 e = fensterlage(["binary_sensor.fenster_wz"], {"binary_sensor.fenster_wz": "on"})
 pruefe(e["zustand"] == "fenster" and "offen" in e["begruendung"],
        f"offener Kontakt schlaegt an ({e['begruendung']})")
+pruefe(e.get("erzwingen") is True,
+       "offenes Fenster setzt sich auch gegen einen Handeingriff durch")
 
 e = fensterlage(["binary_sensor.fenster_wz"], {"binary_sensor.fenster_wz": "off"})
 pruefe(e["zustand"] != "fenster",
@@ -1010,6 +1012,23 @@ entscheidung = {"zustand": "komfort", "ziel": 21.0, "begruendung": "Test"}
 aktionen = regelung.anwenden(wohnzimmer, entscheidung, zustand, umg, protokoll)
 pruefe(len(aktionen) == 1 and aktionen[0]["trocken"],
        "abweichender Sollwert -> im Trockenlauf nur gemeldet")
+
+# Handeingriff läuft noch, dann geht das Fenster auf: Frostschutz muss trotzdem hin
+_zh = {"thermostate": {}, "raeume": {}}
+for _eid in wohnzimmer["thermostate"]:
+    _zh["thermostate"][_eid] = {"soll": 23.0, "manuell_bis": montag.replace(hour=21).isoformat()}
+aktionen = regelung.anwenden(wohnzimmer, {"zustand": "komfort", "ziel": 21.0,
+                                          "begruendung": "Test"}, _zh, umg, protokoll)
+pruefe(not aktionen, "ohne Fenster bleibt der Handeingriff unangetastet")
+aktionen = regelung.anwenden(wohnzimmer, regelung.entscheide(
+    store.validate_raum({**wohnzimmer, "fenster": ["binary_sensor.f"]}), {},
+    umgebung(montag.replace(hour=14), states_index={**states_index,
+             "binary_sensor.f": {"entity_id": "binary_sensor.f", "state": "on",
+                                 "attributes": {"friendly_name": "F"}}})),
+    _zh, umg, protokoll)
+pruefe(len(aktionen) >= 1 and all(a.get("wert", a.get("ziel")) is not None or a.get("trocken")
+                                  for a in aktionen),
+       f"offenes Fenster überstimmt den Handeingriff ({aktionen})")
 
 print("\n=== Home Assistant startet gerade ===")
 # Beobachtet nach einem HA-Neustart: `/states` liefert eine wachsende
