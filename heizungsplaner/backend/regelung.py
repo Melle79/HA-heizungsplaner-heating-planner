@@ -168,6 +168,37 @@ def raumtemperatur(raum: dict, states_index: dict) -> float | None:
     return round(sum(werte) / len(werte), 1) if werte else None
 
 
+def fenster_lage(raum: dict, states_index: dict) -> list[dict]:
+    """Die Fensterkontakte eines Raumes mit ihrem Zustand, für die Anzeige.
+
+    `offen` ist True, False oder None (meldet nichts). Die geräteeigene
+    Fenstererkennung eines Thermostats steht mit `geraeteeigen` dabei – sie
+    ist ein Schluss des Geräts, kein Kontakt am Fenster.
+    """
+    lage = []
+    for entity_id in raum.get("fenster") or []:
+        name = ((states_index.get(entity_id) or {}).get("attributes") or {}).get(
+            "friendly_name", entity_id)
+        lage.append({
+            "entity_id": entity_id, "name": name,
+            "offen": _bool_state(states_index, entity_id),
+            "geraeteeigen": ha_api.ist_geraeteeigene_erkennung(entity_id, name),
+        })
+    return lage
+
+
+def fenster_kurz(kontakte: list[dict]) -> str:
+    """Ein Wort für alle echten Kontakte eines Raumes: offen schlägt stumm schlägt zu."""
+    echte = [k for k in kontakte if not k.get("geraeteeigen")]
+    if not echte:
+        return ""
+    if any(k.get("offen") for k in echte):
+        return "offen"
+    if any(k.get("offen") is None for k in echte):
+        return "stumm"
+    return "zu"
+
+
 def fenster_offen(raum: dict, states_index: dict, rz: dict, ist: float | None,
                   jetzt: datetime,
                   fenster_cfg: dict) -> tuple[bool, str, str, bool]:
@@ -1276,7 +1307,13 @@ def takt(config: dict, state: dict, protokoll) -> dict:
                 }
                 for eid in raum.get("thermostate") or []
             ],
+            # Jeder eingetragene Kontakt mit seinem Zustand, nicht nur das
+            # Urteil „Fenster offen“: Ein geschlossenes Fenster ist auch eine
+            # Auskunft, und ein Kontakt, der nichts meldet, soll man sehen,
+            # bevor er im Ernstfall schweigt.
+            "fenster": fenster_lage(raum, states_index),
         })
+        ergebnisse[-1]["fenster_kurz"] = fenster_kurz(ergebnisse[-1]["fenster"])
 
     # Der Wachhund läuft nach den Räumen: Er soll auch ein Thermostat sehen,
     # das gerade eben erst als fehlend aufgefallen ist.

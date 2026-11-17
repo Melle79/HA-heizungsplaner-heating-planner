@@ -262,6 +262,12 @@
   .soll.hand{color:var(--text)}
   .ist{font-size:.83rem; color:var(--leise); margin-left:auto; text-align:right;
        white-space:nowrap}
+  /* Fensterkontakte des Raumes: zu ist eine leise Auskunft, offen nicht. */
+  .fensterlage{display:flex; flex-wrap:wrap; gap:var(--l1) var(--l2);
+               margin-bottom:var(--l2); font-size:.8rem; color:var(--leise)}
+  .fensterlage span{display:inline-flex; align-items:center; gap:4px}
+  .fensterlage .offen{color:var(--achtung); font-weight:600}
+  .fensterlage .stumm{color:var(--warm)}
   .eingriff{font-size:.82rem; font-weight:500; flex:none;
             color:var(--warn,#e0a030); margin-top:var(--l1)}
 .grund{font-size:.82rem; color:var(--leise); flex:1;
@@ -1767,6 +1773,28 @@ function karteZeichnen(raum) {
   }).join('');
 
   const anzahl = (raum.thermostate || []).length;
+  // Nur echte Kontakte: Die geräteeigene Erkennung eines Thermostats ist ein
+  // Schluss aus der Temperatur und steht schon in der Begründung, wenn sie
+  // anschlägt. Ein geschlossenes Fenster ist auch eine Auskunft – erst wenn
+  // man es sieht, glaubt man dem „offen“.
+  const kontakte = (raum.fenster || []).filter(f => !f.geraeteeigen);
+  let fensterlage = '';
+  if (kontakte.length) {
+    const offen = kontakte.filter(f => f.offen === true);
+    const stumm = kontakte.filter(f => f.offen === null || f.offen === undefined);
+    const teile = [];
+    if (offen.length) {
+      teile.push(`<span class="offen">🪟 <span>Fenster offen</span>${kontakte.length > 1
+        ? `<span data-roh>: ${offen.map(f => f.name).join(', ')}</span>` : ''}</span>`);
+    } else if (!stumm.length) {
+      teile.push(`<span>🪟 <span>Fenster zu</span></span>`);
+    }
+    if (stumm.length) {
+      teile.push(`<span class="stumm" title="${stumm.map(f => f.name).join(', ')}">⚠️
+        <span>Fensterkontakt meldet nichts</span></span>`);
+    }
+    fensterlage = `<div class="fensterlage">${teile.join('')}</div>`;
+  }
   const karte = document.createElement('div');
   karte.className = 'karte';
   karte.innerHTML = `
@@ -1779,6 +1807,7 @@ function karteZeichnen(raum) {
       <span class="ist">${raum.ist === null || raum.ist === undefined
         ? '' : 'ist ' + zahl(raum.ist) +  ' ' + EINHEIT}</span>
     </div>
+    ${fensterlage}
     <div class="grund">${raum.begruendung}</div>
     ${eingriff ? `<div class="eingriff">Von Hand · statt geplant
        ${zahl(raum.ziel)} ${EINHEIT} · Planer führt wieder ab

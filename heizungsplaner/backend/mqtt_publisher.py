@@ -409,6 +409,12 @@ class Publisher:
                 "naechster_modus": raum.get("naechster_modus"),
                 "naechstes_ziel": raum.get("naechstes_ziel"),
                 "thermostate": [t["entity_id"] for t in raum.get("thermostate", [])],
+                # Fensterkontakte für Dashboard-Karten: „offen“, „zu“, „stumm“
+                # (ein Kontakt meldet nichts) oder leer, wenn der Raum keinen
+                # hat. Die geräteeigene Erkennung zählt nicht als Kontakt.
+                "fenster": raum.get("fenster_kurz", ""),
+                "fenster_offen": [f["name"] for f in raum.get("fenster") or []
+                                  if f.get("offen") and not f.get("geraeteeigen")],
                 # Ein erkannter Handeingriff: Der Planer hält sich zurück, und
                 # sein Zielwert ist gerade nicht wirksam. Ohne diese Angabe
                 # zeigte die Kachel in Home Assistant weiter 22,5 °C, während

@@ -2846,6 +2846,28 @@ try:
 except store.ValidationError:
     pruefe(True, "ungültige Uhrzeit wird abgelehnt")
 
+print("\n=== Fensterlage für Kachel und Dashboard ===")
+_idx = {
+    "binary_sensor.a_fenster": {"state": "off", "attributes": {"friendly_name": "Fenster A"}},
+    "binary_sensor.b_fenster": {"state": "on", "attributes": {"friendly_name": "Fenster B"}},
+    "binary_sensor.c_fenster": {"state": "unavailable", "attributes": {"friendly_name": "Fenster C"}},
+    "binary_sensor.heizung_x_offenes_fenster_erkannt": {
+        "state": "on", "attributes": {"friendly_name": "Heizung X Offenes Fenster erkannt"}},
+}
+_lage = regelung.fenster_lage({"fenster": ["binary_sensor.a_fenster",
+                                           "binary_sensor.b_fenster"]}, _idx)
+pruefe([f["offen"] for f in _lage] == [False, True], "Kontakte tragen ihren Zustand")
+pruefe(regelung.fenster_kurz(_lage) == "offen", "ein offener Kontakt macht den Raum „offen“")
+pruefe(regelung.fenster_kurz(regelung.fenster_lage(
+    {"fenster": ["binary_sensor.a_fenster"]}, _idx)) == "zu", "alle zu heißt „zu“")
+pruefe(regelung.fenster_kurz(regelung.fenster_lage(
+    {"fenster": ["binary_sensor.a_fenster", "binary_sensor.c_fenster"]}, _idx)) == "stumm",
+    "ein stummer Kontakt wird nicht als zu verkauft")
+pruefe(regelung.fenster_kurz(regelung.fenster_lage(
+    {"fenster": ["binary_sensor.heizung_x_offenes_fenster_erkannt"]}, _idx)) == "",
+    "geräteeigene Erkennung zählt nicht als Kontakt")
+pruefe(regelung.fenster_lage({"fenster": []}, _idx) == [], "Raum ohne Kontakte: leere Liste")
+
 print("\n=== Die Fassung steht an einer Stelle ===")
 # Sie stand einmal doppelt – in config.yaml und in version.py – und lief
 # auseinander: Die Oberfläche zeigte „v1.31.1“, während das Add-on schon

@@ -1,5 +1,20 @@
 # Änderungen
 
+## 1.43.0
+
+- **Die Raumkacheln zeigen jetzt die Fensterkontakte.** Unter der Temperatur
+  steht „🪟 Fenster zu“ oder „🪟 Fenster offen“, bei mehreren Kontakten mit
+  dem Namen des offenen. Bisher erfuhr man ein offenes Fenster nur, wenn der
+  Planer deswegen schon abgesenkt hatte – und ein geschlossenes nie.
+- Ein Kontakt, der nichts meldet, steht als „⚠️ Fensterkontakt meldet nichts“
+  da, statt still als geschlossen zu gelten.
+- Die geräteeigene Fenstererkennung eines Thermostats zählt dabei nicht als
+  Kontakt; wenn sie anschlägt, steht es wie bisher in der Begründung.
+- Für Dashboard-Karten tragen die Raumsensoren zwei neue Attribute:
+  `fenster` (`offen`, `zu`, `stumm` oder leer ohne Kontakte) und
+  `fenster_offen` (die Namen der offenen Kontakte). Die Raumtabelle der
+  mitgelieferten Karten markiert offene Fenster mit 🪟.
+
 ## 1.42.3
 
 - Der Hinweis „startet" kam in der Übersicht nicht an: Der Bericht hat ihn

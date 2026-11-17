@@ -39,7 +39,7 @@ Draußen **{{ roh | round(1) if roh is not none else '?' }} °C** · gedämpft {
 {%- set s = sym.get(z, ['•', z]) -%}
 {%- set ist = a.ist_temperatur -%}
 {%- set kommt = sym.get(a.naechster_modus, ['', a.naechster_modus or '']) -%}
-| {{ s[0] }} | **{{ r.name | replace('Heizungsplaner ','') | replace('Heizung ','') }}** | {% if z in ruht %}*zu*{% else %}{{ r.state | float | round(1) }} °C{% endif %} | {{ (ist | float | round(1) ~ ' °C') if ist not in [none,'unknown'] else '–' }} | {% if a.naechste_uhrzeit %}{{ a.naechste_uhrzeit }} {{ kommt[0] }} {{ a.naechstes_ziel | round(1) }} °C{% else %}–{% endif %} |
+| {{ s[0] }} | **{{ r.name | replace('Heizungsplaner ','') | replace('Heizung ','') }}**{{ ' 🪟' if a.fenster == 'offen' else (' ⚠️' if a.fenster == 'stumm' else '') }} | {% if z in ruht %}*zu*{% else %}{{ r.state | float | round(1) }} °C{% endif %} | {{ (ist | float | round(1) ~ ' °C') if ist not in [none,'unknown'] else '–' }} | {% if a.naechste_uhrzeit %}{{ a.naechste_uhrzeit }} {{ kommt[0] }} {{ a.naechstes_ziel | round(1) }} °C{% else %}–{% endif %} |
 {% endfor %}
 {%- set auffaellig = raeume | selectattr('attributes.zustand','in',
       ['fenster','abwesend','gesperrt','manuell','heimkehr']) | list -%}

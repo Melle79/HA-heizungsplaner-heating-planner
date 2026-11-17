@@ -19,6 +19,8 @@ window.SPRACHEN.en = {
   "Heizungsplaner": "Heating Planner",
   "Übersicht": "Overview",
   "Räume": "Rooms",
+  "Fenster zu": "Window closed",
+  "Fensterkontakt meldet nichts": "Window contact not reporting",
   "Einstellungen": "Settings",
   "Protokoll": "Log",
   "🎉 Party": "🎉 Party",
