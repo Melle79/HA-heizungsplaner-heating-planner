@@ -1064,6 +1064,24 @@ For the **periodic heat-up against legionella** the heating controller itself is
 responsible, not this add-on. It can do that (via the legionella function on
 Siemens Albatros controllers), and it keeps doing it when the planner is down.
 
+## Heating energy per room (estimated)
+
+With the oil tank switched on, the planner splits each litre burned across the
+rooms. **This is an estimate, not a measurement:** ordinary thermostats do not
+report how far their valve is open.
+
+Each cycle, every controlled room gets a weight of indoor–outdoor temperature
+difference times time times its **room factor** (room dialog, *Sensors* sheet;
+roughly the radiator size, 1 = normal). When the tank part books litres, 15 %
+go to hot water and the rest to the rooms by these weights. If no room is
+heating (summer), everything goes to hot water. One litre of heating oil counts
+as 10 kWh.
+
+Each room gets two counters, `sensor.heizungsplaner_raum_<name>_energie` (kWh)
+and `…_heizkosten` (currency), plus the same for `warmwasser`. Both only grow,
+so Home Assistant builds daily and monthly statistics. Expect 20–30 % error per
+room; it is good enough for ranking and trends.
+
 ## Manual changes
 
 If a thermostat is adjusted by hand – at the device, in Home Assistant or by

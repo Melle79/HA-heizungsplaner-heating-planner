@@ -204,9 +204,10 @@ class Publisher:
         wird beim nächsten Start von Home Assistant wieder eingelesen.
         """
         for key in schluessel:
-            self._publish(f"{DISCOVERY_PREFIX}/sensor/{DEVICE_ID}/{key}/config", "")
-            self._publish(f"{BASE_TOPIC}/{key}/state", "")
-            self._publish(f"{BASE_TOPIC}/{key}/attributes", "")
+            for k in (key, f"{key}_energie", f"{key}_heizkosten"):
+                self._publish(f"{DISCOVERY_PREFIX}/sensor/{DEVICE_ID}/{k}/config", "")
+                self._publish(f"{BASE_TOPIC}/{k}/state", "")
+                self._publish(f"{BASE_TOPIC}/{k}/attributes", "")
             self._bekannte_raeume.discard(key)
         if schluessel:
             _LOGGER.info("Entfernt: %s", ", ".join(schluessel))
@@ -309,6 +310,34 @@ class Publisher:
             }
             self._publish(f"{DISCOVERY_PREFIX}/sensor/{DEVICE_ID}/{key}/config",
                           json.dumps(payload))
+
+        # Geschätzte Heizenergie je Raum: zwei Zähler, die nur wachsen, damit
+        # Home Assistant daraus Tages- und Monatsstatistik baut. Nur mit
+        # Tankteil – ohne verbuchte Liter gibt es nichts zu verteilen.
+        zaehler = [(f"raum_{_slug(r['name'])}", r["name"]) for r in raeume or []]
+        zaehler.append(("warmwasser", "Warmwasser"))
+        for key, name in zaehler:
+            for suffix, titel, mass, klasse, icon in (
+                    ("energie", "Heizenergie", "kWh", "energy", "mdi:radiator"),
+                    ("heizkosten", "Heizkosten", self._waehrung, "monetary", "mdi:cash")):
+                k = f"{key}_{suffix}"
+                pfad = f"{DISCOVERY_PREFIX}/sensor/{DEVICE_ID}/{k}/config"
+                if not tank_aktiv:
+                    self._publish(pfad, "")
+                    continue
+                self._publish(pfad, json.dumps({
+                    "name": f"{titel} {name} (geschätzt)",
+                    "unique_id": f"{DEVICE_ID}_{k}",
+                    "default_entity_id": f"sensor.{DEVICE_ID}_{k}",
+                    "state_topic": f"{BASE_TOPIC}/{k}/state",
+                    "json_attributes_topic": f"{BASE_TOPIC}/{k}/attributes",
+                    "availability_topic": AVAILABILITY_TOPIC,
+                    "unit_of_measurement": mass,
+                    "device_class": klasse,
+                    "state_class": "total_increasing",
+                    "icon": "mdi:water-boiler" if key == "warmwasser" else icon,
+                    "device": device,
+                }, ensure_ascii=False))
         _LOGGER.info("Discovery veröffentlicht (%d Räume)", len(raeume or []))
 
     # ------------------------------------------------------------ Zustand ----
@@ -429,6 +458,7 @@ class Publisher:
             })
 
         self._tank_zustand(bericht.get("tank") or {})
+        self._energie_zustand(bericht.get("energie") or {})
         self._kessel_zustand(bericht.get("kessel") or {})
 
     def _kessel_zustand(self, kessel: dict) -> None:
@@ -511,6 +541,21 @@ class Publisher:
         self._zustand("tank_leck", "ON" if tank.get("leck") else "OFF",
                       {**gemeinsam, "seit": tank.get("leck_seit"),
                        "ueberwacht": tank.get("leckage_ueberwacht")})
+
+    def _energie_zustand(self, energie: dict) -> None:
+        """Geschätzte Heizenergie und -kosten je Raum und fürs Warmwasser."""
+        if not energie.get("aktiv") or energie.get("fehler"):
+            return
+        zeilen = [(f"raum_{_slug(z['name'])}", z) for z in energie.get("raeume") or []]
+        if energie.get("warmwasser"):
+            zeilen.append(("warmwasser", energie["warmwasser"]))
+        for key, z in zeilen:
+            self._zustand(f"{key}_energie", str(z["kwh"]), {
+                "heute_kwh": z["heute_kwh"], "monat_kwh": z["monat_kwh"],
+                "heizperiode_kwh": z["saison_kwh"], "geschaetzt": True})
+            self._zustand(f"{key}_heizkosten", str(z["eur"]), {
+                "heute": z["heute_eur"], "monat": z["monat_eur"],
+                "heizperiode": z["saison_eur"], "geschaetzt": True})
 
     def _zustand(self, key: str, state: str, attributes: dict) -> None:
         self._publish(f"{BASE_TOPIC}/{key}/state", state)

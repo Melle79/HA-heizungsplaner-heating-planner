@@ -1,5 +1,19 @@
 # Änderungen
 
+## 1.44.0
+
+- **Neu: Heizenergie je Raum, geschätzt.** Der verbrannte Ölliter wird nach
+  Gradstunden (Temperaturunterschied innen–außen mal Zeit) und einem
+  Raumfaktor auf die Räume verteilt, 15 % vorab ans Warmwasser. Je Raum gibt
+  es zwei Zähler für kWh und Kosten, dazu Warmwasser – Home Assistant führt
+  daraus Tages- und Monatsstatistik. Die Kacheln zeigen „≈ … kWh heute“ und
+  den Monat.
+- Gemessen ist das nicht: Kein übliches Thermostat meldet seine
+  Ventilöffnung. Den Raumfaktor (grob die Heizkörpergröße) stellt man im
+  Raumdialog ein.
+- **„nächster Wechsel“ sagt jetzt, wohin:** „nächster Wechsel 21:00 → Eco
+  18,0 °C“ statt nur der Uhrzeit.
+
 ## 1.43.0
 
 - **Die Raumkacheln zeigen jetzt die Fensterkontakte.** Unter der Temperatur

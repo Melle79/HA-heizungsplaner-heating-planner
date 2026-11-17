@@ -1084,6 +1084,24 @@ Heizungsregelung selbst zuständig, nicht dieses Add-on. Sie kann das (bei
 Siemens-Albatros-Reglern über die Legionellenfunktion), und sie tut es auch,
 wenn der Planer gerade steht.
 
+## Heizenergie je Raum (geschätzt)
+
+Mit eingeschaltetem Öltank verteilt der Planer den verbrannten Liter auf die
+Räume. **Das ist eine Schätzung, kein Messwert:** Kein übliches Thermostat
+meldet, wie weit sein Ventil offen steht.
+
+So wird gerechnet: Je Takt bekommt jeder geregelte Raum ein Gewicht aus
+Temperaturunterschied innen–außen mal Zeit mal **Raumfaktor** (Raumdialog,
+Blatt *Fühler und Melder*; grob die Heizkörpergröße, 1 = normal). Sobald der
+Tankteil Liter verbucht, gehen 15 % davon ans Warmwasser und der Rest nach
+diesen Gewichten an die Räume. Heizt gerade kein Raum (Sommer), geht alles ans
+Warmwasser. Ein Liter Heizöl zählt als 10 kWh.
+
+Je Raum entstehen zwei Zähler, `sensor.heizungsplaner_raum_<name>_energie`
+(kWh) und `…_heizkosten` (€), dazu dasselbe für `warmwasser`. Beide wachsen
+nur, Home Assistant führt daraus Tages- und Monatsstatistik. Mit 20–30 %
+Abweichung je Raum ist zu rechnen; für die Reihenfolge und den Verlauf reicht es.
+
 ## Handeingriffe
 
 Wird ein Thermostat von Hand verstellt – am Gerät, in Home Assistant oder per

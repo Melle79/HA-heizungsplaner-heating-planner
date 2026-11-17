@@ -20,6 +20,12 @@ window.SPRACHEN.en = {
   "Übersicht": "Overview",
   "Räume": "Rooms",
   "Fenster zu": "Window closed",
+  "Energieschätzung": "Energy estimate",
+  "Raumfaktor": "Room factor",
+  "Wie viel Wärme dieser Raum im Vergleich zieht – grob die Heizkörpergröße: 0,5 klein, 1 normal, 2 groß. Damit wird der Ölverbrauch auf die Räume verteilt. Das ist eine Schätzung, kein Messwert.":
+    "How much heat this room draws compared with the others – roughly the radiator size: 0.5 small, 1 normal, 2 large. The oil consumption is split across the rooms by this. It is an estimate, not a measurement.",
+  "heute": "today",
+  "Monat": "Month",
   "Fensterkontakt meldet nichts": "Window contact not reporting",
   "Einstellungen": "Settings",
   "Protokoll": "Log",

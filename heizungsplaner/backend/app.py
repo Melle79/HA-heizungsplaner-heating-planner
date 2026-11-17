@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from flask import Flask, jsonify, request, send_from_directory
 
 import einheit
+import energie
 import ha_api
 import logbuch
 import regelung
@@ -83,6 +84,7 @@ def _takt_ausfuehren() -> dict:
             _stoerungen_melden(bericht.get("stoerungen") or [], state,
                                config["einstellungen"])
             bericht["tank"] = _tank_rechnen(config["einstellungen"], state)
+            bericht["energie"] = _energie_rechnen(config, state, bericht)
             store.save_state(state)
         bericht["version"] = VERSION
         _letzter_bericht = bericht
@@ -116,6 +118,19 @@ def _tank_rechnen(einstellungen: dict, state: dict) -> dict:
         for dienst in dienste:
             ha_api.notify(dienst, titel, text)
     return bericht
+
+
+def _energie_rechnen(config: dict, state: dict, bericht: dict) -> dict:
+    """Heizenergie je Raum schätzen – nur mit Tankteil, denn ohne verbuchte
+    Liter gibt es nichts zu verteilen. Eigenes Fangnetz wie beim Tank."""
+    tankbericht = bericht.get("tank") or {}
+    if not tankbericht.get("aktiv") or tankbericht.get("fehler"):
+        return {"aktiv": False}
+    try:
+        return {"aktiv": True, **energie.takt(config, state, bericht, tankbericht)}
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.exception("Energieschätzung fehlgeschlagen")
+        return {"aktiv": True, "fehler": str(err)}
 
 
 def _stoerungen_melden(stoerungen: list, state: dict, einstellungen: dict) -> None:

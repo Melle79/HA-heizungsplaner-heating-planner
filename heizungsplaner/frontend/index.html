@@ -268,6 +268,9 @@
   .fensterlage span{display:inline-flex; align-items:center; gap:4px}
   .fensterlage .offen{color:var(--achtung); font-weight:600}
   .fensterlage .stumm{color:var(--warm)}
+  .energie{display:flex; justify-content:space-between; gap:var(--l2);
+           font-size:.75rem; color:var(--leise); margin-top:var(--l1)}
+  .kommt{color:var(--text)}
   .eingriff{font-size:.82rem; font-weight:500; flex:none;
             color:var(--warn,#e0a030); margin-top:var(--l1)}
 .grund{font-size:.82rem; color:var(--leise); flex:1;
@@ -1101,6 +1104,15 @@
           Messwerten, und wo die Raumtemperatur vom Thermostat kommt, meldet
           das oft nur in ganzen Grad.</div>
       </div>
+      <div class="abschnitt">
+        <h3>Energieschätzung</h3>
+        <div class="feld"><label>Raumfaktor</label>
+          <input type="number" id="r-energie-faktor" min="0.1" max="5" step="0.1" placeholder="1">
+          <div class="notiz">Wie viel Wärme dieser Raum im Vergleich zieht – grob die
+            Heizkörpergröße: 0,5 klein, 1 normal, 2 groß. Damit wird der
+            Ölverbrauch auf die Räume verteilt. Das ist eine Schätzung, kein
+            Messwert.</div></div>
+      </div>
     </div>
   </div>
 
@@ -1717,7 +1729,7 @@ function lageZeichnen(bericht) {
     </div>`).join('');
 }
 
-function karteZeichnen(raum) {
+function karteZeichnen(raum, energie) {
   const ruht = RUHT.includes(raum.zustand);
   // Ein Raum, dessen Thermostate sich alle abgemeldet haben, wird von
   // niemandem geregelt. Eine Zahl auf seiner Kachel wäre eine Behauptung
@@ -1816,8 +1828,17 @@ function karteZeichnen(raum) {
     <div class="fusszeile">
       <div class="wechsel">
         <span>seit ${uhr(raum.seit)}</span>
-        <span>nächster Wechsel ${zeitpunkt(raum.naechster_wechsel)}</span>
+        <span><span>nächster Wechsel ${zeitpunkt(raum.naechster_wechsel)}</span>${
+          raum.naechster_modus ? `<span class="kommt"> → <span>${MODUS_NAME[raum.naechster_modus]
+            || ZUSTAND_NAME[raum.naechster_modus] || raum.naechster_modus}</span>${
+            raum.naechstes_ziel !== null && raum.naechstes_ziel !== undefined
+              ? ` <span data-roh>${zahl(raum.naechstes_ziel)} ${EINHEIT}</span>` : ''}</span>` : ''}</span>
       </div>
+      ${energie ? `<div class="energie" title="Geschätzt aus Gradstunden und Ölverbrauch, nicht gemessen">
+        <span>≈ <span data-roh>${zahl(energie.heute_kwh)} kWh${energie.heute_eur
+          ? ' · ' + zahl(energie.heute_eur) + ' €' : ''}</span> heute</span>
+        <span>Monat <span data-roh>${zahl(energie.monat_kwh)} kWh${energie.monat_eur
+          ? ' · ' + zahl(energie.monat_eur) + ' €' : ''}</span></span></div>` : ''}
       ${thermostate ? `<details style="margin-top:var(--l1)">
         <summary>${anzahl} Thermostat${anzahl === 1 ? '' : 'e'}</summary>
         ${thermostate}</details>` : ''}
@@ -2027,7 +2048,9 @@ function berichtZeichnen(bericht) {
   const ziel = $('raumkarten');
   ziel.innerHTML = '';
   const liste = bericht.raeume || [];
-  for (const raum of liste) ziel.appendChild(karteZeichnen(raum));
+  const energie = {};
+  for (const z of ((bericht.energie || {}).raeume || [])) energie[z.id] = z;
+  for (const raum of liste) ziel.appendChild(karteZeichnen(raum, energie[raum.id]));
 
   // Ohne Antwort von Home Assistant ist der Bericht leer – das heißt aber
   // nicht, dass keine Räume eingerichtet wären.
@@ -2678,6 +2701,7 @@ function raumOeffnen(raum, startblatt) {
   $('r-party').checked = d.party !== false;
   $('r-sturz').checked = d.sturz_auch_mit_kontakten;
   $('r-fenster-erkennung').checked = d.fenster_erkennung !== false;
+  $('r-energie-faktor').value = d.energie_faktor ?? 1;
   $('r-fenster-karenz').value = d.fenster_karenz_min === null
     || d.fenster_karenz_min === undefined ? '' : d.fenster_karenz_min;
   $('r-karenz').value = d.karenz_min === null || d.karenz_min === undefined
@@ -2772,6 +2796,7 @@ $('btn-raum-speichern').onclick = async () => {
     freigabe_entity: $('r-freigabe').value,
     sturz_auch_mit_kontakten: $('r-sturz').checked,
     fenster_erkennung: $('r-fenster-erkennung').checked,
+    energie_faktor: parseFloat($('r-energie-faktor').value) || 1,
     fenster_karenz_min: $('r-fenster-karenz').value === ''
       ? null : parseInt($('r-fenster-karenz').value, 10),
     zeitplan: zeitplanEntwurf,

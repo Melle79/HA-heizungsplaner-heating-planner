@@ -241,6 +241,9 @@ STANDARD_RAUM = {
     # Temperatursturz-Erkennung scharf – und die ist ein Schluss aus zwei
     # Messwerten, der bei grob meldenden Fühlern zwangsläufig danebengreift.
     "fenster_erkennung": True,
+    # Für die Energieschätzung je Raum: Wie viel Wärme der Raum im Vergleich
+    # zieht – grob die Heizkörpergröße. 1 = normal, 0,5 = klein, 2 = groß.
+    "energie_faktor": 1.0,
     # Regeln, die den Zeitplan übersteuern, solange ihre Bedingungen alle
     # zutreffen – etwa „Werktag, keine Ferien, Isabel zu Hause“ für ein
     # Wohnzimmer, das sonst vormittags absinken würde.
@@ -539,6 +542,8 @@ def validate_raum(raum: dict, vorhandene_id: str | None = None) -> dict:
         "freigabe_entity": str(raum.get("freigabe_entity") or "").strip(),
         "sturz_auch_mit_kontakten": bool(raum.get("sturz_auch_mit_kontakten", False)),
         "fenster_erkennung": bool(raum.get("fenster_erkennung", True)),
+        "energie_faktor": _zahl(raum.get("energie_faktor", 1.0) if raum.get("energie_faktor")
+                                not in (None, "") else 1.0, "Raumfaktor", 0.1, 5.0),
         "uebersteuerung": uebersteuerung,
         "zeitplan": validate_zeitplan(raum.get("zeitplan") or []),
         **temperaturen,

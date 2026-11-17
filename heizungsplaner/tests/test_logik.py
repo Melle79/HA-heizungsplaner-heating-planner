@@ -2868,6 +2868,41 @@ pruefe(regelung.fenster_kurz(regelung.fenster_lage(
     "geräteeigene Erkennung zählt nicht als Kontakt")
 pruefe(regelung.fenster_lage({"fenster": []}, _idx) == [], "Raum ohne Kontakte: leere Liste")
 
+print("\n=== Energie je Raum (Schätzung) ===")
+import energie as _en
+_cfg = {"raeume": [{"id": "a", "name": "A"}, {"id": "b", "name": "B", "energie_faktor": 2.0},
+                   {"id": "c", "name": "C"}], "einstellungen": {}}
+_st = {}
+_t0 = datetime(2026, 11, 17, 10, 0)
+_ber = {"aussen": 5.0, "raeume": [
+    {"id": "a", "zustand": "komfort", "ist": 21.0, "ziel": 21.0},
+    {"id": "b", "zustand": "eco", "ist": None, "ziel": 15.0},
+    {"id": "c", "zustand": "gesperrt", "ist": 14.0, "ziel": 8.0}]}
+_en.takt(_cfg, _st, _ber, {"verbrauch_takt": 0}, _t0)
+pruefe(_st["energie"]["offen"] == {}, "erster Takt zählt keine Heizzeit")
+_en.takt(_cfg, _st, _ber, {"verbrauch_takt": 0}, _t0 + timedelta(minutes=10))
+_o = _st["energie"]["offen"]
+pruefe(abs(_o["a"] - 16 / 6) < 1e-3 and abs(_o["b"] - 20 / 6) < 1e-3 and "c" not in _o,
+       "Gradstunden × Faktor, ohne Ist der Zielwert, ruhender Raum zählt nicht")
+_r = _en.takt(_cfg, _st, _ber, {"verbrauch_takt": 2.4, "preis_pro_liter": 2.0},
+              _t0 + timedelta(minutes=20))
+_z = {z["id"]: z for z in _r["raeume"]}
+pruefe(abs(_r["warmwasser"]["kwh"] - 3.6) < 1e-6, "15 % von 24 kWh ans Warmwasser")
+pruefe(abs(_z["a"]["kwh"] + _z["b"]["kwh"] - 20.4) < 1e-6 and _z["b"]["kwh"] > _z["a"]["kwh"],
+       "der Rest nach Gewicht auf die Räume")
+pruefe(abs(_z["a"]["eur"] + _z["b"]["eur"] + _r["warmwasser"]["eur"] - 4.8) < 1e-6,
+       "Kosten gehen mit")
+pruefe(_st["energie"]["offen"] == {}, "nach dem Buchen fangen die Gewichte neu an")
+_st2 = {}
+_en.takt(_cfg, _st2, {"aussen": 25.0, "raeume": _ber["raeume"]}, {"verbrauch_takt": 0}, _t0)
+_r2 = _en.takt(_cfg, _st2, {"aussen": 25.0, "raeume": _ber["raeume"]},
+               {"verbrauch_takt": 1.0}, _t0 + timedelta(minutes=5))
+pruefe(abs(_r2["warmwasser"]["kwh"] - 10.0) < 1e-6, "heizt kein Raum, ist alles Warmwasser")
+_st3 = {}
+_en.takt(_cfg, _st3, _ber, {"verbrauch_takt": 0}, _t0)
+_en.takt(_cfg, _st3, _ber, {"verbrauch_takt": 0}, _t0 + timedelta(hours=3))
+pruefe(_st3["energie"]["offen"] == {}, "eine lange Lücke zählt nicht als Heizzeit")
+
 print("\n=== Die Fassung steht an einer Stelle ===")
 # Sie stand einmal doppelt – in config.yaml und in version.py – und lief
 # auseinander: Die Oberfläche zeigte „v1.31.1“, während das Add-on schon
