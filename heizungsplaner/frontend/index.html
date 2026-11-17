@@ -1820,7 +1820,8 @@ function karteZeichnen(raum, energie) {
         ? '' : 'ist ' + zahl(raum.ist) +  ' ' + EINHEIT}</span>
     </div>
     ${fensterlage}
-    <div class="grund">${raum.begruendung}</div>
+    ${raum.zustand === 'fenster' && kontakte.some(f => f.offen === true)
+      ? '' : `<div class="grund">${raum.begruendung}</div>`}
     ${eingriff ? `<div class="eingriff">Von Hand · statt geplant
        ${zahl(raum.ziel)} ${EINHEIT} · Planer führt wieder ab
        ${uhr(eingriff.manuell_bis)} Uhr</div>`

@@ -1,5 +1,10 @@
 # Änderungen
 
+## 1.44.2
+
+- Bei offenem Fensterkontakt steht der Grund nicht mehr doppelt auf der
+  Kachel: Die Fensterzeile sagt schon, welches Fenster offen ist.
+
 ## 1.44.1
 
 - **Behoben: Ein offenes Fenster setzte sich nicht gegen einen Handeingriff
