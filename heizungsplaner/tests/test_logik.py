@@ -1030,6 +1030,18 @@ pruefe(len(aktionen) >= 1 and all(a.get("wert", a.get("ziel")) is not None or a.
                                   for a in aktionen),
        f"offenes Fenster überstimmt den Handeingriff ({aktionen})")
 
+# Fenster offen, Planer hat 8 °C geschrieben, jemand dreht am Rad auf 23 °C:
+# kein Handeingriff, der Planer stellt zurück.
+_zf = {"thermostate": {}, "raeume": {}}
+for _eid in wohnzimmer["thermostate"]:
+    _zf["thermostate"][_eid] = {"soll": 8.0}
+aktionen = regelung.anwenden(wohnzimmer, {"zustand": "fenster", "ziel": 8.0,
+                                          "begruendung": "F ist offen", "erzwingen": True},
+                             _zf, umg, protokoll)
+pruefe(aktionen and all(a.get("aktion") == "soll" and a.get("wert") == 8.0 for a in aktionen)
+       and not any(t.get("manuell_bis") for t in _zf["thermostate"].values()),
+       f"Drehen am Rad bei offenem Fenster wird zurückgestellt ({aktionen})")
+
 print("\n=== Home Assistant startet gerade ===")
 # Beobachtet nach einem HA-Neustart: `/states` liefert eine wachsende
 # Teilliste. Wer darauf rechnet, meldet ein Dutzend Ausfaelle, die keine sind.
