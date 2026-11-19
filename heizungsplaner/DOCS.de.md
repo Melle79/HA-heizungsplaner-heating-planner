@@ -307,6 +307,11 @@ eigene: die allgemeine, Vorgabe 45 Minuten). Ein kurzer Gang mit dem Hund
 ändert so nichts, auch nicht am Wochenprogramm des Kessels. Wer
 heimkommt, zählt sofort.
 
+Gezählt wird ab dem Augenblick, in dem die Person das Haus verlassen hat –
+ein späterer Wechsel von „unterwegs“ zu „Büro“ startet die Frist nicht neu.
+Und die Karenz trägt nur eine Regel, die schon läuft: Wer vor Beginn ihres
+Zeitfensters gegangen ist, schaltet sie nicht mehr ein.
+
 **Was die Übersteuerung nicht aushebelt:** ein offenes Fenster, den
 Sommerbetrieb, den Urlaubsschalter und die Anwesenheitsabsenkung. Das ist
 Absicht: Eine Regel, die sich verhakt, heizt so kein leeres Haus.

@@ -304,6 +304,11 @@ been away longer than the room's grace period (without one of its own: the
 general one, default 45 minutes). A short walk with the dog changes nothing –
 not even the boiler's weekly programme. Coming home counts at once.
 
+The period runs from the moment the person left the house – a later change
+from “away” to “Office” does not restart it. And the grace period only carries
+a rule that is already running: someone who left before its time window
+began does not switch it on any more.
+
 **What the override does not suspend:** an open window, summer mode, the
 holiday switch and the presence setback. That is deliberate: a rule that gets
 stuck will not heat an empty house.

@@ -1,5 +1,17 @@
 # Änderungen
 
+## 1.44.3
+
+- **Behoben: Ein Ortswechsel unterwegs holte eine Person für die Karenzzeit
+  zurück ins Haus.** Kam jemand, der längst fort war, im Büro an, begann die
+  Karenz von vorn, und eine Homeoffice-Regel griff noch einmal eine halbe
+  Stunde. Jedes Mal verschob sich das Komfortfenster im Wochenprogramm des
+  Kessels – zwei Telegramme an BSB-LAN für nichts. Jetzt zählt der Augenblick
+  des Fortgehens.
+- Die Karenz zündet keine Regel mehr an: Wer vor Beginn ihres Zeitfensters
+  gegangen ist, schaltet sie nicht ein. Bisher sprang „Homeoffice ab 08:00“
+  um acht für eine Viertelstunde an, obwohl niemand mehr daheim war.
+
 ## 1.44.2
 
 - Bei offenem Fensterkontakt steht der Grund nicht mehr doppelt auf der

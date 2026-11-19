@@ -550,6 +550,7 @@ pruefe(sommer["zustand"] == "sommer",
 # Die eigentliche Homeoffice-Regelung braucht keinen Schalter: Werktag, keine
 # Ferien und Isabel zu Hause - alle drei Bedingungen zusammen.
 def lage_homeoffice(werktag=True, ferien=False, isabel="home", seit_min=None):
+    regelung._FORT_SEIT.clear()     # jede Lage für sich, ohne Gedächtnis
     r = store.validate_raum({**wohnzimmer, "uebersteuerung": [{
         "modus": "komfort",
         "wenn": [{"entity": "binary_sensor.workday", "zustand": "an"},
@@ -599,6 +600,7 @@ def lage_fenster(stunde, von="08:00", bis="18:00"):
 
 # Die Lage-Auskunft, die auch ueber MQTT aufs Dashboard geht
 def lage_auskunft(isabel="home", ferien="off", stunde=10, seit_min=None, karenz=0):
+    regelung._FORT_SEIT.clear()
     r = store.validate_raum({**wohnzimmer, "uebersteuerung": [{
         "name": "Homeoffice", "modus": "komfort", "von": "08:00", "bis": "18:00",
         "wenn": [{"entity": "calendar.ferien", "zustand": "aus"},
@@ -682,6 +684,46 @@ pruefe(not a["greift"] and "Isabel ist nicht zu Hause" in a["lage"],
        f"Lage: nach der Karenz ruht sie ({a['lage']})")
 a = lage_auskunft(isabel="not_home", seit_min=10)
 pruefe(not a["greift"], f"Lage: ohne Karenz bleibt es beim Alten ({a['lage']})")
+
+# 19.11.2026: eine Person um 07:43 fort, um 08:45 im Büro angekommen. Der
+# Zonenwechsel setzte last_changed neu, die Karenz lief noch einmal an, und
+# die Homeoffice-Regel griff eine halbe Stunde lang – zwei Telegramme für den
+# Kessel. Gemerkt wird jetzt das Fortgehen, nicht der letzte Zonenwechsel.
+def zone_lage(zustand, fort_vor_min, uhr, von="08:00", karenz=30):
+    jetzt = montag.replace(hour=uhr[0], minute=uhr[1])
+    r = store.validate_raum({**wohnzimmer, "uebersteuerung": [{
+        "name": "Homeoffice", "modus": "komfort", "von": von, "bis": "14:00",
+        "wenn": [{"entity": "person.isabel", "zustand": "an"}]}]})
+    idx = {"person.isabel": {"entity_id": "person.isabel", "state": zustand,
+                             "attributes": {"friendly_name": "Isabel"},
+                             "last_changed": geaendert_vor(jetzt, fort_vor_min)}}
+    return regelung.uebersteuerung_lage(r, idx, jetzt, karenz)
+
+regelung._FORT_SEIT.clear()
+a = zone_lage("not_home", 5, (7, 0), von="06:00")
+pruefe(a["greift"], f"Zone: fünf Minuten fort, Karenz trägt ({a['lage']})")
+a = zone_lage("Büro", 3, (7, 50), von="06:00")
+pruefe(not a["greift"],
+       f"Zone: Ankunft im Büro startet die Karenz nicht neu ({a['lage']})")
+a = zone_lage("home", 0, (8, 0), von="06:00")
+pruefe(a["greift"], f"Zone: wieder daheim greift sofort ({a['lage']})")
+a = zone_lage("not_home", 2, (8, 2), von="06:00")
+pruefe(a["greift"],
+       f"Zone: nach der Heimkehr gilt das neue Fortgehen ({a['lage']})")
+
+regelung._FORT_SEIT.clear()
+a = zone_lage("not_home", 19, (8, 2))
+pruefe(not a["greift"],
+       f"Zone: vor Beginn der Regel gegangen, keine Karenz ({a['lage']})")
+regelung._FORT_SEIT.clear()        # ein anderer Tag: daheim bis 08:15
+a = zone_lage("not_home", 10, (8, 25))
+pruefe(a["greift"],
+       f"Zone: während der Regel gegangen, Karenz trägt ({a['lage']})")
+regelung._FORT_SEIT.clear()
+a = zone_lage("not_home", 10, (23, 5), von="22:00")
+pruefe(a["greift"],
+       f"Zone: Fenster über Mitternacht rechnet ab gestern 22:00 ({a['lage']})")
+regelung._FORT_SEIT.clear()
 r = {"karenz_min": None}
 pruefe(regelung.regel_karenz(r, einst) == k, "die globale Karenz gilt, wenn der Raum keine hat")
 pruefe(regelung.regel_karenz({"karenz_min": 10}, einst) == 10, "die Karenz des Raumes geht vor")

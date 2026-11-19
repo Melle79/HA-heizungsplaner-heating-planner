@@ -104,8 +104,37 @@ def _bool_state(states_index: dict, entity_id: str) -> bool | None:
     return None
 
 
+# Seit wann eine Person fort ist – gemerkt über die Takte hinweg.
+#
+# ``last_changed`` allein taugt dafür nicht: Es springt bei **jedem**
+# Zustandswechsel, auch von „not_home“ zu „Stadtkämmerei“. Am 19.11.2026 war
+# eine Person seit 07:43 aus dem Haus; als sie um 08:45 im Büro ankam, begann die
+# Karenz von vorn, die Homeoffice-Regel griff noch einmal eine halbe Stunde,
+# und das Kesselprogramm bekam zwei Telegramme für nichts. Gemerkt wird
+# deshalb der Augenblick des Fortgehens, und er gilt, bis die Person wieder
+# „home“ meldet. Nach einem Neustart fehlt das Gedächtnis; dann bleibt nur
+# ``last_changed`` – im schlimmsten Fall eine Karenz zu viel, wie bisher.
+_FORT_SEIT: dict[str, datetime] = {}
+
+
+def _fort_seit(entity_id: str, eintrag: dict, jetzt: datetime) -> datetime | None:
+    """Seit wann ist diese Person nicht mehr daheim – über Zonenwechsel hinweg?"""
+    zustand = eintrag.get("state")
+    if zustand == "home":
+        _FORT_SEIT.pop(entity_id, None)
+        return None
+    gemeldet = _seit_wann(eintrag)
+    gemerkt = _FORT_SEIT.get(entity_id)
+    if gemerkt is None or (gemeldet is not None and gemeldet < gemerkt):
+        gemerkt = gemeldet
+    if gemerkt is not None:
+        _FORT_SEIT[entity_id] = gemerkt
+    return gemerkt
+
+
 def _bedingung_erfuellt(states_index: dict, entity_id: str, soll: bool,
-                        jetzt: datetime, karenz_min: int) -> bool | None:
+                        jetzt: datetime, karenz_min: int,
+                        regel_ab: datetime | None = None) -> bool | None:
     """Trifft eine Bedingung einer Übersteuerungsregel zu?
 
     Wie ``_bool_state``, nur dass eine Person erst nach der Karenzzeit als
@@ -115,17 +144,41 @@ def _bedingung_erfuellt(states_index: dict, entity_id: str, soll: bool,
     Komfortfenster im Wochenprogramm des Kessels mit, zwei Telegramme je Weg.
 
     Nach Hause kommen zählt sofort, nur das Fortgehen wartet.
+
+    ``regel_ab`` ist der Beginn des heutigen Zeitfensters der Regel. Wer schon
+    *davor* gegangen ist, bekommt keine Karenz: Die Frist soll eine laufende
+    Regel über eine kurze Abwesenheit tragen, nicht eine neue anzünden. Sonst
+    sprang „Homeoffice ab 08:00“ um acht für eine Viertelstunde an, obwohl
+    die Person um 07:43 zur Arbeit gefahren war.
     """
     ist = _bool_state(states_index, entity_id)
     if ist is False and karenz_min > 0 and \
             entity_id.split(".", 1)[0] in ("person", "device_tracker"):
-        fort_seit = _seit_wann(states_index.get(entity_id) or {})
+        fort_seit = _fort_seit(entity_id, states_index.get(entity_id) or {}, jetzt)
         if fort_seit is not None and \
+                (regel_ab is None or fort_seit >= regel_ab) and \
                 (jetzt - fort_seit).total_seconds() < karenz_min * 60:
             ist = True
+    elif ist is True and entity_id.split(".", 1)[0] in ("person", "device_tracker"):
+        _FORT_SEIT.pop(entity_id, None)
     if ist is None:
         return None
     return ist == soll
+
+
+def _regel_ab(von: str | None, bis: str | None, jetzt: datetime) -> datetime | None:
+    """Wann das gerade laufende Zeitfenster einer Regel begonnen hat."""
+    if not von or not bis:
+        return None
+    try:
+        stunde, minute = (int(teil) for teil in str(von).split(":", 1))
+    except ValueError:
+        return None
+    beginn = jetzt.replace(hour=stunde, minute=minute, second=0, microsecond=0)
+    if beginn > jetzt:
+        # Ein Fenster über Mitternacht (22:00–06:00) hat gestern begonnen.
+        beginn -= timedelta(days=1)
+    return beginn
 
 
 def _seit_wann(eintrag: dict) -> datetime | None:
@@ -337,7 +390,8 @@ def uebersteuerung_lage(raum: dict, states_index: dict,
         ist = _bool_state(states_index, entity_id)
         soll = (bedingung.get("zustand", "an") == "an")
         if _bedingung_erfuellt(states_index, entity_id, soll, jetzt,
-                               karenz_min):
+                               karenz_min, _regel_ab(regel.get("von"),
+                                                     regel.get("bis"), jetzt)):
             continue
         anzeige = ((states_index.get(entity_id) or {}).get("attributes") or {}).get(
             "friendly_name", entity_id)
@@ -382,11 +436,13 @@ def _uebersteuerung(raum: dict, states_index: dict,
         if not _im_fenster(eintrag.get("von"), eintrag.get("bis"), jetzt):
             continue
         namen = []
+        regel_ab = _regel_ab(eintrag.get("von"), eintrag.get("bis"), jetzt)
         for bedingung in eintrag.get("wenn") or []:
             entity_id = bedingung.get("entity")
             soll = bedingung.get("zustand", "an") == "an"
             if not entity_id or not _bedingung_erfuellt(
-                    states_index, entity_id, soll, jetzt, karenz_min):
+                    states_index, entity_id, soll, jetzt, karenz_min,
+                    regel_ab):
                 break
             name = ((states_index.get(entity_id) or {}).get("attributes") or {}).get(
                 "friendly_name", entity_id)
